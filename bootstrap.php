@@ -10,7 +10,8 @@
  *  - Set timezone
  *  - Configure session
  *  - Load application configuration
- *  - Create PDO database connection (available via $db)
+ *  - Create PDO database connection (available via getDb())
+ *  - Register global view helper functions
  */
 
 declare(strict_types=1);
@@ -43,16 +44,15 @@ date_default_timezone_set($appConfig['timezone']);
 $secure   = filter_var($_ENV['SESSION_SECURE'] ?? false, FILTER_VALIDATE_BOOLEAN);
 $sameSite = 'Strict';
 
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path'     => '/',
-    'domain'   => '',
-    'secure'   => $secure,
-    'httponly' => true,
-    'samesite' => $sameSite,
-]);
-
-if (session_status() === PHP_SESSION_NONE) {
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => '',
+        'secure'   => $secure,
+        'httponly' => true,
+        'samesite' => $sameSite,
+    ]);
     session_start();
 }
 
@@ -115,4 +115,33 @@ function config(string $key, mixed $default = null): mixed
     }
 
     return $value;
+}
+
+// ─── Global view helpers ───────────────────────────────────────────────────
+
+/**
+ * Escape a value for safe HTML output (XSS prevention).
+ * Use on ALL user-supplied values before echoing into HTML.
+ */
+function h(string|int|float|null $value): string
+{
+    return htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Return the full public URL for a static asset.
+ * Example: asset('css/app.css') → http://localhost/sksl/public/css/app.css
+ */
+function asset(string $path): string
+{
+    return rtrim(config('app.url'), '/') . '/' . ltrim($path, '/');
+}
+
+/**
+ * Return the full URL for an application route path.
+ * Example: app_url('login') → http://localhost/sksl/public/login
+ */
+function app_url(string $path = ''): string
+{
+    return rtrim(config('app.url'), '/') . '/' . ltrim($path, '/');
 }
