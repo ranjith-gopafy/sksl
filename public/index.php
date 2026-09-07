@@ -62,6 +62,18 @@ $router->post('/admin/verify-otp', [\App\Controllers\AdminAuthController::class,
 $router->get('/admin/logout', [\App\Controllers\AdminAuthController::class, 'logout']);
 $router->post('/admin/logout', [\App\Controllers\AdminAuthController::class, 'logout']);
 
+// ─── Admin Management Operations ──────────────────────────────────────────
+$router->get('/admin/bookings', [\App\Controllers\AdminBookingController::class, 'index']);
+$router->post('/admin/bookings/{id}/status', [\App\Controllers\AdminBookingController::class, 'updateStatus']);
+
+$router->get('/admin/services', [\App\Controllers\AdminServiceController::class, 'index']);
+$router->post('/admin/services/{id}/toggle', [\App\Controllers\AdminServiceController::class, 'toggle']);
+$router->post('/admin/services/{id}/update', [\App\Controllers\AdminServiceController::class, 'update']);
+
+$router->get('/admin/closed-dates', [\App\Controllers\AdminClosedDateController::class, 'index']);
+$router->post('/admin/closed-dates', [\App\Controllers\AdminClosedDateController::class, 'create']);
+$router->post('/admin/closed-dates/{id}/delete', [\App\Controllers\AdminClosedDateController::class, 'delete']);
+
 $router->get('/health', function() {
     header('Content-Type: application/json');
     try {

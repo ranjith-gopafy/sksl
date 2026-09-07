@@ -235,4 +235,55 @@ class BookingModel
             'hours_remaining' => $hoursRemaining,
         ];
     }
+
+    /**
+     * Search and retrieve bookings for admin management.
+     *
+     * @param array<string, mixed> $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function getAdminBookings(array $filters = []): array
+    {
+        $sql = "SELECT b.*, s.name as service_name, s.slug as service_slug,
+                       u.name as user_name, u.email as user_email, u.mobile as user_mobile,
+                       p.razorpay_payment_id, p.razorpay_order_id, p.status as payment_record_status
+                FROM bookings b
+                JOIN services s ON b.service_id = s.id
+                JOIN users u ON b.user_id = u.id
+                LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'paid'
+                WHERE 1=1";
+
+        $params = [];
+
+        if (!empty($filters['date'])) {
+            $sql .= " AND b.booking_date = :date";
+            $params['date'] = $filters['date'];
+        }
+
+        if (!empty($filters['service_id'])) {
+            $sql .= " AND b.service_id = :service_id";
+            $params['service_id'] = (int) $filters['service_id'];
+        }
+
+        if (!empty($filters['status'])) {
+            $sql .= " AND b.booking_status = :status";
+            $params['status'] = $filters['status'];
+        }
+
+        if (!empty($filters['search'])) {
+            $sql .= " AND (b.booking_reference LIKE :s1 OR u.name LIKE :s2 OR u.email LIKE :s3 OR u.mobile LIKE :s4)";
+            $term = '%' . $filters['search'] . '%';
+            $params['s1'] = $term;
+            $params['s2'] = $term;
+            $params['s3'] = $term;
+            $params['s4'] = $term;
+        }
+
+        $limit = isset($filters['limit']) ? (int) $filters['limit'] : 100;
+        $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC LIMIT " . max(1, min(500, $limit));
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll() ?: [];
+    }
 }

@@ -107,4 +107,34 @@ class ServiceModel
             'total_amount' => $totalAmount,
         ];
     }
+
+    /**
+     * Update active/inactive status of a service.
+     */
+    public function updateStatus(int $id, string $status): bool
+    {
+        $stmt = $this->db->prepare('UPDATE services SET status = ? WHERE id = ?');
+        return $stmt->execute([$status, $id]);
+    }
+
+    /**
+     * Update editable attributes of a service (price, capacity, description).
+     *
+     * @param array<string, mixed> $data
+     */
+    public function updateDetails(int $id, array $data): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE services 
+             SET price = :price, capacity = :capacity, description = :description, status = :status
+             WHERE id = :id'
+        );
+        return $stmt->execute([
+            'price'       => $data['price'],
+            'capacity'    => $data['capacity'],
+            'description' => $data['description'],
+            'status'      => $data['status'] ?? 'active',
+            'id'          => $id,
+        ]);
+    }
 }
