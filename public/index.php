@@ -48,6 +48,7 @@ $router->post('/api/payment/create-order', [\App\Controllers\PaymentController::
 $router->post('/api/payment/verify', [\App\Controllers\PaymentController::class, 'verify']);
 $router->post('/api/payment/webhook', [\App\Controllers\PaymentController::class, 'webhook']);
 $router->get('/booking-confirmation', [\App\Controllers\PaymentController::class, 'confirmation']);
+$router->get('/bookings/{ref}/invoice', [\App\Controllers\PaymentController::class, 'downloadInvoice']);
 
 $router->get('/health', function() {
     header('Content-Type: application/json');

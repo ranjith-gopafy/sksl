@@ -156,4 +156,26 @@ class PaymentController
         $viewFile = dirname(__DIR__) . '/views/pages/booking-confirmation.php';
         require dirname(__DIR__) . '/views/layouts/main.php';
     }
+
+    /**
+     * GET /bookings/{ref}/invoice
+     * Download GST Tax Invoice PDF. Requires customer authentication.
+     *
+     * @param array<string, string> $params
+     */
+    public function downloadInvoice(array $params = []): void
+    {
+        CustomerAuth::handle();
+
+        $reference = trim((string) ($params['ref'] ?? $_GET['ref'] ?? ''));
+        if ($reference === '') {
+            http_response_code(400);
+            echo 'Booking reference required.';
+            exit;
+        }
+
+        $userId = (int) $_SESSION['user_id'];
+        $invoiceService = new \App\Services\InvoiceService();
+        $invoiceService->downloadInvoice($reference, $userId);
+    }
 }
