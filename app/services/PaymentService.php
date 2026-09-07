@@ -237,6 +237,21 @@ class PaymentService
             $this->holdModel->release($bookingReference);
 
             $this->db->commit();
+
+            // Post-commit: Generate Tax Invoice PDF & send confirmation emails
+            try {
+                $invoiceService = new InvoiceService($this->db, $this->bookingModel, $this->paymentModel);
+                $pdfPath = $invoiceService->generateInvoicePdf($bookingReference);
+
+                $emailService = new EmailService();
+                $updatedBooking = $this->bookingModel->findById((int) $booking['id']);
+                if ($updatedBooking) {
+                    $emailService->sendBookingConfirmation($updatedBooking, $pdfPath);
+                    $emailService->sendAdminBookingNotification($updatedBooking);
+                }
+            } catch (\Throwable $mailEx) {
+                error_log('Post-payment notification exception: ' . $mailEx->getMessage());
+            }
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -301,6 +316,20 @@ class PaymentService
                             );
                             $this->bookingModel->updateStatus((int) $payment['booking_id'], 'confirmed', 'paid');
                             $this->db->commit();
+
+                            // Post-commit: Generate Invoice and send emails
+                            try {
+                                $invoiceService = new InvoiceService($this->db, $this->bookingModel, $this->paymentModel);
+                                $updatedBooking = $this->bookingModel->findById((int) $payment['booking_id']);
+                                if ($updatedBooking) {
+                                    $pdfPath = $invoiceService->generateInvoicePdf($updatedBooking['booking_reference']);
+                                    $emailService = new EmailService();
+                                    $emailService->sendBookingConfirmation($updatedBooking, $pdfPath);
+                                    $emailService->sendAdminBookingNotification($updatedBooking);
+                                }
+                            } catch (\Throwable $mailEx) {
+                                error_log('Webhook email notification exception: ' . $mailEx->getMessage());
+                            }
                         } catch (\Throwable $e) {
                             if ($this->db->inTransaction()) {
                                 $this->db->rollBack();
