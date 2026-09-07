@@ -224,6 +224,62 @@
     </div>
 </div>
 
+<!-- Mock Payment Modal (Local Dev Mode) -->
+<div id="mock-payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+    <div class="bg-slate-900 border border-cyan-500/40 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl shadow-cyan-500/10">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-white font-heading">Razorpay Gateway (Test Mode)</h3>
+                <p class="text-xs text-slate-400">Local Simulation &bull; Razorpay keys empty in .env</p>
+            </div>
+        </div>
+
+        <div class="bg-slate-950 rounded-2xl p-4 border border-slate-800 space-y-2.5 text-xs mb-6">
+            <div class="flex justify-between text-slate-400">
+                <span>Modality</span>
+                <span id="mock-service" class="font-semibold text-white"></span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+                <span>Order Reference</span>
+                <span id="mock-ref" class="font-mono text-cyan-400"></span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+                <span>Order ID</span>
+                <span id="mock-order-id" class="font-mono text-slate-300 text-[11px]"></span>
+            </div>
+            <div class="pt-2 border-t border-slate-800 flex justify-between text-sm font-bold text-white font-heading">
+                <span>Total Amount</span>
+                <span id="mock-amount" class="text-emerald-400"></span>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <button 
+                type="button" 
+                id="mock-success-btn" 
+                class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+            >
+                Simulate Successful Payment
+            </button>
+            <button 
+                type="button" 
+                id="mock-cancel-btn" 
+                class="w-full py-2.5 px-4 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            >
+                Cancel Payment Simulation
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Razorpay Checkout SDK -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
 <!-- Booking Engine JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -397,6 +453,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Mock modal elements
+    const mockModal     = document.getElementById('mock-payment-modal');
+    const mockService   = document.getElementById('mock-service');
+    const mockRef       = document.getElementById('mock-ref');
+    const mockOrderId   = document.getElementById('mock-order-id');
+    const mockAmount    = document.getElementById('mock-amount');
+    const mockSuccessBtn= document.getElementById('mock-success-btn');
+    const mockCancelBtn = document.getElementById('mock-cancel-btn');
+    let currentOrder    = null;
+
     // Start Hold Countdown Timer
     function startHoldTimer(expiresAtString) {
         if (timerInterval) clearInterval(timerInterval);
@@ -410,7 +476,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(timerInterval);
                 holdTimer.textContent = '00:00';
                 holdBanner.classList.add('hidden');
+                mockModal.classList.add('hidden');
                 activeHold = null;
+                currentOrder = null;
                 showError('Your 10-minute hold has expired. The slot has been released back to capacity.');
                 loadAvailability();
                 return;
@@ -435,9 +503,15 @@ document.addEventListener('DOMContentLoaded', () => {
         errorNotice.textContent = '';
     }
 
-    // Create Hold Submission
+    // Step 1: Secure Hold, Step 2: Checkout
     proceedBtn.addEventListener('click', async () => {
         if (!selectedSlot || !termsCheck.checked) return;
+
+        // If hold is already active, launch checkout
+        if (activeHold) {
+            await initiatePayment();
+            return;
+        }
 
         hideError();
         proceedBtn.disabled = true;
@@ -489,6 +563,152 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Step 2: Create Gateway Order and Open Razorpay Checkout
+    async function initiatePayment() {
+        if (!activeHold) return;
+
+        hideError();
+        proceedBtn.disabled = true;
+        proceedBtn.textContent = 'Opening Gateway...';
+
+        try {
+            const formData = new FormData();
+            formData.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
+            formData.append('booking_reference', activeHold.booking_reference);
+
+            const res = await fetch('<?= app_url('api/payment/create-order') ?>', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (!data.success || !data.data) {
+                showError(data.message || 'Unable to initiate payment.');
+                proceedBtn.disabled = false;
+                proceedBtn.textContent = 'Proceed to Razorpay Checkout';
+                return;
+            }
+
+            currentOrder = data.data;
+
+            if (currentOrder.is_mock) {
+                // Open Mock Gateway Modal for local development
+                mockService.textContent = currentOrder.service_name;
+                mockRef.textContent     = currentOrder.booking_reference;
+                mockOrderId.textContent = currentOrder.razorpay_order_id;
+                mockAmount.textContent  = '₹' + Number(currentOrder.amount_rupees).toFixed(2);
+                mockModal.classList.remove('hidden');
+            } else {
+                // Open Real Razorpay Modal
+                const options = {
+                    key: currentOrder.key_id,
+                    amount: currentOrder.amount_paise,
+                    currency: currentOrder.currency || 'INR',
+                    name: 'Sara Kinetic Sports Lab',
+                    description: currentOrder.service_name + ' Recovery Session',
+                    order_id: currentOrder.razorpay_order_id,
+                    prefill: {
+                        name: currentOrder.customer_name,
+                        email: currentOrder.customer_email,
+                        contact: currentOrder.customer_mobile
+                    },
+                    theme: {
+                        color: '#06b6d4'
+                    },
+                    handler: async function (response) {
+                        await completeVerification(
+                            currentOrder.booking_reference,
+                            response.razorpay_order_id,
+                            response.razorpay_payment_id,
+                            response.razorpay_signature
+                        );
+                    },
+                    modal: {
+                        ondismiss: function () {
+                            showError('Payment checkout dismissed. Your 10-minute hold remains active.');
+                            proceedBtn.disabled = false;
+                            proceedBtn.textContent = 'Proceed to Razorpay Checkout';
+                        }
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+                rzp.open();
+            }
+
+        } catch (e) {
+            showError('Network error connecting to payment gateway.');
+            proceedBtn.disabled = false;
+            proceedBtn.textContent = 'Proceed to Razorpay Checkout';
+        }
+    }
+
+    // Step 3: Verify Payment Server-Side
+    async function completeVerification(reference, orderId, paymentId, signature) {
+        hideError();
+        mockModal.classList.add('hidden');
+        proceedBtn.disabled = true;
+        proceedBtn.textContent = 'Verifying Confirmation...';
+
+        try {
+            const formData = new FormData();
+            formData.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
+            formData.append('booking_reference', reference);
+            formData.append('razorpay_order_id', orderId);
+            formData.append('razorpay_payment_id', paymentId);
+            formData.append('razorpay_signature', signature);
+
+            const res = await fetch('<?= app_url('api/payment/verify') ?>', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (!data.success) {
+                showError(data.message || 'Payment verification failed.');
+                proceedBtn.disabled = false;
+                proceedBtn.textContent = 'Retry Payment Verification';
+                return;
+            }
+
+            // Redirect immediately to confirmed booking voucher
+            window.location.href = '<?= app_url('booking-confirmation') ?>?ref=' + encodeURIComponent(reference);
+
+        } catch (e) {
+            showError('Verification request failed. Please check network.');
+            proceedBtn.disabled = false;
+            proceedBtn.textContent = 'Retry Payment Verification';
+        }
+    }
+
+    // Mock Modal Interactions
+    mockSuccessBtn.addEventListener('click', async () => {
+        if (!currentOrder) return;
+        mockSuccessBtn.disabled = true;
+        mockSuccessBtn.textContent = 'Simulating...';
+
+        const mockPaymentId = 'pay_mock_' + Math.random().toString(36).substring(2, 12);
+        const mockSignature = 'sig_mock_' + Math.random().toString(36).substring(2, 12);
+
+        await completeVerification(
+            currentOrder.booking_reference,
+            currentOrder.razorpay_order_id,
+            mockPaymentId,
+            mockSignature
+        );
+    });
+
+    mockCancelBtn.addEventListener('click', () => {
+        mockModal.classList.add('hidden');
+        showError('Payment simulation cancelled. Your 10-minute hold is still active.');
+        proceedBtn.disabled = false;
+        proceedBtn.textContent = 'Proceed to Razorpay Checkout';
+    });
+
     // Release Hold Button
     releaseBtn.addEventListener('click', async () => {
         if (!activeHold) return;
@@ -506,7 +726,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (timerInterval) clearInterval(timerInterval);
             holdBanner.classList.add('hidden');
+            mockModal.classList.add('hidden');
             activeHold = null;
+            currentOrder = null;
             showError('Hold cancelled and slot capacity released.');
             loadAvailability();
         } catch (e) {

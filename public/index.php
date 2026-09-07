@@ -43,6 +43,12 @@ $router->get('/booking', [\App\Controllers\BookingController::class, 'showBookin
 $router->post('/api/bookings/hold', [\App\Controllers\BookingController::class, 'createHold']);
 $router->post('/api/bookings/hold/release', [\App\Controllers\BookingController::class, 'releaseHold']);
 
+// ─── Payment & Checkout Routes ────────────────────────────────────────────
+$router->post('/api/payment/create-order', [\App\Controllers\PaymentController::class, 'createOrder']);
+$router->post('/api/payment/verify', [\App\Controllers\PaymentController::class, 'verify']);
+$router->post('/api/payment/webhook', [\App\Controllers\PaymentController::class, 'webhook']);
+$router->get('/booking-confirmation', [\App\Controllers\PaymentController::class, 'confirmation']);
+
 $router->get('/health', function() {
     header('Content-Type: application/json');
     try {
