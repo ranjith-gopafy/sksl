@@ -160,4 +160,79 @@ class BookingModel
         );
         return $stmt->execute([$bookingStatus, $id]);
     }
+
+    /**
+     * Retrieve all bookings for a user with service and payment details.
+     *
+     * @param int $userId
+     * @param string|null $filter 'upcoming' | 'completed' | 'cancelled' | null
+     * @return array<int, array<string, mixed>>
+     */
+    public function findByUser(int $userId, ?string $filter = null): array
+    {
+        $sql = "SELECT b.*, s.name as service_name, s.slug as service_slug,
+                       p.razorpay_payment_id, p.status as payment_record_status
+                FROM bookings b
+                JOIN services s ON b.service_id = s.id
+                LEFT JOIN payments p ON p.booking_id = b.id AND p.status = 'paid'
+                WHERE b.user_id = :user_id";
+
+        $params = ['user_id' => $userId];
+
+        if ($filter === 'upcoming') {
+            $sql .= " AND b.booking_status = 'confirmed' 
+                      AND CONCAT(b.booking_date, ' ', b.start_time) >= NOW()";
+        } elseif ($filter === 'completed') {
+            $sql .= " AND (b.booking_status = 'completed' OR (b.booking_status = 'confirmed' AND CONCAT(b.booking_date, ' ', b.end_time) < NOW()))";
+        } elseif ($filter === 'cancelled') {
+            $sql .= " AND b.booking_status = 'cancelled'";
+        }
+
+        $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * Check if a booking is eligible for cancellation by the customer.
+     * Policy: Confirmed booking, owned by customer, and at least 2 hours before session start time.
+     *
+     * @param array<string, mixed> $booking
+     * @return array{can_cancel: bool, reason?: string, hours_remaining?: float}
+     */
+    public static function checkCancellationEligibility(array $booking, int $userId): array
+    {
+        if ((int) $booking['user_id'] !== $userId) {
+            return ['can_cancel' => false, 'reason' => 'Unauthorized booking access.'];
+        }
+
+        if ($booking['booking_status'] !== 'confirmed') {
+            return ['can_cancel' => false, 'reason' => 'Only confirmed bookings can be cancelled.'];
+        }
+
+        $sessionStart = strtotime($booking['booking_date'] . ' ' . $booking['start_time']);
+        $now = time();
+
+        if ($sessionStart === false || $sessionStart <= $now) {
+            return ['can_cancel' => false, 'reason' => 'Past sessions cannot be cancelled.'];
+        }
+
+        $secondsRemaining = $sessionStart - $now;
+        $hoursRemaining = round($secondsRemaining / 3600, 1);
+
+        if ($secondsRemaining < 7200) { // 2 hours = 7200 seconds
+            return [
+                'can_cancel' => false,
+                'reason' => 'Cancellations must be made at least 2 hours before the session start time. (Currently ' . $hoursRemaining . ' hrs remaining).',
+                'hours_remaining' => $hoursRemaining,
+            ];
+        }
+
+        return [
+            'can_cancel' => true,
+            'hours_remaining' => $hoursRemaining,
+        ];
+    }
 }

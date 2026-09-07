@@ -50,6 +50,10 @@ $router->post('/api/payment/webhook', [\App\Controllers\PaymentController::class
 $router->get('/booking-confirmation', [\App\Controllers\PaymentController::class, 'confirmation']);
 $router->get('/bookings/{ref}/invoice', [\App\Controllers\PaymentController::class, 'downloadInvoice']);
 
+// ─── Customer Dashboard & Booking Management ──────────────────────────────
+$router->get('/my-bookings', [\App\Controllers\CustomerBookingController::class, 'index']);
+$router->post('/my-bookings/{ref}/cancel', [\App\Controllers\CustomerBookingController::class, 'cancel']);
+
 $router->get('/health', function() {
     header('Content-Type: application/json');
     try {
