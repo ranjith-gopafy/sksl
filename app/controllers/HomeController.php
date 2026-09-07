@@ -29,9 +29,10 @@ class HomeController
                 (float) ($service['gst_percent'] ?? 18.0)
             );
         }
-        // Fetch active hero banner
+        // Fetch active hero banner and carousel slides
         $bannerModel = new \App\Models\HeroBannerModel();
         $heroBanner = $bannerModel->getActive();
+        $bannerSlides = $bannerModel->getAllActive();
 
         $title = 'Sara Kinetic Sports Lab — Recover. Recharge. Perform.';
         $viewFile = dirname(__DIR__) . '/views/pages/home.php';

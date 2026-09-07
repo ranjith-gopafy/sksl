@@ -1,45 +1,78 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-    <!-- Header -->
-    <div class="text-center max-w-3xl mx-auto mb-16">
-        <span class="text-xs font-bold uppercase tracking-widest text-sky-600">Sara Kinetic Sports Lab</span>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+    <!-- Header with SKSL Brand Colors -->
+    <div class="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
+        <span class="text-xs font-bold uppercase tracking-widest text-[#075183]">Sara Kinetic Sports Lab</span>
         <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 font-heading mt-2">
             Recovery Modalities &amp; Pricing
         </h1>
-        <p class="text-slate-600 text-sm sm:text-base mt-3 leading-relaxed">
-            Select a recovery protocol below to choose an available date and time slot. All sessions include facility access, towel service, and sanitized amenities.
+        <p class="text-slate-600 text-sm sm:text-base mt-2.5 leading-relaxed">
+            Select an athletic recovery protocol below to choose an available date and live slot. All sessions include facility access, towel service, and sanitized medical-grade amenities.
         </p>
     </div>
 
+    <!-- Mobile Category Filter Bar (Smooth Horizontal Scroll on Mobile) -->
+    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-3 mb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-bold bg-[#075183] text-white shadow-xs whitespace-nowrap transition-all" data-category="all">
+            All Modalities (<?= count($services) ?>)
+        </button>
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="cryo">
+            Cold &amp; Cryo Immersion
+        </button>
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="thermal">
+            Thermal &amp; Sauna
+        </button>
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="aquatic">
+            Aquatic Conditioning
+        </button>
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="hydro">
+            Hydrotherapy
+        </button>
+    </div>
+
     <!-- Services Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" id="services-page-grid">
         <?php foreach ($services as $service): 
             $imgSrc = str_starts_with($service['image'] ?? '', 'images/') || str_starts_with($service['image'] ?? '', 'uploads/')
                 ? asset($service['image'])
                 : asset('images/services/' . ($service['image'] ?? 'spa.jpg'));
+
+            $nameLower = strtolower($service['name']);
+            $cat = 'hydro';
+            if (str_contains($nameLower, 'ice') || str_contains($nameLower, 'cryo') || str_contains($nameLower, 'cold')) {
+                $cat = 'cryo';
+            } elseif (str_contains($nameLower, 'sauna') || str_contains($nameLower, 'steam') || str_contains($nameLower, 'hot')) {
+                $cat = 'thermal';
+            } elseif (str_contains($nameLower, 'treadmill') || str_contains($nameLower, 'pool') || str_contains($nameLower, 'cycle') || str_contains($nameLower, 'walker')) {
+                $cat = 'aquatic';
+            }
         ?>
-            <div class="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-sky-300 transition-all duration-300 flex flex-col justify-between group">
+            <div 
+                class="service-item-card bg-white border border-[#D9DBDA] rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 flex flex-col justify-between group"
+                data-category="<?= $cat ?>"
+            >
                 <div>
-                    <!-- Service Image -->
-                    <div class="relative w-full h-52 overflow-hidden bg-slate-100">
+                    <!-- Service Image with Zoom on Hover -->
+                    <div class="relative w-full h-52 sm:h-56 overflow-hidden bg-slate-100">
                         <img 
                             src="<?= $imgSrc ?>" 
                             alt="<?= h($service['name']) ?>"
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            loading="lazy"
                         >
-                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
 
-                        <!-- Badges -->
+                        <!-- Badges with Brand Colors -->
                         <div class="absolute top-3 left-3 flex items-center gap-2">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/95 text-slate-900 shadow-xs backdrop-blur-md">
-                                <svg class="w-3.5 h-3.5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/95 text-[#075183] shadow-xs backdrop-blur-md">
+                                <svg class="w-3.5 h-3.5 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <?= h($service['duration_minutes']) ?> Minutes
                             </span>
                         </div>
 
                         <div class="absolute top-3 right-3">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md border border-white/10">
                                 <svg class="w-3.5 h-3.5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                 </svg>
@@ -55,15 +88,15 @@
                     </div>
 
                     <!-- Description -->
-                    <div class="p-6">
+                    <div class="p-5 sm:p-6">
                         <p class="text-sm text-slate-600 leading-relaxed min-h-[50px]">
                             <?= h($service['description'] ?: 'Optimized protocol engineered for peak athletic recovery, improved circulation, and muscular restoration.') ?>
                         </p>
                     </div>
                 </div>
 
-                <!-- Price Breakdown and CTA -->
-                <div class="px-6 pb-6 pt-4 border-t border-slate-100 flex flex-col gap-4">
+                <!-- Price Breakdown and CTA with Brand Colors -->
+                <div class="px-5 pb-5 sm:px-6 sm:pb-6 pt-4 border-t border-[#D9DBDA]/80 flex flex-col gap-4">
                     <div class="flex items-baseline justify-between">
                         <div>
                             <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">
@@ -73,14 +106,14 @@
                                 &#8377;<?= number_format((float) ($service['pricing']['total_amount'] ?? $service['price']), 2) ?>
                             </div>
                         </div>
-                        <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                        <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                             Available Daily
                         </span>
                     </div>
 
                     <a 
                         href="<?= app_url('booking?service_id=' . $service['id']) ?>" 
-                        class="block w-full text-center py-3.5 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-sky-600/20 hover:shadow-sky-600/30 hover:-translate-y-0.5 transition-all"
+                        class="app-touch-target block w-full text-center py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-[#075183]/20 hover:shadow-[#075183]/30 hover:-translate-y-0.5 transition-all"
                     >
                         Book This Modality
                     </a>
@@ -89,3 +122,28 @@
         <?php endforeach; ?>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const filterBtns = document.querySelectorAll('.service-cat-filter');
+    const cards = document.querySelectorAll('.service-item-card');
+
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cat = btn.getAttribute('data-category');
+            filterBtns.forEach(b => {
+                b.className = 'service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all';
+            });
+            btn.className = 'service-cat-filter px-4 py-2 rounded-full text-xs font-bold bg-[#075183] text-white shadow-xs whitespace-nowrap transition-all';
+
+            cards.forEach(card => {
+                if (cat === 'all' || card.getAttribute('data-category') === cat) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    });
+});
+</script>

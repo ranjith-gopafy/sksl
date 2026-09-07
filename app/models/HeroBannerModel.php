@@ -32,6 +32,60 @@ class HeroBannerModel
     }
 
     /**
+     * Get all active carousel slides.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getAllActive(): array
+    {
+        $stmt = $this->db->query(
+            'SELECT * FROM hero_banners WHERE is_active = 1 ORDER BY id ASC'
+        );
+        $slides = $stmt->fetchAll() ?: [];
+
+        if (count($slides) <= 1) {
+            $primary = $slides[0] ?? [
+                'badge_text'  => 'Sports Science & High-Performance Lab',
+                'headline'    => "Recover Faster.\nRecharge Fully.\nPerform at Your Peak.",
+                'subheadline' => 'Science-backed hot, cold, and hydrotherapy recovery protocols. Optimizing athletic regeneration and physical performance.',
+                'image_url'   => 'images/hero-banner.jpg',
+                'cta_text'    => 'Reserve Recovery Session',
+                'cta_link'    => '/booking',
+            ];
+
+            return [
+                $primary,
+                [
+                    'badge_text'  => 'Extreme Cryo & Contrast Therapy',
+                    'headline'    => "Ice Bath & Cryo Immersion Protocols",
+                    'subheadline' => 'Medical-grade cold water immersion (8°C - 10°C) engineered to drastically flush lactic acid, eliminate systemic inflammation, and reset nervous balance.',
+                    'image_url'   => 'images/services/ice-bath.jpg',
+                    'cta_text'    => 'Book Cold Immersion',
+                    'cta_link'    => '/booking?service_id=4',
+                ],
+                [
+                    'badge_text'  => 'Infrared Heat & Detoxification',
+                    'headline'    => "Thermal Finnish Sauna & Hydrotherapy",
+                    'subheadline' => 'Elevate cardiovascular micro-circulation and release muscular tension with controlled Finnish dry sauna and deep therapeutic hot baths.',
+                    'image_url'   => 'images/services/sauna.jpg',
+                    'cta_text'    => 'Book Thermal Session',
+                    'cta_link'    => '/booking?service_id=2',
+                ],
+                [
+                    'badge_text'  => 'Low-Impact Aquatic Conditioning',
+                    'headline'    => "Endless Lap Pool & Underwater Treadmill",
+                    'subheadline' => 'Zero-gravity buoyant cardiovascular training for active rehabilitation, injury prevention, and athletic movement re-education.',
+                    'image_url'   => 'images/services/endless-pool.jpg',
+                    'cta_text'    => 'Explore Aquatic Protocols',
+                    'cta_link'    => '/services',
+                ],
+            ];
+        }
+
+        return $slides;
+    }
+
+    /**
      * Get the latest banner record for administrative management.
      *
      * @return array<string, mixed>|null

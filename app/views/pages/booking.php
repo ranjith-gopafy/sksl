@@ -1,39 +1,39 @@
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
     <!-- Header -->
     <div class="mb-8">
-        <span class="text-xs font-bold uppercase tracking-widest text-sky-600">Step-by-Step Reservation</span>
+        <span class="text-xs font-bold uppercase tracking-widest text-[#075183]">Step-by-Step Reservation</span>
         <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 font-heading mt-1">Book Your Recovery Session</h1>
         <p class="text-sm text-slate-600 mt-1">Live slot availability calculated in real-time. Slot capacity is strictly protected.</p>
     </div>
 
     <!-- Active Hold Banner (Hidden initially) -->
-    <div id="hold-banner" class="hidden rounded-3xl bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 border border-sky-200 p-6 mb-8 shadow-md">
+    <div id="hold-banner" class="hidden rounded-3xl bg-gradient-to-r from-slate-900 via-[#075183] to-[#4A9CC0] text-white p-6 mb-8 shadow-lg border border-[#D9DBDA]/30">
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
             <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                <div class="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md text-[#D6981E] flex items-center justify-center shrink-0 shadow-md border border-white/20">
                     <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
                 </div>
                 <div>
-                    <h2 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
-                        Slot Reserved Under Hold: <span id="hold-ref" class="text-sky-700 font-mono"></span>
+                    <h2 class="text-base font-bold text-white font-heading flex items-center gap-2">
+                        Slot Reserved Under Hold: <span id="hold-ref" class="text-[#D6981E] font-mono font-extrabold"></span>
                     </h2>
-                    <p class="text-xs text-slate-600 mt-0.5">
+                    <p class="text-xs text-slate-200 mt-0.5">
                         Complete your payment before the timer expires to confirm this booking.
                     </p>
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                <div class="text-center bg-white px-5 py-2.5 rounded-2xl border border-sky-200 shadow-xs">
+                <div class="text-center bg-white px-5 py-2.5 rounded-2xl border border-slate-100 shadow-md">
                     <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Time Remaining</div>
-                    <div id="hold-timer" class="text-2xl font-mono font-extrabold text-sky-600 tracking-wider">10:00</div>
+                    <div id="hold-timer" class="text-2xl font-mono font-extrabold text-[#D6981E] tracking-wider">10:00</div>
                 </div>
                 <button 
                     type="button" 
                     id="release-hold-btn" 
-                    class="text-xs font-semibold text-rose-600 hover:text-rose-700 px-3 py-2 rounded-xl hover:bg-rose-50 border border-rose-200 transition-colors"
+                    class="app-touch-target text-xs font-semibold text-rose-200 hover:text-white px-3.5 py-2.5 rounded-xl hover:bg-rose-600/30 border border-white/20 transition-colors"
                 >
                     Cancel Hold
                 </button>
@@ -48,7 +48,7 @@
         <div class="lg:col-span-2 space-y-6">
             
             <!-- Service & Date Selection Card -->
-            <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
+            <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-8 shadow-xs">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     
                     <!-- Service Selector -->
@@ -58,7 +58,7 @@
                         </label>
                         <select 
                             id="service_selector" 
-                            class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm transition-all"
+                            class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-[#D9DBDA] text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-[#075183] focus:ring-1 focus:ring-[#075183] text-sm transition-all"
                         >
                             <?php foreach ($services as $srv): ?>
                                 <option 
@@ -87,7 +87,7 @@
                             min="<?= date('Y-m-d') ?>"
                             max="<?= date('Y-m-d', strtotime('+30 days')) ?>"
                             value="<?= date('Y-m-d') ?>"
-                            class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm transition-all"
+                            class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-[#D9DBDA] text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-[#075183] focus:ring-1 focus:ring-[#075183] text-sm transition-all"
                         >
                     </div>
                 </div>
@@ -95,7 +95,7 @@
                 <!-- Service Quick Specs Bar -->
                 <div class="mt-6 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                     <div>
-                        Duration: <strong id="spec-duration" class="text-sky-700 font-bold"><?= h($selectedService['duration_minutes'] ?? 30) ?> min</strong>
+                        Duration: <strong id="spec-duration" class="text-[#075183] font-bold"><?= h($selectedService['duration_minutes'] ?? 30) ?> min</strong>
                     </div>
                     <div>
                         Max Capacity: <strong id="spec-capacity" class="text-slate-800 font-bold"><?= h($selectedService['capacity'] ?? 4) ?> athletes/slot</strong>
@@ -107,19 +107,19 @@
             </div>
 
             <!-- Dynamic Slot Grid Card -->
-            <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
+            <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-8 shadow-xs">
                 <div class="flex items-center justify-between mb-5">
                     <div class="text-xs font-bold uppercase tracking-wider text-slate-700">
                         3. Choose Available Time Slot
                     </div>
-                    <div id="slots-count-badge" class="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                        Loading slots...
+                    <div id="slots-count-badge" class="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
+                        Checking availability...
                     </div>
                 </div>
 
                 <!-- Loading State -->
                 <div id="slots-loading" class="py-16 text-center">
-                    <div class="w-8 h-8 border-2 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                    <div class="w-8 h-8 border-2 border-[#075183] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
                     <div class="text-xs text-slate-500 font-medium">Fetching real-time availability...</div>
                 </div>
 
@@ -145,7 +145,7 @@
 
         <!-- Right: Booking Summary & Hold Checkout (1 Column) -->
         <div class="lg:col-span-1">
-            <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs sticky top-24">
+            <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-7 shadow-xs sticky top-24">
                 <h3 class="text-lg font-bold text-slate-900 font-heading border-b border-slate-100 pb-4 mb-5">
                     Reservation Summary
                 </h3>
@@ -163,7 +163,7 @@
 
                     <div class="flex justify-between">
                         <span class="text-slate-500">Time Slot</span>
-                        <span id="sum-time" class="font-bold text-sky-700">Select a slot</span>
+                        <span id="sum-time" class="font-bold text-[#075183]">Select a slot</span>
                     </div>
 
                     <div class="flex justify-between">
@@ -182,7 +182,7 @@
                         </div>
                         <div class="flex justify-between text-base font-extrabold text-slate-900 pt-3 border-t border-slate-200 font-heading">
                             <span>Total Payable</span>
-                            <span class="text-sky-700">&#8377;<span id="sum-total"><?= number_format((float) ($selectedService['pricing']['total_amount'] ?? 0), 2) ?></span></span>
+                            <span class="text-[#075183] font-black">&#8377;<span id="sum-total"><?= number_format((float) ($selectedService['pricing']['total_amount'] ?? 0), 2) ?></span></span>
                         </div>
                     </div>
                 </div>
@@ -193,10 +193,10 @@
                         <input 
                             type="checkbox" 
                             id="terms-check" 
-                            class="mt-0.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                            class="mt-0.5 rounded border-slate-300 text-[#075183] focus:ring-[#075183]"
                         >
                         <span>
-                            I agree to the <a href="<?= app_url('terms') ?>" target="_blank" class="text-sky-600 underline hover:text-sky-700 font-medium">Terms &amp; Health Declaration</a>. I confirm physical fitness for thermal therapy.
+                            I agree to the <a href="<?= app_url('terms') ?>" target="_blank" class="text-[#075183] underline hover:text-[#4A9CC0] font-medium">Terms &amp; Health Declaration</a>. I confirm physical fitness for thermal therapy.
                         </span>
                     </label>
                 </div>
@@ -207,7 +207,7 @@
                         type="button" 
                         id="proceed-hold-btn" 
                         disabled 
-                        class="w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200"
+                        class="app-touch-target w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200"
                     >
                         Select Time Slot
                     </button>
@@ -357,19 +357,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = `p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                btn.className = `app-touch-target p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
                     slot.available
-                        ? 'bg-white border-slate-200 hover:border-sky-500 hover:bg-sky-50/40 text-slate-900 cursor-pointer shadow-xs'
+                        ? 'bg-white border-[#D9DBDA] hover:border-[#075183] hover:bg-[#075183]/5 text-slate-900 cursor-pointer shadow-xs'
                         : 'bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed opacity-70'
                 }`;
 
                 let capLabel = '';
                 if (slot.available) {
-                    capLabel = `<span class="text-[10px] text-sky-700 font-bold bg-sky-50 px-1.5 py-0.5 rounded">${slot.remaining_capacity} left</span>`;
+                    capLabel = `<span class="text-[10px] text-[#075183] font-bold bg-[#075183]/10 px-1.5 py-0.5 rounded">${slot.remaining_capacity} left</span>`;
                 } else if (slot.unavailable_reason === 'past') {
                     capLabel = '<span class="text-[10px] text-slate-400 uppercase font-semibold">Passed</span>';
                 } else if (slot.unavailable_reason === 'user_conflict') {
-                    capLabel = '<span class="text-[10px] text-amber-600 font-semibold">Conflict</span>';
+                    capLabel = '<span class="text-[10px] text-[#D6981E] font-semibold">Conflict</span>';
                 } else {
                     capLabel = '<span class="text-[10px] text-rose-500 font-semibold">Full</span>';
                 }
@@ -386,12 +386,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.addEventListener('click', () => {
                         // Deselect other buttons
                         slotsGrid.querySelectorAll('button').forEach(b => {
-                            b.classList.remove('border-sky-600', 'bg-sky-50', 'ring-2', 'ring-sky-500/20');
-                            b.classList.add('border-slate-200', 'bg-white');
+                            b.classList.remove('border-[#075183]', 'bg-[#075183]/10', 'ring-2', 'ring-[#075183]/20');
+                            b.classList.add('border-[#D9DBDA]', 'bg-white');
                         });
                         // Highlight this button
-                        btn.classList.remove('border-slate-200', 'bg-white');
-                        btn.classList.add('border-sky-600', 'bg-sky-50', 'ring-2', 'ring-sky-500/20');
+                        btn.classList.remove('border-[#D9DBDA]', 'bg-white');
+                        btn.classList.add('border-[#075183]', 'bg-[#075183]/10', 'ring-2', 'ring-[#075183]/20');
 
                         selectedSlot = slot;
                         updateSummary();
@@ -418,24 +418,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSummary() {
         const opt = serviceSelect.options[serviceSelect.selectedIndex];
-        sumService.textContent = opt.text.split('(')[0].trim();
-        sumDuration.textContent = opt.dataset.duration + ' Minutes';
-        document.getElementById('spec-duration').textContent = opt.dataset.duration + ' min';
-        document.getElementById('spec-capacity').textContent = opt.dataset.capacity + ' athletes/slot';
+        if (!opt) return;
 
-        sumBase.textContent = Number(opt.dataset.base).toFixed(2);
-        sumGst.textContent = Number(opt.dataset.gst).toFixed(2);
-        sumTotal.textContent = Number(opt.dataset.total).toFixed(2);
+        sumService.textContent = opt.textContent.split('(')[0].trim();
+        sumDuration.textContent = `${opt.dataset.duration} Minutes`;
 
-        // Date format
-        const dParts = dateInput.value.split('-');
-        if (dParts.length === 3) {
-            const dt = new Date(dParts[0], dParts[1] - 1, dParts[2]);
-            sumDate.textContent = dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        }
+        const d = new Date(dateInput.value + 'T00:00:00');
+        sumDate.textContent = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        const base = parseFloat(opt.dataset.base || '0');
+        const gst = parseFloat(opt.dataset.gst || '0');
+        const total = parseFloat(opt.dataset.total || '0');
+
+        sumBase.textContent = base.toFixed(2);
+        sumGst.textContent = gst.toFixed(2);
+        sumTotal.textContent = total.toFixed(2);
 
         if (selectedSlot) {
-            sumTime.textContent = `${selectedSlot.display_start} – ${selectedSlot.display_end}`;
+            sumTime.textContent = selectedSlot.display_start;
         } else {
             sumTime.textContent = 'Select a slot';
         }
@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isReady = selectedSlot !== null && termsCheck.checked;
         if (isReady) {
             proceedBtn.disabled = false;
-            proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-sky-600/25 hover:shadow-sky-600/35 hover:-translate-y-0.5 transition-all cursor-pointer';
+            proceedBtn.className = 'app-touch-target w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-[#075183]/25 hover:-translate-y-0.5 transition-all cursor-pointer';
             proceedBtn.textContent = 'Hold Slot & Proceed to Payment';
         } else {
             proceedBtn.disabled = true;
