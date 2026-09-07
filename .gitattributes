@@ -1,0 +1,25 @@
+# Normalize line endings in Git repository
+* text=auto
+
+# PHP files use LF
+*.php text eol=lf
+
+# Config and web files use LF
+*.htaccess text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.env.example text eol=lf
+*.md text eol=lf
+*.sql text eol=lf
+
+# Binary files — no line ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

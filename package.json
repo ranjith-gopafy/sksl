@@ -1,0 +1,13 @@
+{
+  "name": "sksl-booking",
+  "version": "1.0.0",
+  "description": "Sara Kinetic Sports Lab - Tailwind CSS build",
+  "private": true,
+  "scripts": {
+    "dev": "tailwindcss -i ./src/css/input.css -o ./public/css/app.css --watch",
+    "build": "tailwindcss -i ./src/css/input.css -o ./public/css/app.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}

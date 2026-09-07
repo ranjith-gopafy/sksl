@@ -1,0 +1,16 @@
+Options -Indexes
+
+# Deny access to sensitive file types that should never be served directly
+<FilesMatch "\.(env|log|sql|json|lock|md|gitignore|gitkeep)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+RewriteEngine On
+
+# Allow direct access to existing real files (CSS, JS, images, fonts)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Route everything else to the front controller
+RewriteRule ^ index.php [QSA,L]

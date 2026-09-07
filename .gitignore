@@ -1,0 +1,48 @@
+# Environment secrets — NEVER commit
+.env
+.env.local
+.env.production
+!.env.example
+
+# Composer dependencies
+/vendor/
+
+# npm / Node
+/node_modules/
+
+# Tailwind built output (commit this only for production deployment)
+# If building locally and committing the CSS, comment out the next line
+# /public/css/app.css
+
+# Application logs
+/storage/logs/*.log
+
+# Generated invoices — sensitive, not in source control
+/storage/invoices/*
+!/storage/invoices/.gitkeep
+
+# Uploaded service images — not in source control
+/storage/uploads/services/*
+!/storage/uploads/services/.gitkeep
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PHP debug files
+*.log
+php_errors.log
+
+# phpMyAdmin exports
+*.sql.gz
+
+# Temporary files
+*.tmp
+*.bak
