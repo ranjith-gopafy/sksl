@@ -52,6 +52,9 @@ class Router
     public function dispatch(): void
     {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        if ($method === 'HEAD') {
+            $method = 'GET';
+        }
         $uri    = $this->getUri();
 
         // Support method override for PUT/DELETE from HTML forms
