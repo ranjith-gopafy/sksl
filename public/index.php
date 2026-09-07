@@ -38,6 +38,11 @@ $router->get('/api/services', [ServiceController::class, 'apiIndex']);
 $router->get('/api/services/{id}', [ServiceController::class, 'apiShow']);
 $router->get('/api/availability', [\App\Controllers\AvailabilityController::class, 'index']);
 
+// ─── Booking Engine Routes ────────────────────────────────────────────────
+$router->get('/booking', [\App\Controllers\BookingController::class, 'showBooking']);
+$router->post('/api/bookings/hold', [\App\Controllers\BookingController::class, 'createHold']);
+$router->post('/api/bookings/hold/release', [\App\Controllers\BookingController::class, 'releaseHold']);
+
 $router->get('/health', function() {
     header('Content-Type: application/json');
     try {
