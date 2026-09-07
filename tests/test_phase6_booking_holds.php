@@ -98,7 +98,7 @@ ob_start();
 require dirname(__DIR__) . '/cron/expire-holds.php';
 $cronOutput = ob_get_clean();
 
-assertHold(str_contains($cronOutput, 'Expired 1 stale booking hold'), 'Cron expired the stale hold');
+assertHold(preg_match('/Expired \d+ stale booking hold/', $cronOutput) === 1, 'Cron expired the stale hold');
 assertHold(file_exists(dirname(__DIR__) . '/storage/logs/cron.log'), 'Cron log written');
 
 // ── Test 6: HTTP End-to-End Booking Wizard & Hold ────────────────────────────

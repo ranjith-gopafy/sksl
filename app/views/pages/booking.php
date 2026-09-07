@@ -1,38 +1,39 @@
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+    <!-- Header -->
     <div class="mb-8">
-        <span class="text-xs font-bold uppercase tracking-widest text-cyan-400">Step-by-Step Reservation</span>
-        <h1 class="text-3xl font-extrabold text-white font-heading mt-1">Book Your Recovery Session</h1>
-        <p class="text-sm text-slate-400 mt-1">Live slot availability calculated in real-time. Slot capacity is strictly protected.</p>
+        <span class="text-xs font-bold uppercase tracking-widest text-sky-600">Step-by-Step Reservation</span>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 font-heading mt-1">Book Your Recovery Session</h1>
+        <p class="text-sm text-slate-600 mt-1">Live slot availability calculated in real-time. Slot capacity is strictly protected.</p>
     </div>
 
     <!-- Active Hold Banner (Hidden initially) -->
-    <div id="hold-banner" class="hidden rounded-2xl bg-gradient-to-r from-cyan-950/80 to-slate-900 border border-cyan-500/40 p-5 mb-8 shadow-xl shadow-cyan-500/10 backdrop-blur-md">
+    <div id="hold-banner" class="hidden rounded-3xl bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 border border-sky-200 p-6 mb-8 shadow-md">
         <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
-                    <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
                 </div>
                 <div>
-                    <h2 class="text-sm font-bold text-white font-heading flex items-center gap-2">
-                        Slot Reserved Under Hold: <span id="hold-ref" class="text-cyan-400 font-mono"></span>
+                    <h2 class="text-base font-bold text-slate-900 font-heading flex items-center gap-2">
+                        Slot Reserved Under Hold: <span id="hold-ref" class="text-sky-700 font-mono"></span>
                     </h2>
-                    <p class="text-xs text-slate-300">
+                    <p class="text-xs text-slate-600 mt-0.5">
                         Complete your payment before the timer expires to confirm this booking.
                     </p>
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                <div class="text-center bg-slate-950/80 px-4 py-2 rounded-xl border border-cyan-500/30">
-                    <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Time Remaining</div>
-                    <div id="hold-timer" class="text-xl font-mono font-extrabold text-cyan-400 tracking-wider">10:00</div>
+                <div class="text-center bg-white px-5 py-2.5 rounded-2xl border border-sky-200 shadow-xs">
+                    <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Time Remaining</div>
+                    <div id="hold-timer" class="text-2xl font-mono font-extrabold text-sky-600 tracking-wider">10:00</div>
                 </div>
                 <button 
                     type="button" 
                     id="release-hold-btn" 
-                    class="text-xs font-semibold text-rose-400 hover:text-rose-300 px-3 py-2 rounded-lg hover:bg-slate-900 transition-colors"
+                    class="text-xs font-semibold text-rose-600 hover:text-rose-700 px-3 py-2 rounded-xl hover:bg-rose-50 border border-rose-200 transition-colors"
                 >
                     Cancel Hold
                 </button>
@@ -47,17 +48,17 @@
         <div class="lg:col-span-2 space-y-6">
             
             <!-- Service & Date Selection Card -->
-            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
+            <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     
                     <!-- Service Selector -->
                     <div>
-                        <label for="service_selector" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                        <label for="service_selector" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                             1. Select Modality
                         </label>
                         <select 
                             id="service_selector" 
-                            class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-medium focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-sm transition-all"
+                            class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm transition-all"
                         >
                             <?php foreach ($services as $srv): ?>
                                 <option 
@@ -77,7 +78,7 @@
 
                     <!-- Date Selector -->
                     <div>
-                        <label for="date_selector" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                        <label for="date_selector" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                             2. Select Date
                         </label>
                         <input 
@@ -86,51 +87,51 @@
                             min="<?= date('Y-m-d') ?>"
                             max="<?= date('Y-m-d', strtotime('+30 days')) ?>"
                             value="<?= date('Y-m-d') ?>"
-                            class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-medium focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-sm transition-all"
+                            class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm transition-all"
                         >
                     </div>
                 </div>
 
                 <!-- Service Quick Specs Bar -->
-                <div class="mt-5 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+                <div class="mt-6 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                     <div>
-                        Duration: <strong id="spec-duration" class="text-cyan-400"><?= h($selectedService['duration_minutes'] ?? 30) ?> min</strong>
+                        Duration: <strong id="spec-duration" class="text-sky-700 font-bold"><?= h($selectedService['duration_minutes'] ?? 30) ?> min</strong>
                     </div>
                     <div>
-                        Max Capacity: <strong id="spec-capacity" class="text-slate-200"><?= h($selectedService['capacity'] ?? 4) ?> athletes/slot</strong>
+                        Max Capacity: <strong id="spec-capacity" class="text-slate-800 font-bold"><?= h($selectedService['capacity'] ?? 4) ?> athletes/slot</strong>
                     </div>
                     <div>
-                        Operating Hours: <strong class="text-slate-200">06:00 – 22:00 IST</strong>
+                        Operating Hours: <strong class="text-slate-800 font-bold">06:00 – 22:00 IST</strong>
                     </div>
                 </div>
             </div>
 
             <!-- Dynamic Slot Grid Card -->
-            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="text-xs font-semibold uppercase tracking-wider text-slate-300">
+            <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
+                <div class="flex items-center justify-between mb-5">
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-700">
                         3. Choose Available Time Slot
                     </div>
-                    <div id="slots-count-badge" class="text-xs font-medium text-slate-400">
+                    <div id="slots-count-badge" class="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
                         Loading slots...
                     </div>
                 </div>
 
                 <!-- Loading State -->
                 <div id="slots-loading" class="py-16 text-center">
-                    <div class="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <div class="text-xs text-slate-400 font-medium">Fetching real-time availability...</div>
+                    <div class="w-8 h-8 border-2 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                    <div class="text-xs text-slate-500 font-medium">Fetching real-time availability...</div>
                 </div>
 
                 <!-- Empty / Closed Message -->
                 <div id="slots-empty" class="hidden py-14 text-center">
-                    <div class="w-12 h-12 rounded-full bg-slate-800 text-slate-500 flex items-center justify-center mx-auto mb-3">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                     </div>
-                    <h3 id="empty-title" class="text-sm font-bold text-white font-heading">No Available Slots</h3>
-                    <p id="empty-subtitle" class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    <h3 id="empty-title" class="text-sm font-bold text-slate-900 font-heading">No Available Slots</h3>
+                    <p id="empty-subtitle" class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                         There are no bookable slots for this date. Please select another date.
                     </p>
                 </div>
@@ -144,58 +145,58 @@
 
         <!-- Right: Booking Summary & Hold Checkout (1 Column) -->
         <div class="lg:col-span-1">
-            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl sticky top-24">
-                <h3 class="text-lg font-bold text-white font-heading border-b border-slate-800 pb-4 mb-5">
+            <div class="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-xs sticky top-24">
+                <h3 class="text-lg font-bold text-slate-900 font-heading border-b border-slate-100 pb-4 mb-5">
                     Reservation Summary
                 </h3>
 
                 <div class="space-y-3.5 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-slate-400">Modality</span>
-                        <span id="sum-service" class="font-semibold text-white"><?= h($selectedService['name'] ?? 'Spa') ?></span>
+                        <span class="text-slate-500">Modality</span>
+                        <span id="sum-service" class="font-bold text-slate-900"><?= h($selectedService['name'] ?? 'Spa') ?></span>
                     </div>
 
                     <div class="flex justify-between">
-                        <span class="text-slate-400">Date</span>
-                        <span id="sum-date" class="font-semibold text-slate-200"><?= date('d M Y') ?></span>
+                        <span class="text-slate-500">Date</span>
+                        <span id="sum-date" class="font-semibold text-slate-700"><?= date('d M Y') ?></span>
                     </div>
 
                     <div class="flex justify-between">
-                        <span class="text-slate-400">Time Slot</span>
-                        <span id="sum-time" class="font-semibold text-cyan-400">Select a slot</span>
+                        <span class="text-slate-500">Time Slot</span>
+                        <span id="sum-time" class="font-bold text-sky-700">Select a slot</span>
                     </div>
 
                     <div class="flex justify-between">
-                        <span class="text-slate-400">Duration</span>
-                        <span id="sum-duration" class="text-slate-300"><?= h($selectedService['duration_minutes'] ?? 30) ?> Minutes</span>
+                        <span class="text-slate-500">Duration</span>
+                        <span id="sum-duration" class="text-slate-700"><?= h($selectedService['duration_minutes'] ?? 30) ?> Minutes</span>
                     </div>
 
-                    <div class="pt-4 border-t border-slate-800 space-y-2 text-xs">
-                        <div class="flex justify-between text-slate-400">
+                    <div class="pt-4 border-t border-slate-100 space-y-2 text-xs">
+                        <div class="flex justify-between text-slate-500">
                             <span>Base Rate</span>
                             <span>&#8377;<span id="sum-base"><?= number_format((float) ($selectedService['price'] ?? 0), 2) ?></span></span>
                         </div>
-                        <div class="flex justify-between text-slate-400">
+                        <div class="flex justify-between text-slate-500">
                             <span>GST (18%)</span>
                             <span>&#8377;<span id="sum-gst"><?= number_format((float) ($selectedService['pricing']['gst_amount'] ?? 0), 2) ?></span></span>
                         </div>
-                        <div class="flex justify-between text-base font-extrabold text-white pt-2 border-t border-slate-800/80 font-heading">
+                        <div class="flex justify-between text-base font-extrabold text-slate-900 pt-3 border-t border-slate-200 font-heading">
                             <span>Total Payable</span>
-                            <span class="text-cyan-400">&#8377;<span id="sum-total"><?= number_format((float) ($selectedService['pricing']['total_amount'] ?? 0), 2) ?></span></span>
+                            <span class="text-sky-700">&#8377;<span id="sum-total"><?= number_format((float) ($selectedService['pricing']['total_amount'] ?? 0), 2) ?></span></span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Terms Acknowledgement -->
-                <div class="mt-6 pt-5 border-t border-slate-800">
-                    <label class="flex items-start gap-3 cursor-pointer text-xs text-slate-300">
+                <div class="mt-6 pt-5 border-t border-slate-100">
+                    <label class="flex items-start gap-3 cursor-pointer text-xs text-slate-600">
                         <input 
                             type="checkbox" 
                             id="terms-check" 
-                            class="mt-0.5 rounded bg-slate-950 border-slate-700 text-cyan-500 focus:ring-cyan-500"
+                            class="mt-0.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
                         >
                         <span>
-                            I agree to the <a href="<?= app_url('terms') ?>" target="_blank" class="text-cyan-400 hover:underline">Terms &amp; Health Declaration</a>. I confirm I am physically fit for thermal therapy.
+                            I agree to the <a href="<?= app_url('terms') ?>" target="_blank" class="text-sky-600 underline hover:text-sky-700 font-medium">Terms &amp; Health Declaration</a>. I confirm physical fitness for thermal therapy.
                         </span>
                     </label>
                 </div>
@@ -206,7 +207,7 @@
                         type="button" 
                         id="proceed-hold-btn" 
                         disabled 
-                        class="w-full py-3.5 px-4 rounded-xl bg-slate-800 text-slate-500 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed"
+                        class="w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200"
                     >
                         Select Time Slot
                     </button>
@@ -216,7 +217,7 @@
                 </div>
 
                 <!-- Error Notice -->
-                <div id="booking-error" class="hidden mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium">
+                <div id="booking-error" class="hidden mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
                     <!-- Dynamic error text -->
                 </div>
             </div>
@@ -225,36 +226,36 @@
 </div>
 
 <!-- Mock Payment Modal (Local Dev Mode) -->
-<div id="mock-payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-    <div class="bg-slate-900 border border-cyan-500/40 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl shadow-cyan-500/10">
+<div id="mock-payment-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl">
         <div class="flex items-center gap-3 mb-5">
-            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+            <div class="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
             </div>
             <div>
-                <h3 class="text-base font-bold text-white font-heading">Razorpay Gateway (Test Mode)</h3>
-                <p class="text-xs text-slate-400">Local Simulation &bull; Razorpay keys empty in .env</p>
+                <h3 class="text-base font-bold text-slate-900 font-heading">Razorpay Gateway (Test Mode)</h3>
+                <p class="text-xs text-slate-500">Local Simulation &bull; Razorpay keys empty in .env</p>
             </div>
         </div>
 
-        <div class="bg-slate-950 rounded-2xl p-4 border border-slate-800 space-y-2.5 text-xs mb-6">
-            <div class="flex justify-between text-slate-400">
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2.5 text-xs mb-6">
+            <div class="flex justify-between text-slate-600">
                 <span>Modality</span>
-                <span id="mock-service" class="font-semibold text-white"></span>
+                <span id="mock-service" class="font-bold text-slate-900"></span>
             </div>
-            <div class="flex justify-between text-slate-400">
+            <div class="flex justify-between text-slate-600">
                 <span>Order Reference</span>
-                <span id="mock-ref" class="font-mono text-cyan-400"></span>
+                <span id="mock-ref" class="font-mono font-bold text-sky-700"></span>
             </div>
-            <div class="flex justify-between text-slate-400">
+            <div class="flex justify-between text-slate-600">
                 <span>Order ID</span>
-                <span id="mock-order-id" class="font-mono text-slate-300 text-[11px]"></span>
+                <span id="mock-order-id" class="font-mono text-slate-500 text-[11px]"></span>
             </div>
-            <div class="pt-2 border-t border-slate-800 flex justify-between text-sm font-bold text-white font-heading">
+            <div class="pt-2 border-t border-slate-200 flex justify-between text-sm font-bold text-slate-900 font-heading">
                 <span>Total Amount</span>
-                <span id="mock-amount" class="text-emerald-400"></span>
+                <span id="mock-amount" class="text-emerald-600 font-extrabold"></span>
             </div>
         </div>
 
@@ -262,14 +263,14 @@
             <button 
                 type="button" 
                 id="mock-success-btn" 
-                class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
             >
                 Simulate Successful Payment
             </button>
             <button 
                 type="button" 
                 id="mock-cancel-btn" 
-                class="w-full py-2.5 px-4 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                class="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold transition-colors cursor-pointer"
             >
                 Cancel Payment Simulation
             </button>
@@ -356,26 +357,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = `p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                btn.className = `p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
                     slot.available
-                        ? 'bg-slate-950 border-slate-800 hover:border-cyan-500 text-slate-200 cursor-pointer'
-                        : 'bg-slate-950/40 border-slate-900 text-slate-600 cursor-not-allowed opacity-60'
+                        ? 'bg-white border-slate-200 hover:border-sky-500 hover:bg-sky-50/40 text-slate-900 cursor-pointer shadow-xs'
+                        : 'bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed opacity-70'
                 }`;
 
                 let capLabel = '';
                 if (slot.available) {
-                    capLabel = `<span class="text-[10px] text-cyan-400 font-medium">${slot.remaining_capacity} left</span>`;
+                    capLabel = `<span class="text-[10px] text-sky-700 font-bold bg-sky-50 px-1.5 py-0.5 rounded">${slot.remaining_capacity} left</span>`;
                 } else if (slot.unavailable_reason === 'past') {
-                    capLabel = '<span class="text-[10px] text-slate-600 uppercase">Passed</span>';
+                    capLabel = '<span class="text-[10px] text-slate-400 uppercase font-semibold">Passed</span>';
                 } else if (slot.unavailable_reason === 'user_conflict') {
-                    capLabel = '<span class="text-[10px] text-amber-500 font-medium">Conflict</span>';
+                    capLabel = '<span class="text-[10px] text-amber-600 font-semibold">Conflict</span>';
                 } else {
-                    capLabel = '<span class="text-[10px] text-rose-400 font-medium">Full</span>';
+                    capLabel = '<span class="text-[10px] text-rose-500 font-semibold">Full</span>';
                 }
 
                 btn.innerHTML = `
-                    <div class="text-sm font-bold font-heading">${slot.display_start}</div>
-                    <div class="flex items-center justify-between mt-1.5 text-[11px] text-slate-500">
+                    <div class="text-sm font-extrabold font-heading text-slate-900">${slot.display_start}</div>
+                    <div class="flex items-center justify-between mt-2 text-[11px] text-slate-500">
                         <span>${slot.duration_minutes}m</span>
                         ${capLabel}
                     </div>
@@ -385,12 +386,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.addEventListener('click', () => {
                         // Deselect other buttons
                         slotsGrid.querySelectorAll('button').forEach(b => {
-                            b.classList.remove('border-cyan-400', 'bg-cyan-500/10', 'ring-2', 'ring-cyan-500');
-                            b.classList.add('border-slate-800', 'bg-slate-950');
+                            b.classList.remove('border-sky-600', 'bg-sky-50', 'ring-2', 'ring-sky-500/20');
+                            b.classList.add('border-slate-200', 'bg-white');
                         });
                         // Highlight this button
-                        btn.classList.remove('border-slate-800', 'bg-slate-950');
-                        btn.classList.add('border-cyan-400', 'bg-cyan-500/10', 'ring-2', 'ring-cyan-500');
+                        btn.classList.remove('border-slate-200', 'bg-white');
+                        btn.classList.add('border-sky-600', 'bg-sky-50', 'ring-2', 'ring-sky-500/20');
 
                         selectedSlot = slot;
                         updateSummary();
@@ -444,11 +445,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const isReady = selectedSlot !== null && termsCheck.checked;
         if (isReady) {
             proceedBtn.disabled = false;
-            proceedBtn.className = 'w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-slate-950 font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:-translate-y-0.5 transition-all cursor-pointer';
+            proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-sky-600/25 hover:shadow-sky-600/35 hover:-translate-y-0.5 transition-all cursor-pointer';
             proceedBtn.textContent = 'Hold Slot & Proceed to Payment';
         } else {
             proceedBtn.disabled = true;
-            proceedBtn.className = 'w-full py-3.5 px-4 rounded-xl bg-slate-800 text-slate-500 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed';
+            proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200';
             proceedBtn.textContent = selectedSlot ? 'Agree to Terms to Continue' : 'Select Time Slot';
         }
     }
@@ -547,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Re-render button for payment step
             proceedBtn.textContent = 'Proceed to Razorpay Checkout';
-            proceedBtn.className = 'w-full py-3.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/25 transition-all cursor-pointer';
+            proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all cursor-pointer';
             proceedBtn.disabled = false;
 
             // Scroll banner into view smoothly
@@ -615,7 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         contact: currentOrder.customer_mobile
                     },
                     theme: {
-                        color: '#06b6d4'
+                        color: '#0284c7'
                     },
                     handler: async function (response) {
                         await completeVerification(

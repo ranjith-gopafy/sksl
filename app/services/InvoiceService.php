@@ -242,6 +242,12 @@ class InvoiceService
             <table class="header-table">
                 <tr>
                     <td style="width: 60%; vertical-align: top;">
+                        <?php
+                        $logoPath = dirname(__DIR__, 2) . '/public/images/sksl-logo.png';
+                        if (file_exists($logoPath)):
+                        ?>
+                            <img src="<?= $logoPath ?>" style="height: 45px; width: auto; margin-bottom: 8px;" alt="SKSL Logo"><br>
+                        <?php endif; ?>
                         <div class="brand-title"><?= htmlspecialchars($data['business_name'], ENT_QUOTES, 'UTF-8') ?></div>
                         <div class="brand-tagline"><?= htmlspecialchars($data['business_tagline'], ENT_QUOTES, 'UTF-8') ?></div>
                         <div style="font-size: 8.5pt; color: #475569; margin-top: 6px;">

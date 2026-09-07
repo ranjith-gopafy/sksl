@@ -74,6 +74,10 @@ $router->get('/admin/closed-dates', [\App\Controllers\AdminClosedDateController:
 $router->post('/admin/closed-dates', [\App\Controllers\AdminClosedDateController::class, 'create']);
 $router->post('/admin/closed-dates/{id}/delete', [\App\Controllers\AdminClosedDateController::class, 'delete']);
 
+$router->get('/admin/banner', [\App\Controllers\AdminBannerController::class, 'index']);
+$router->post('/admin/banner', [\App\Controllers\AdminBannerController::class, 'update']);
+
+
 $router->get('/health', function() {
     header('Content-Type: application/json');
     try {
