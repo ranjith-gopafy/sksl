@@ -25,7 +25,7 @@ if (empty($bannerSlides)) {
 ?>
 
 <!-- Full-Bleed Carousel Hero Banner (End-to-End, Zero Gap, Left-Aligned Typography) -->
-<section id="hero-carousel" class="relative w-full overflow-hidden bg-slate-950 select-none min-h-[540px] sm:min-h-[600px] lg:min-h-[660px] flex items-stretch">
+<section id="hero-carousel" class="relative w-full overflow-hidden bg-slate-950 select-none h-[460px] sm:h-[520px] lg:h-[580px] flex items-stretch">
     
     <?php if (!empty($_SESSION['admin_id'])): ?>
         <!-- Admin Quick Control Trigger (Floating Top-Right) -->
@@ -42,7 +42,7 @@ if (empty($bannerSlides)) {
     <?php endif; ?>
 
     <!-- Slides Wrapper -->
-    <div class="relative w-full h-full min-h-[540px] sm:min-h-[600px] lg:min-h-[660px]">
+    <div class="relative w-full h-full">
         <?php foreach ($bannerSlides as $idx => $slide): 
             $isActive = ($idx === 0);
             $slideBadge = !empty($slide['badge_text']) ? $slide['badge_text'] : 'Sports Science & Recovery Lab';
@@ -69,8 +69,8 @@ if (empty($bannerSlides)) {
                 <div class="absolute inset-0 pointer-events-none opacity-40 mix-blend-screen" style="background: radial-gradient(circle at 18% 50%, rgba(74, 156, 192, 0.35) 0%, transparent 60%);"></div>
 
                 <!-- Left-Aligned Editorial Content Container (No Center Alignment, End-to-End Section) -->
-                <div class="relative z-10 w-full max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-16 sm:py-24 text-left flex flex-col justify-center">
-                    <div class="max-w-2xl lg:max-w-3xl space-y-4 sm:space-y-6">
+                <div class="relative z-10 w-full max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16 text-left flex flex-col justify-center">
+                    <div class="max-w-2xl lg:max-w-3xl space-y-3.5 sm:space-y-4">
                         
                         <!-- Protocol Category Badge with #D6981E (Kinetic Gold) -->
                         <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md border border-[#D6981E]/40 text-[#D6981E] text-xs font-bold uppercase tracking-wider shadow-sm">
@@ -79,12 +79,12 @@ if (empty($bannerSlides)) {
                         </div>
 
                         <!-- Left-Aligned Headline -->
-                        <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-[1.08] font-heading drop-shadow-md">
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] font-heading drop-shadow-md">
                             <?= nl2br(h($slideHeadline)) ?>
                         </h1>
 
-                        <!-- Left-Aligned Subheadline -->
-                        <p class="text-sm sm:text-base lg:text-lg text-[#D9DBDA] leading-relaxed font-normal max-w-2xl drop-shadow-sm">
+                        <!-- Left-Aligned Subheadline (Concise) -->
+                        <p class="text-sm sm:text-base text-[#D9DBDA] leading-relaxed font-normal max-w-xl drop-shadow-sm line-clamp-2">
                             <?= h($slideSubhead) ?>
                         </p>
 
@@ -92,7 +92,7 @@ if (empty($bannerSlides)) {
                         <div class="pt-2 flex flex-wrap items-center gap-3 sm:gap-4">
                             <a 
                                 href="<?= str_starts_with($slideCtaLink, 'http') ? h($slideCtaLink) : app_url(ltrim($slideCtaLink, '/')) ?>" 
-                                class="app-touch-target inline-flex items-center justify-center font-heading font-bold text-sm px-7 py-3.5 sm:px-8 sm:py-4 rounded-2xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white shadow-lg shadow-[#075183]/40 hover:-translate-y-0.5 transition-all"
+                                class="app-touch-target inline-flex items-center justify-center font-heading font-bold text-sm px-6 py-3 sm:px-7 sm:py-3.5 rounded-2xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white shadow-lg shadow-[#075183]/40 hover:-translate-y-0.5 transition-all"
                             >
                                 <span><?= h($slideCtaText) ?></span>
                                 <svg class="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
@@ -101,26 +101,10 @@ if (empty($bannerSlides)) {
                             </a>
                             <a 
                                 href="<?= app_url('services') ?>" 
-                                class="app-touch-target inline-flex items-center justify-center font-heading font-semibold text-sm px-6 py-3.5 sm:px-7 sm:py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-[#D9DBDA]/40 hover:border-white transition-all"
+                                class="app-touch-target inline-flex items-center justify-center font-heading font-semibold text-sm px-5 py-3 sm:px-6 sm:py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-[#D9DBDA]/40 hover:border-white transition-all"
                             >
                                 Explore 10 Modalities
                             </a>
-                        </div>
-
-                        <!-- Modality Proof Points with SKSL Brand Colors -->
-                        <div class="pt-4 sm:pt-6 flex flex-wrap items-center gap-4 sm:gap-6 text-xs font-medium text-slate-300">
-                            <span class="inline-flex items-center gap-1.5">
-                                <svg class="w-4 h-4 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                Medical-Grade Water Sanitation
-                            </span>
-                            <span class="inline-flex items-center gap-1.5">
-                                <svg class="w-4 h-4 text-[#D6981E]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                Guaranteed 10-Min Slot Hold
-                            </span>
-                            <span class="inline-flex items-center gap-1.5">
-                                <svg class="w-4 h-4 text-[#BF5B2B]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                Automated GST Tax Invoicing
-                            </span>
                         </div>
 
                     </div>
@@ -129,26 +113,30 @@ if (empty($bannerSlides)) {
         <?php endforeach; ?>
     </div>
 
-    <!-- Carousel Floating Edge Navigation Chevrons -->
+    <!-- Carousel Floating Edge Navigation Chevrons (Stable Vertical Centering, No Jumping) -->
     <button 
         type="button" 
         id="carousel-prev" 
         aria-label="Previous Slide" 
-        class="app-touch-target absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-slate-900/60 hover:bg-[#075183] text-white backdrop-blur-md border border-[#D9DBDA]/30 flex items-center justify-center transition-all shadow-lg hover:scale-105"
+        class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900/70 hover:bg-[#075183] text-white backdrop-blur-md border border-[#D9DBDA]/30 flex items-center justify-center transition-colors shadow-lg cursor-pointer select-none group"
     >
-        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.75 19.5L8.25 12l7.5-7.5" />
-        </svg>
+        <span class="flex items-center justify-center transition-transform group-active:scale-90 pointer-events-none">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+        </span>
     </button>
     <button 
         type="button" 
         id="carousel-next" 
         aria-label="Next Slide" 
-        class="app-touch-target absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-slate-900/60 hover:bg-[#075183] text-white backdrop-blur-md border border-[#D9DBDA]/30 flex items-center justify-center transition-all shadow-lg hover:scale-105"
+        class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-900/70 hover:bg-[#075183] text-white backdrop-blur-md border border-[#D9DBDA]/30 flex items-center justify-center transition-colors shadow-lg cursor-pointer select-none group"
     >
-        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-        </svg>
+        <span class="flex items-center justify-center transition-transform group-active:scale-90 pointer-events-none">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+        </span>
     </button>
 
     <!-- Carousel Bottom Pagination Bar & Live Index Counter -->
@@ -269,68 +257,133 @@ if (empty($bannerSlides)) {
                 } elseif (str_contains($nameLower, 'treadmill') || str_contains($nameLower, 'pool') || str_contains($nameLower, 'cycle') || str_contains($nameLower, 'walker')) {
                     $cat = 'aquatic';
                 }
+                $totalPrice = (float) ($srv['pricing']['total_amount'] ?? $srv['price']);
             ?>
                 <div 
-                    class="modality-card bg-white border border-[#D9DBDA] rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 flex flex-col justify-between group"
+                    class="modality-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"
                     data-category="<?= $cat ?>"
                 >
-                    <div>
-                        <!-- Service Photography with Subtle Hover Zoom -->
-                        <div class="relative w-full h-52 sm:h-56 overflow-hidden bg-slate-100">
+                    <!-- MOBILE VIEW: Compact Horizontal App Card (< 768px) -->
+                    <div class="flex md:hidden items-center p-3 gap-3.5">
+                        <!-- Left: Compact Image Thumbnail -->
+                        <div class="relative w-28 h-28 rounded-xl overflow-hidden bg-slate-100 shrink-0">
                             <img 
                                 src="<?= $imgSrc ?>" 
                                 alt="<?= h($srv['name']) ?>" 
-                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                class="w-full h-full object-cover"
                                 loading="lazy"
                             >
-                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
-                            
-                            <!-- Badges on Image with Brand Colors -->
-                            <div class="absolute top-3 left-3 flex items-center gap-2">
-                                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 text-[#075183] backdrop-blur-md shadow-xs flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <!-- Duration Badge on Thumbnail -->
+                            <div class="absolute bottom-1.5 left-1.5">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-white/95 text-[#075183] shadow-xs backdrop-blur-md flex items-center gap-0.5">
+                                    <svg class="w-3 h-3 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
-                                    <?= h($srv['duration_minutes']) ?> Min
+                                    <?= h($srv['duration_minutes']) ?>m
                                 </span>
-                            </div>
-
-                            <div class="absolute top-3 right-3">
-                                <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md border border-white/10">
-                                    Max <?= h($srv['capacity']) ?> Athletes
-                                </span>
-                            </div>
-
-                            <div class="absolute bottom-3 left-4 right-4 text-white">
-                                <h3 class="text-xl font-extrabold font-heading text-white drop-shadow-sm">
-                                    <?= h($srv['name']) ?>
-                                </h3>
                             </div>
                         </div>
 
-                        <!-- Card Body -->
-                        <div class="p-5 sm:p-6">
-                            <p class="text-sm text-slate-600 leading-relaxed min-h-[48px]">
-                                <?= h($srv['description'] ?: 'High-performance athletic protocol engineered for rapid physical recovery, lactate clearance, and nervous system balance.') ?>
-                            </p>
+                        <!-- Right Side of Image: Client Name in Two Lines + Modality & Price -->
+                        <div class="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                            <div>
+                                <!-- Client Name in Two Lines -->
+                                <div class="border-l-2 border-[#D6981E] pl-2 leading-none">
+                                    <div class="font-heading font-extrabold text-[10px] tracking-wider text-[#075183] uppercase">
+                                        Sara Kinetic
+                                    </div>
+                                    <div class="font-heading font-bold text-[9px] tracking-widest text-[#BF5B2B] uppercase mt-0.5">
+                                        Sports Lab
+                                    </div>
+                                </div>
+
+                                <!-- Modality Name -->
+                                <h3 class="text-sm font-extrabold font-heading text-slate-900 leading-snug mt-1 truncate">
+                                    <?= h($srv['name']) ?>
+                                </h3>
+                                <div class="text-[11px] text-slate-500 font-medium">
+                                    Max <?= h($srv['capacity']) ?> athletes
+                                </div>
+                            </div>
+
+                            <!-- Price & CTA Bar -->
+                            <div class="flex items-center justify-between pt-1.5 border-t border-[#D9DBDA]/60 mt-1">
+                                <div>
+                                    <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Total with GST</div>
+                                    <div class="text-sm font-extrabold text-slate-900 font-heading -mt-0.5">
+                                        &#8377;<?= number_format($totalPrice, 2) ?>
+                                    </div>
+                                </div>
+                                <a 
+                                    href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
+                                    class="app-touch-target px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] text-white font-heading font-bold text-[11px] uppercase tracking-wider shadow-xs"
+                                >
+                                    Book
+                                </a>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Price & CTA Bar -->
-                    <div class="px-5 pb-5 sm:px-6 sm:pb-6 pt-3 border-t border-[#D9DBDA]/80 flex items-center justify-between">
+                    <!-- DESKTOP VIEW: Full 3-Column Showcase Card (>= 768px) -->
+                    <div class="hidden md:flex md:flex-col justify-between h-full">
                         <div>
-                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total with 18% GST</div>
-                            <div class="text-xl font-extrabold text-slate-900 font-heading">
-                                &#8377;<?= number_format((float) ($srv['pricing']['total_amount'] ?? $srv['price']), 2) ?>
+                            <!-- Service Photography with Subtle Hover Zoom -->
+                            <div class="relative w-full h-52 sm:h-56 overflow-hidden bg-slate-100">
+                                <img 
+                                    src="<?= $imgSrc ?>" 
+                                    alt="<?= h($srv['name']) ?>" 
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    loading="lazy"
+                                >
+                                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
+                                
+                                <!-- Badges on Image with Brand Colors -->
+                                <div class="absolute top-3 left-3 flex items-center gap-2">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 text-[#075183] backdrop-blur-md shadow-xs flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <?= h($srv['duration_minutes']) ?> Min
+                                    </span>
+                                </div>
+
+                                <div class="absolute top-3 right-3">
+                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md border border-white/10">
+                                        Max <?= h($srv['capacity']) ?> Athletes
+                                    </span>
+                                </div>
+
+                                <div class="absolute bottom-3 left-4 right-4 text-white">
+                                    <h3 class="text-xl font-extrabold font-heading text-white drop-shadow-sm">
+                                        <?= h($srv['name']) ?>
+                                    </h3>
+                                </div>
+                            </div>
+
+                            <!-- Card Body -->
+                            <div class="p-5 sm:p-6">
+                                <p class="text-sm text-slate-600 leading-relaxed min-h-[48px]">
+                                    <?= h($srv['description'] ?: 'High-performance athletic protocol engineered for rapid physical recovery, lactate clearance, and nervous system balance.') ?>
+                                </p>
                             </div>
                         </div>
 
-                        <a 
-                            href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
-                            class="app-touch-target inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
-                        >
-                            Book Slot
-                        </a>
+                        <!-- Price & CTA Bar -->
+                        <div class="px-5 pb-5 sm:px-6 sm:pb-6 pt-3 border-t border-[#D9DBDA]/80 flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total with 18% GST</div>
+                                <div class="text-xl font-extrabold text-slate-900 font-heading">
+                                    &#8377;<?= number_format($totalPrice, 2) ?>
+                                </div>
+                            </div>
+
+                            <a 
+                                href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
+                                class="app-touch-target inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
+                            >
+                                Book Slot
+                            </a>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -568,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             modalityCards.forEach(card => {
                 if (category === 'all' || card.getAttribute('data-category') === category) {
-                    card.style.display = 'flex';
+                    card.style.display = '';
                 } else {
                     card.style.display = 'none';
                 }

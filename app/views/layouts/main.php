@@ -67,19 +67,19 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-20">
                 
-                <!-- Brand Logo & Tagline -->
-                <a href="<?= app_url('') ?>" class="flex items-center gap-3.5 group">
+                <!-- Brand Logo & Client Name in Two Lines -->
+                <a href="<?= app_url('') ?>" class="flex items-center gap-2.5 sm:gap-3.5 group">
                     <img 
                         src="<?= asset('images/sksl-logo.png') ?>" 
                         alt="Sara Kinetic Sports Lab" 
-                        class="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+                        class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]"
                     >
-                    <div class="hidden sm:block border-l border-[#D9DBDA] pl-3">
-                        <div class="font-heading font-extrabold text-sm uppercase tracking-wider text-[#075183] flex items-center gap-1.5">
-                            Sara Kinetic <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#075183]/10 text-[#075183] border border-[#075183]/20 uppercase tracking-widest">Lab</span>
+                    <div class="border-l border-[#D9DBDA] pl-2.5 sm:pl-3 leading-none">
+                        <div class="font-heading font-extrabold text-xs sm:text-sm uppercase tracking-wider text-[#075183]">
+                            Sara Kinetic
                         </div>
-                        <div class="text-[11px] font-medium tracking-wide text-slate-500">
-                            Recover &bull; Recharge &bull; Perform
+                        <div class="font-heading font-bold text-[10px] sm:text-xs uppercase tracking-widest text-[#BF5B2B] mt-0.5">
+                            Sports Lab
                         </div>
                     </div>
                 </a>
