@@ -36,6 +36,7 @@ $router->get('/contact', [HomeController::class, 'contact']);
 // ─── Public API Routes ────────────────────────────────────────────────────
 $router->get('/api/services', [ServiceController::class, 'apiIndex']);
 $router->get('/api/services/{id}', [ServiceController::class, 'apiShow']);
+$router->get('/api/availability', [\App\Controllers\AvailabilityController::class, 'index']);
 
 $router->get('/health', function() {
     header('Content-Type: application/json');
