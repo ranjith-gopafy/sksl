@@ -67,6 +67,20 @@ class AdminModel
     }
 
     /**
+     * Count OTP requests generated for an admin within the last N minutes.
+     * Used for database-backed rate-limiting to prevent cookie-dropping bypasses.
+     */
+    public function countRecentOtps(int $adminId, int $intervalMinutes = 15): int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM admin_otps
+             WHERE admin_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)'
+        );
+        $stmt->execute([$adminId, $intervalMinutes]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
      * Retrieve the latest un-consumed, non-expired OTP for an administrator.
      */
     public function getLatestValidOtp(int $adminId): ?array

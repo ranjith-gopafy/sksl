@@ -90,6 +90,9 @@ class AdminServiceController
         $capacity = (int) ($_POST['capacity'] ?? $service['capacity']);
         $desc     = trim((string) ($_POST['description'] ?? $service['description']));
         $status   = trim((string) ($_POST['status'] ?? $service['status']));
+        if (!in_array($status, ['active', 'inactive'], true)) {
+            $status = $service['status'];
+        }
 
         if ($price < 0 || $capacity < 1) {
             Flash::set('error', 'Price must be positive and capacity must be at least 1.');

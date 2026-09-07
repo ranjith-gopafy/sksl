@@ -159,13 +159,19 @@ class PaymentController
 
     /**
      * GET /bookings/{ref}/invoice
-     * Download GST Tax Invoice PDF. Requires customer authentication.
+     * Download GST Tax Invoice PDF. Requires customer or admin authentication.
      *
      * @param array<string, string> $params
      */
     public function downloadInvoice(array $params = []): void
     {
-        CustomerAuth::handle();
+        $isAdmin    = !empty($_SESSION['admin_id']);
+        $isCustomer = !empty($_SESSION['user_id']);
+
+        if (!$isAdmin && !$isCustomer) {
+            CustomerAuth::handle();
+            return;
+        }
 
         $reference = trim((string) ($params['ref'] ?? $_GET['ref'] ?? ''));
         if ($reference === '') {
@@ -174,7 +180,9 @@ class PaymentController
             exit;
         }
 
-        $userId = (int) $_SESSION['user_id'];
+        // Pass userId = 0 for admin (grants authoritative download access),
+        // or the authenticated customer's userId (strictly enforces IDOR ownership).
+        $userId = $isAdmin ? 0 : (int) $_SESSION['user_id'];
         $invoiceService = new \App\Services\InvoiceService();
         $invoiceService->downloadInvoice($reference, $userId);
     }

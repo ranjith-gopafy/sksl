@@ -68,6 +68,11 @@ class AdminAuthController
         }
 
         $email = trim((string) ($_GET['email'] ?? ''));
+        if ($email === '') {
+            header('Location: ' . app_url('admin/login'));
+            exit;
+        }
+
         $title = 'Verify Admin Code — Sara Kinetic Sports Lab';
         $viewFile = dirname(__DIR__) . '/views/admin/verify-otp.php';
         require dirname(__DIR__) . '/views/layouts/main.php';

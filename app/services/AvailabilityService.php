@@ -46,11 +46,20 @@ class AvailabilityService
      */
     public function getAvailableSlots(int $serviceId, string $date, ?int $currentUserId = null): array
     {
-        // 1. Validate date format (YYYY-MM-DD)
+        // 1. Validate date format (YYYY-MM-DD) and calendar validity
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             return [
                 'success' => false,
                 'message' => 'Invalid date format. Expected YYYY-MM-DD.',
+                'slots'   => [],
+            ];
+        }
+
+        [$y, $m, $d] = array_map('intval', explode('-', $date));
+        if (!checkdate($m, $d, $y)) {
+            return [
+                'success' => false,
+                'message' => 'Invalid calendar date.',
                 'slots'   => [],
             ];
         }

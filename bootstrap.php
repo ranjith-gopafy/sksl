@@ -56,6 +56,15 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_start();
 }
 
+// ─── HTTP Security Headers ────────────────────────────────────────────────
+if (!headers_sent()) {
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: geolocation=(), camera=(), microphone=()');
+}
+
 // ─── Database connection ───────────────────────────────────────────────────
 // Returns a shared PDO instance. Store in $db for use across the app.
 function getDb(): PDO

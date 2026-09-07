@@ -52,6 +52,11 @@ class BookingService
             return ['success' => false, 'message' => 'Invalid date format (YYYY-MM-DD required).'];
         }
 
+        [$y, $m, $d] = array_map('intval', explode('-', $date));
+        if (!checkdate($m, $d, $y)) {
+            return ['success' => false, 'message' => 'Invalid calendar date.'];
+        }
+
         if (!preg_match('/^\d{2}:\d{2}$/', $startTime)) {
             return ['success' => false, 'message' => 'Invalid time format (HH:MM required).'];
         }

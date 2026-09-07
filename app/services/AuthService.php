@@ -165,6 +165,9 @@ class AuthService
             $_SESSION['user_mobile'],
             $_SESSION['intended_url']
         );
+        if (!headers_sent()) {
+            session_regenerate_id(true);
+        }
     }
 
     /**

@@ -51,6 +51,14 @@ class AdminAuthService
         $admin = $this->adminModel->findByEmail($cleanEmail);
 
         if ($admin) {
+            // Database-backed rate limit check (5 OTPs per 15 minutes)
+            if ($this->adminModel->countRecentOtps((int) $admin['id'], 15) >= 5) {
+                return [
+                    'success' => false,
+                    'message' => 'Too many login attempts. Please wait 15 minutes before requesting another code.',
+                ];
+            }
+
             // Generate cryptographically secure 6-digit numeric OTP
             $otp = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
             $otpHashed = password_hash($otp, PASSWORD_BCRYPT);
