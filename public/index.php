@@ -54,6 +54,14 @@ $router->get('/bookings/{ref}/invoice', [\App\Controllers\PaymentController::cla
 $router->get('/my-bookings', [\App\Controllers\CustomerBookingController::class, 'index']);
 $router->post('/my-bookings/{ref}/cancel', [\App\Controllers\CustomerBookingController::class, 'cancel']);
 
+// ─── Admin Authentication Routes ──────────────────────────────────────────
+$router->get('/admin/login', [\App\Controllers\AdminAuthController::class, 'showLogin']);
+$router->post('/admin/login', [\App\Controllers\AdminAuthController::class, 'sendOtp']);
+$router->get('/admin/verify-otp', [\App\Controllers\AdminAuthController::class, 'showVerifyOtp']);
+$router->post('/admin/verify-otp', [\App\Controllers\AdminAuthController::class, 'verifyOtp']);
+$router->get('/admin/logout', [\App\Controllers\AdminAuthController::class, 'logout']);
+$router->post('/admin/logout', [\App\Controllers\AdminAuthController::class, 'logout']);
+
 $router->get('/health', function() {
     header('Content-Type: application/json');
     try {

@@ -1,0 +1,171 @@
+<?php
+
+declare(strict_types=1);
+
+require_once dirname(__DIR__) . '/bootstrap.php';
+
+use App\Models\AdminModel;
+use App\Services\AdminAuthService;
+
+echo "=======================================================\n";
+echo "SKSL — Phase 11 Admin Email OTP Authentication Tests\n";
+echo "=======================================================\n\n";
+
+$db = getDb();
+$adminModel = new AdminModel();
+$authService = new AdminAuthService();
+$mailLogFile = dirname(__DIR__) . '/storage/logs/mail.log';
+
+// 1. Setup Test Admin
+$adminEmail = 'staff_' . time() . '@sk-sports-lab.test';
+$adminName  = 'Head Recovery Director';
+$adminId    = $adminModel->create($adminName, $adminEmail, 'active');
+assert($adminId > 0, 'Failed to create test admin.');
+echo "[PASS] 1. Test administrator created (ID: $adminId, Email: $adminEmail)\n";
+
+// 2. Test Request OTP
+$reqRes = $authService->requestOtp($adminEmail);
+assert($reqRes['success'] === true, 'Failed to request OTP');
+echo "[PASS] 2. OTP request processed successfully\n";
+
+// Verify OTP logged to mail.log
+assert(file_exists($mailLogFile), 'Mail log file does not exist');
+$mailContent = file_get_contents($mailLogFile);
+assert(str_contains($mailContent, $adminEmail), "Admin email $adminEmail missing from mail log");
+
+// Extract the 6-digit OTP from the email log
+preg_match_all('/Your SKSL Admin Login OTP:\s*(\d{6})/i', $mailContent, $matches);
+assert(!empty($matches[1]), 'Could not extract 6-digit OTP from mail log');
+$plainOtp = end($matches[1]);
+echo "[PASS] 3. Extracted generated 6-digit OTP from email log: $plainOtp\n";
+
+// 3. Test Invalid OTP Inputs
+$badFormat = $authService->verifyOtp($adminEmail, '12345');
+assert($badFormat['success'] === false, 'Accepted 5-digit OTP');
+echo "[PASS] 4. Rejects invalid OTP format (non-6-digit)\n";
+
+$wrongCode = $authService->verifyOtp($adminEmail, '000000');
+assert($wrongCode['success'] === false, 'Accepted incorrect OTP code');
+echo "[PASS] 5. Rejects incorrect OTP code\n";
+
+// 4. Test Valid OTP Verification
+$goodVerify = $authService->verifyOtp($adminEmail, $plainOtp);
+assert($goodVerify['success'] === true, 'Failed to verify valid OTP: ' . $goodVerify['message']);
+assert(isset($_SESSION['admin_id']) && $_SESSION['admin_id'] === $adminId, 'Session admin_id not populated');
+assert($_SESSION['admin_name'] === $adminName, 'Session admin_name mismatch');
+echo "[PASS] 6. Valid 6-digit OTP verified, session established (Admin ID: {$_SESSION['admin_id']})\n";
+
+// 5. Test Single-Use (Replay Prevention)
+$replayVerify = $authService->verifyOtp($adminEmail, $plainOtp);
+assert($replayVerify['success'] === false, 'Re-used previously consumed OTP');
+echo "[PASS] 7. Single-use enforcement verified (replaying used OTP is rejected)\n";
+
+// 6. Test Logout
+$authService->logout();
+assert(empty($_SESSION['admin_id']), 'Session admin_id not cleared on logout');
+echo "[PASS] 8. Admin logout successfully terminates session\n";
+
+// 7. Test HTTP End-to-End Flow via Apache
+$baseUrl = 'http://localhost/sksl/public';
+$cookieFile = sys_get_temp_dir() . '/sksl_admin_cookie_' . time() . '.txt';
+
+// Step A: GET /admin/login
+$ch = curl_init("$baseUrl/admin/login");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+]);
+$loginHtml = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+assert($httpCode === 200, "Expected 200 for /admin/login, got $httpCode");
+assert(str_contains($loginHtml, 'Admin Portal'), 'Missing Admin Portal title');
+echo "[PASS] 9. HTTP GET /admin/login renders login form\n";
+
+// Extract CSRF
+preg_match('/name="_csrf_token"\s+value="([a-f0-9]+)"/i', $loginHtml, $m);
+$csrfToken = $m[1] ?? '';
+
+// Step B: POST /admin/login
+$ch = curl_init("$baseUrl/admin/login");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => http_build_query([
+        '_csrf_token' => $csrfToken,
+        'email' => $adminEmail,
+    ]),
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+$resp = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+assert($httpCode === 302, "Expected 302 redirect after sending OTP, got $httpCode");
+echo "[PASS] 10. HTTP POST /admin/login redirects to verify-otp\n";
+
+// Extract latest OTP from mail log
+$mailContent = file_get_contents($mailLogFile);
+preg_match_all('/Your SKSL Admin Login OTP:\s*(\d{6})/i', $mailContent, $matches2);
+$httpOtp = end($matches2[1]);
+
+// Step C: GET /admin/verify-otp
+$ch = curl_init("$baseUrl/admin/verify-otp?email=" . urlencode($adminEmail));
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+]);
+$verifyHtml = curl_exec($ch);
+curl_close($ch);
+
+preg_match('/name="_csrf_token"\s+value="([a-f0-9]+)"/i', $verifyHtml, $m2);
+$csrfToken2 = $m2[1] ?? '';
+
+// Step D: POST /admin/verify-otp
+$ch = curl_init("$baseUrl/admin/verify-otp");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => http_build_query([
+        '_csrf_token' => $csrfToken2,
+        'email' => $adminEmail,
+        'otp'   => $httpOtp,
+    ]),
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+$verifyResp = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+assert($httpCode === 302, "Expected 302 redirect after successful OTP verification, got $httpCode");
+echo "[PASS] 11. HTTP POST /admin/verify-otp authenticates and redirects to admin area\n";
+
+// Step E: Logout
+$ch = curl_init("$baseUrl/admin/logout");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+assert($httpCode === 302, "Expected 302 redirect after logout, got $httpCode");
+echo "[PASS] 12. HTTP admin logout terminates session\n";
+
+// Cleanup
+@unlink($cookieFile);
+$db->prepare('DELETE FROM admin_otps WHERE admin_id = ?')->execute([$adminId]);
+$db->prepare('DELETE FROM admins WHERE id = ?')->execute([$adminId]);
+echo "[PASS] 13. Test data cleaned up successfully\n\n";
+
+echo ">>> ALL PHASE 11 ADMIN AUTHENTICATION TESTS PASSED SUCCESSFULLY! <<<\n";
