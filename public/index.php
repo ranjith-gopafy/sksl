@@ -13,6 +13,8 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__) . '/Router.php';
 
+use App\Controllers\HomeController;
+use App\Controllers\ServiceController;
 use App\Controllers\AuthController;
 use App\Controllers\ProfileController;
 use App\Middleware\CsrfMiddleware;
@@ -23,27 +25,17 @@ CsrfMiddleware::handle();
 // ─── Router ───────────────────────────────────────────────────────────────
 $router = new Router();
 
-// Smoke-test & Health
-$router->get('/', function() {
-    header('Location: ' . app_url('services'));
-    exit;
-});
+// ─── Public Homepage & Informational Routes ────────────────────────────────
+$router->get('/', [HomeController::class, 'index']);
+$router->get('/services', [ServiceController::class, 'index']);
+$router->get('/privacy-policy', [HomeController::class, 'privacy']);
+$router->get('/terms', [HomeController::class, 'terms']);
+$router->get('/cancellation-refund', [HomeController::class, 'cancellation']);
+$router->get('/contact', [HomeController::class, 'contact']);
 
-// Temporary placeholder for services until Phase 4
-$router->get('/services', function() {
-    $title = 'Services & Pricing — Sara Kinetic Sports Lab';
-    $viewFile = null;
-    echo '<!DOCTYPE html><html lang="en" style="background:#020617; color:#f8fafc; font-family:sans-serif; text-align:center; padding:60px 20px;">'
-        . '<h1 style="color:#38bdf8; font-size:32px; font-weight:800; margin-bottom:8px;">SARA KINETIC SPORTS LAB</h1>'
-        . '<p style="color:#94a3b8; font-weight:600; text-transform:uppercase; letter-spacing:2px; font-size:13px; margin-bottom:32px;">Recover &bull; Recharge &bull; Perform</p>'
-        . '<div style="background:#0f172a; max-width:500px; margin:0 auto; padding:32px; border-radius:16px; border:1px solid #1e293b; box-shadow:0 10px 25px rgba(0,0,0,0.5);">'
-        . '<p style="margin-bottom:24px; color:#cbd5e1; font-size:15px;">Phase 3: Customer Authentication is active!</p>'
-        . '<div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">'
-        . '<a href="' . app_url('login') . '" style="background:#0284c7; color:#fff; text-decoration:none; padding:10px 20px; border-radius:8px; font-weight:600; font-size:14px;">Sign In</a>'
-        . '<a href="' . app_url('register') . '" style="background:#334155; color:#fff; text-decoration:none; padding:10px 20px; border-radius:8px; font-weight:600; font-size:14px;">Create Account</a>'
-        . '<a href="' . app_url('profile') . '" style="background:#0f766e; color:#fff; text-decoration:none; padding:10px 20px; border-radius:8px; font-weight:600; font-size:14px;">My Profile</a>'
-        . '</div></div></html>';
-});
+// ─── Public API Routes ────────────────────────────────────────────────────
+$router->get('/api/services', [ServiceController::class, 'apiIndex']);
+$router->get('/api/services/{id}', [ServiceController::class, 'apiShow']);
 
 $router->get('/health', function() {
     header('Content-Type: application/json');
