@@ -53,6 +53,7 @@ module.exports = defineConfig({
       name: 'Mobile iPhone 14',
       use: {
         ...devices['iPhone 14'],
+        defaultBrowserType: 'chromium',
         isMobile: true,
         hasTouch: true,
       },

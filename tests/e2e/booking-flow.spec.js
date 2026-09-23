@@ -31,7 +31,7 @@ test.describe('Booking Page Structure', () => {
     await expect(page).toHaveURL(/login/);
   });
 
-  test('booking page loads for authenticated user', async ({ page }) => {
+  test('booking page loads for authenticated user with locked modality showcase', async ({ page }) => {
     await loginAsCustomer(page);
     if (page.url().includes('login')) { test.skip(); return; }
 
@@ -39,31 +39,19 @@ test.describe('Booking Page Structure', () => {
     await expect(page).toHaveURL(/booking/);
 
     await expect(page.locator('h1')).toContainText(/Book/i);
-    await expect(page.locator('#service_selector, select[name*="service"]').first()).toBeVisible();
+    // Locked modality card is displayed
+    const modalityCard = page.locator('#selected-service-card, [id*="selected-service"]');
+    await expect(modalityCard).toBeVisible();
     await expect(page.locator('#date_input, input[type="date"]').first()).toBeVisible();
   });
 });
 
-test.describe('Slot Selection & Hold Banner', () => {
-  test('selecting a service and date loads slot availability', async ({ page }) => {
+test.describe('Slot Selection & 1-Click Payment Preparation', () => {
+  test('selecting a date loads live slot availability grid', async ({ page }) => {
     await loginAsCustomer(page);
     if (page.url().includes('login')) { test.skip(); return; }
 
     await page.goto('/booking', { waitUntil: 'domcontentloaded' });
-
-    const serviceSelect = page.locator('#service_selector, select[name*="service"]').first();
-    const options = await serviceSelect.locator('option').all();
-
-    let selectedValue = '';
-    for (const opt of options) {
-      const val = await opt.getAttribute('value');
-      if (val && val !== '' && val !== '0') {
-        await serviceSelect.selectOption(val);
-        selectedValue = val;
-        break;
-      }
-    }
-    if (!selectedValue) { test.skip(); return; }
 
     const dateInput = page.locator('#date_input, input[type="date"]').first();
     await dateInput.fill(getTomorrow());
@@ -75,21 +63,11 @@ test.describe('Slot Selection & Hold Banner', () => {
     await expect(slotGrid).toBeVisible({ timeout: 8000 });
   });
 
-  test('selecting a slot triggers a booking hold', async ({ page }) => {
+  test('selecting a slot highlights it and enables payment proceed button', async ({ page }) => {
     await loginAsCustomer(page);
     if (page.url().includes('login')) { test.skip(); return; }
 
     await page.goto('/booking', { waitUntil: 'domcontentloaded' });
-
-    const serviceSelect = page.locator('#service_selector, select[name*="service"]').first();
-    const options = await serviceSelect.locator('option').all();
-    for (const opt of options) {
-      const val = await opt.getAttribute('value');
-      if (val && val !== '' && val !== '0') {
-        await serviceSelect.selectOption(val);
-        break;
-      }
-    }
 
     const dateInput = page.locator('#date_input, input[type="date"]').first();
     await dateInput.fill(getTomorrow());
@@ -99,49 +77,14 @@ test.describe('Slot Selection & Hold Banner', () => {
     const availableSlot = page.locator('.slot-btn:not([disabled]):not(.slot-unavailable)').first();
     if (!(await availableSlot.isVisible())) { test.skip(); return; }
     await availableSlot.click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(1000);
 
-    // Hold banner should appear
-    const holdBanner = page.locator('#hold-banner');
-    await expect(holdBanner).toBeVisible({ timeout: 8000 });
+    // Slot button should receive active/selected class or styling
+    await expect(availableSlot).toHaveClass(/border-\[#075183\]|bg-\[#075183\]|selected/);
 
-    // Booking reference should show SKSL- prefix
-    const holdRef = page.locator('#hold-ref');
-    await expect(holdRef).toBeVisible();
-    const refText = await holdRef.textContent();
-    expect(refText).toMatch(/SKSL-/i);
-  });
-
-  test('hold timer is visible and counting down', async ({ page }) => {
-    await loginAsCustomer(page);
-    if (page.url().includes('login')) { test.skip(); return; }
-
-    await page.goto('/booking', { waitUntil: 'domcontentloaded' });
-
-    const serviceSelect = page.locator('#service_selector, select[name*="service"]').first();
-    const opts = await serviceSelect.locator('option').all();
-    for (const opt of opts) {
-      const val = await opt.getAttribute('value');
-      if (val && val !== '' && val !== '0') {
-        await serviceSelect.selectOption(val);
-        break;
-      }
-    }
-    const dateInput = page.locator('#date_input, input[type="date"]').first();
-    await dateInput.fill(getTomorrow());
-    await dateInput.dispatchEvent('change');
-    await page.waitForTimeout(2000);
-
-    const availableSlot = page.locator('.slot-btn:not([disabled]):not(.slot-unavailable)').first();
-    if (!(await availableSlot.isVisible())) { test.skip(); return; }
-    await availableSlot.click();
-    await page.waitForTimeout(1500);
-
-    const holdTimer = page.locator('#hold-timer');
-    await expect(holdTimer).toBeVisible({ timeout: 8000 });
-    const timerText = await holdTimer.textContent();
-    // Should be MM:SS format
-    expect(timerText).toMatch(/^\d{1,2}:\d{2}$/);
+    // Proceed button exists and is visible
+    const proceedBtn = page.locator('#proceed-btn, button[id*="proceed"]').first();
+    await expect(proceedBtn).toBeVisible();
   });
 });
 

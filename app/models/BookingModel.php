@@ -181,12 +181,13 @@ class BookingModel
 
         if ($filter === 'upcoming') {
             $sql .= " AND b.booking_status = 'confirmed' 
-                      AND CONCAT(b.booking_date, ' ', b.start_time) >= NOW()";
+                      AND (CONCAT(b.booking_date, ' ', b.end_time) >= NOW() OR b.booking_date >= CURDATE())";
         } elseif ($filter === 'completed') {
-            $sql .= " AND (b.booking_status = 'completed' OR (b.booking_status = 'confirmed' AND CONCAT(b.booking_date, ' ', b.end_time) < NOW()))";
+            $sql .= " AND (b.booking_status = 'completed' OR (b.booking_status = 'confirmed' AND CONCAT(b.booking_date, ' ', b.end_time) < NOW() AND b.booking_date < CURDATE()))";
         } elseif ($filter === 'cancelled') {
             $sql .= " AND b.booking_status = 'cancelled'";
         }
+        // If filter is 'all' or null, return all bookings
 
         $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC";
 

@@ -1,116 +1,158 @@
+<?php
+/**
+ * SKSL — Customer Booking Page
+ *
+ * Streamlined 1-Click Hold & Gateway Launch:
+ * - Locked Selected Modality Showcase Card (captured from Services or Home page)
+ * - Real-time slot availability for chosen date
+ * - Direct "Proceed to Payment" without separate hold countdown
+ * - Full-screen blocking loader during payment confirmation
+ * - Auto-release hold if payment is dismissed/cancelled
+ */
+
+$modalityImg = (!empty($selectedService['image']) && str_starts_with($selectedService['image'], 'http'))
+    ? $selectedService['image']
+    : asset('images/services/' . ($selectedService['image'] ?? 'spa.jpg'));
+
+$basePrice = (float) ($selectedService['price'] ?? 0);
+$gstAmount = (float) ($selectedService['pricing']['gst_amount'] ?? ($basePrice * 0.18));
+$totalAmount = (float) ($selectedService['pricing']['total_amount'] ?? ($basePrice + $gstAmount));
+$duration = (int) ($selectedService['duration_minutes'] ?? 30);
+$capacity = (int) ($selectedService['capacity'] ?? 4);
+?>
+
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
     <!-- Header -->
     <div class="mb-8">
-        <span class="text-xs font-bold uppercase tracking-widest text-[#075183]">Step-by-Step Reservation</span>
+        <span class="text-xs font-bold uppercase tracking-widest text-[#075183]">Seamless Reservation</span>
         <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 font-heading mt-1">Book Your Recovery Session</h1>
-        <p class="text-sm text-slate-600 mt-1">Live slot availability calculated in real-time. Slot capacity is strictly protected.</p>
+        <p class="text-sm text-slate-600 mt-1">Select your preferred date and time slot. Capacity is strictly managed in real-time.</p>
     </div>
 
-    <!-- Active Hold Banner (Hidden initially) -->
-    <div id="hold-banner" class="hidden rounded-3xl bg-gradient-to-r from-slate-900 via-[#075183] to-[#4A9CC0] text-white p-6 mb-8 shadow-lg border border-[#D9DBDA]/30">
-        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md text-[#D6981E] flex items-center justify-center shrink-0 shadow-md border border-white/20">
-                    <svg class="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                    </svg>
-                </div>
-                <div>
-                    <h2 class="text-base font-bold text-white font-heading flex items-center gap-2">
-                        Slot Reserved Under Hold: <span id="hold-ref" class="text-[#D6981E] font-mono font-extrabold"></span>
-                    </h2>
-                    <p class="text-xs text-slate-200 mt-0.5">
-                        Complete your payment before the timer expires to confirm this booking.
-                    </p>
-                </div>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="text-center bg-white px-5 py-2.5 rounded-2xl border border-slate-100 shadow-md">
-                    <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Time Remaining</div>
-                    <div id="hold-timer" class="text-2xl font-mono font-extrabold text-[#D6981E] tracking-wider">10:00</div>
-                </div>
-                <button 
-                    type="button" 
-                    id="release-hold-btn" 
-                    class="app-touch-target text-xs font-semibold text-rose-200 hover:text-white px-3.5 py-2.5 rounded-xl hover:bg-rose-600/30 border border-white/20 transition-colors"
-                >
-                    Cancel Hold
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Hidden compatibility select for testing/forms -->
+    <select id="service_selector" class="sr-only" aria-hidden="true" tabindex="-1">
+        <?php foreach ($services as $srv): ?>
+            <option 
+                value="<?= (int) $srv['id'] ?>" 
+                <?= ((int) $srv['id'] === (int) $selectedService['id']) ? 'selected' : '' ?>
+                data-duration="<?= (int) $srv['duration_minutes'] ?>"
+                data-capacity="<?= (int) $srv['capacity'] ?>"
+                data-base="<?= (float) $srv['price'] ?>"
+                data-gst="<?= (float) ($srv['pricing']['gst_amount'] ?? 0) ?>"
+                data-total="<?= (float) ($srv['pricing']['total_amount'] ?? 0) ?>"
+            >
+                <?= h($srv['name']) ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+
+    <input 
+        type="hidden" 
+        id="service_id" 
+        value="<?= (int) $selectedService['id'] ?>"
+        data-name="<?= h($selectedService['name']) ?>"
+        data-duration="<?= $duration ?>"
+        data-capacity="<?= $capacity ?>"
+        data-base="<?= $basePrice ?>"
+        data-gst="<?= $gstAmount ?>"
+        data-total="<?= $totalAmount ?>"
+    >
 
     <!-- Booking Form Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- Left: Service, Date, Slot Picker (2 Columns) -->
+        <!-- Left: Selected Modality & Slot Picker (2 Columns) -->
         <div class="lg:col-span-2 space-y-6">
             
-            <!-- Service & Date Selection Card -->
-            <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-8 shadow-xs">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    
-                    <!-- Service Selector -->
-                    <div>
-                        <label for="service_selector" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            1. Select Modality
-                        </label>
-                        <select 
-                            id="service_selector" 
-                            class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-[#D9DBDA] text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-[#075183] focus:ring-1 focus:ring-[#075183] text-sm transition-all"
+            <!-- 1. Selected Modality Showcase Card (Locked) -->
+            <div id="selected-service-card" class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-7 shadow-xs relative overflow-hidden transition-all hover:border-[#075183]/40">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                    <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shrink-0 shadow-sm border border-slate-200/80 bg-slate-100">
+                        <img 
+                            src="<?= $modalityImg ?>" 
+                            alt="<?= h($selectedService['name']) ?>" 
+                            class="w-full h-full object-cover"
+                            onerror="this.src='<?= asset('images/services/spa.jpg') ?>'"
                         >
-                            <?php foreach ($services as $srv): ?>
-                                <option 
-                                    value="<?= (int) $srv['id'] ?>" 
-                                    <?= ((int) $srv['id'] === (int) ($selectedService['id'] ?? 1)) ? 'selected' : '' ?>
-                                    data-duration="<?= (int) $srv['duration_minutes'] ?>"
-                                    data-capacity="<?= (int) $srv['capacity'] ?>"
-                                    data-base="<?= (float) $srv['price'] ?>"
-                                    data-gst="<?= (float) ($srv['pricing']['gst_amount'] ?? 0) ?>"
-                                    data-total="<?= (float) ($srv['pricing']['total_amount'] ?? 0) ?>"
-                                >
-                                    <?= h($srv['name']) ?> (<?= h($srv['duration_minutes']) ?> min &bull; &#8377;<?= number_format((float) ($srv['pricing']['total_amount'] ?? $srv['price']), 2) ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
                     </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#075183]/10 text-[#075183]">
+                                <?= h($selectedService['category'] ?? 'Active Modality') ?>
+                            </span>
+                            <span class="text-[11px] font-semibold text-slate-500">
+                                <?= $duration ?> Min Session
+                            </span>
+                            <span class="text-[11px] font-semibold text-slate-400">&bull;</span>
+                            <span class="text-[11px] font-semibold text-slate-500">
+                                Max <?= $capacity ?> Athletes
+                            </span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 font-heading">
+                            <?= h($selectedService['name']) ?>
+                        </h2>
+                        <p class="text-xs text-slate-600 mt-1 line-clamp-2">
+                            <?= h($selectedService['description'] ?? 'Science-backed athletic recovery modality designed to accelerate muscle repair and elevate performance.') ?>
+                        </p>
+                        <div class="mt-3.5 flex items-center justify-between pt-3 border-t border-slate-100">
+                            <div class="text-sm font-extrabold text-[#075183] font-heading">
+                                &#8377;<?= number_format($totalAmount, 2) ?>
+                                <span class="text-[10px] text-slate-400 font-normal">incl. 18% GST</span>
+                            </div>
+                            <a 
+                                href="<?= app_url('services') ?>" 
+                                class="inline-flex items-center gap-1.5 text-xs font-bold text-[#075183] hover:text-[#4A9CC0] transition-colors"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                </svg>
+                                Change Modality
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                    <!-- Date Selector -->
+            <!-- 2. Date Selection Card -->
+            <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-7 shadow-xs">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <label for="date_selector" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            2. Select Date
+                        <label for="date_selector" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                            Pick Session Date
                         </label>
+                        <p class="text-xs text-slate-500">Select any date within the next 30 days.</p>
+                    </div>
+                    <div class="w-full sm:w-auto sm:min-w-[220px]">
                         <input 
                             type="date" 
                             id="date_selector" 
                             min="<?= date('Y-m-d') ?>"
                             max="<?= date('Y-m-d', strtotime('+30 days')) ?>"
                             value="<?= date('Y-m-d') ?>"
-                            class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-[#D9DBDA] text-slate-900 font-medium focus:bg-white focus:outline-none focus:border-[#075183] focus:ring-1 focus:ring-[#075183] text-sm transition-all"
+                            class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-[#D9DBDA] text-slate-900 font-semibold focus:bg-white focus:outline-none focus:border-[#075183] focus:ring-1 focus:ring-[#075183] text-sm transition-all"
                         >
                     </div>
                 </div>
 
-                <!-- Service Quick Specs Bar -->
-                <div class="mt-6 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                <!-- Operating Specs -->
+                <div class="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                     <div>
-                        Duration: <strong id="spec-duration" class="text-[#075183] font-bold"><?= h($selectedService['duration_minutes'] ?? 30) ?> min</strong>
+                        Facility Hours: <strong class="text-slate-800 font-bold">06:00 – 22:00 IST</strong>
                     </div>
                     <div>
-                        Max Capacity: <strong id="spec-capacity" class="text-slate-800 font-bold"><?= h($selectedService['capacity'] ?? 4) ?> athletes/slot</strong>
+                        Session Window: <strong class="text-[#075183] font-bold"><?= $duration ?> Minutes</strong>
                     </div>
                     <div>
-                        Operating Hours: <strong class="text-slate-800 font-bold">06:00 – 22:00 IST</strong>
+                        Direct Check-in: <strong class="text-slate-800 font-bold">10 min prior</strong>
                     </div>
                 </div>
             </div>
 
-            <!-- Dynamic Slot Grid Card -->
+            <!-- 3. Dynamic Slot Grid Card -->
             <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-8 shadow-xs">
                 <div class="flex items-center justify-between mb-5">
                     <div class="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        3. Choose Available Time Slot
+                        Choose Available Time Slot
                     </div>
                     <div id="slots-count-badge" class="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
                         Checking availability...
@@ -143,7 +185,7 @@
             </div>
         </div>
 
-        <!-- Right: Booking Summary & Hold Checkout (1 Column) -->
+        <!-- Right: Booking Summary & 1-Click Payment (1 Column) -->
         <div class="lg:col-span-1">
             <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-7 shadow-xs sticky top-24">
                 <h3 class="text-lg font-bold text-slate-900 font-heading border-b border-slate-100 pb-4 mb-5">
@@ -153,7 +195,7 @@
                 <div class="space-y-3.5 text-sm">
                     <div class="flex justify-between">
                         <span class="text-slate-500">Modality</span>
-                        <span id="sum-service" class="font-bold text-slate-900"><?= h($selectedService['name'] ?? 'Spa') ?></span>
+                        <span id="sum-service" class="font-bold text-slate-900"><?= h($selectedService['name']) ?></span>
                     </div>
 
                     <div class="flex justify-between">
@@ -168,21 +210,21 @@
 
                     <div class="flex justify-between">
                         <span class="text-slate-500">Duration</span>
-                        <span id="sum-duration" class="text-slate-700"><?= h($selectedService['duration_minutes'] ?? 30) ?> Minutes</span>
+                        <span id="sum-duration" class="text-slate-700"><?= $duration ?> Minutes</span>
                     </div>
 
                     <div class="pt-4 border-t border-slate-100 space-y-2 text-xs">
                         <div class="flex justify-between text-slate-500">
                             <span>Base Rate</span>
-                            <span>&#8377;<span id="sum-base"><?= number_format((float) ($selectedService['price'] ?? 0), 2) ?></span></span>
+                            <span>&#8377;<span id="sum-base"><?= number_format($basePrice, 2) ?></span></span>
                         </div>
                         <div class="flex justify-between text-slate-500">
                             <span>GST (18%)</span>
-                            <span>&#8377;<span id="sum-gst"><?= number_format((float) ($selectedService['pricing']['gst_amount'] ?? 0), 2) ?></span></span>
+                            <span>&#8377;<span id="sum-gst"><?= number_format($gstAmount, 2) ?></span></span>
                         </div>
                         <div class="flex justify-between text-base font-extrabold text-slate-900 pt-3 border-t border-slate-200 font-heading">
                             <span>Total Payable</span>
-                            <span class="text-[#075183] font-black">&#8377;<span id="sum-total"><?= number_format((float) ($selectedService['pricing']['total_amount'] ?? 0), 2) ?></span></span>
+                            <span class="text-[#075183] font-black">&#8377;<span id="sum-total"><?= number_format($totalAmount, 2) ?></span></span>
                         </div>
                     </div>
                 </div>
@@ -201,7 +243,7 @@
                     </label>
                 </div>
 
-                <!-- Proceed Button -->
+                <!-- 1-Click Proceed to Payment Button -->
                 <div class="mt-6">
                     <button 
                         type="button" 
@@ -212,7 +254,7 @@
                         Select Time Slot
                     </button>
                     <p class="text-[11px] text-slate-500 text-center mt-2.5">
-                        Slot is held for 10 minutes upon proceeding.
+                        Slot is automatically secured for 10 min during checkout.
                     </p>
                 </div>
 
@@ -222,6 +264,27 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Full-Screen Payment Processing Overlay -->
+<div id="payment-processing-overlay" class="hidden fixed inset-0 z-[99999] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center select-none" aria-modal="true" role="dialog">
+    <div class="relative w-20 h-20 mb-6">
+        <div class="absolute inset-0 rounded-full border-4 border-white/10"></div>
+        <div class="absolute inset-0 rounded-full border-4 border-[#4A9CC0] border-t-transparent animate-spin"></div>
+        <div class="absolute inset-2 rounded-full border-4 border-[#D6981E] border-b-transparent animate-spin" style="animation-direction: reverse; animation-duration: 1.5s;"></div>
+        <div class="absolute inset-0 flex items-center justify-center">
+            <img src="<?= asset('images/sksl-logo.png') ?>" alt="SKSL" class="w-8 h-8 object-contain">
+        </div>
+    </div>
+    <h3 class="text-xl sm:text-2xl font-black text-white font-heading tracking-wide">
+        Confirming Your Reservation...
+    </h3>
+    <p class="text-sm text-slate-300 mt-2 max-w-md">
+        Verifying payment and securing your session slot with Sara Kinetic Sports Lab.
+    </p>
+    <div class="mt-4 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-[#D6981E] tracking-wider uppercase">
+        Please do not close or refresh this window
     </div>
 </div>
 
@@ -236,7 +299,7 @@
             </div>
             <div>
                 <h3 class="text-base font-bold text-slate-900 font-heading">Razorpay Gateway (Test Mode)</h3>
-                <p class="text-xs text-slate-500">Local Simulation &bull; Razorpay keys empty in .env</p>
+                <p class="text-xs text-slate-500">Local Simulation &bull; Test credentials active</p>
             </div>
         </div>
 
@@ -284,7 +347,7 @@
 <!-- Booking Engine JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const serviceSelect = document.getElementById('service_selector');
+    const serviceInput  = document.getElementById('service_id');
     const dateInput     = document.getElementById('date_selector');
     const slotsGrid     = document.getElementById('slots-grid');
     const slotsLoading  = document.getElementById('slots-loading');
@@ -295,6 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const termsCheck    = document.getElementById('terms-check');
     const proceedBtn    = document.getElementById('proceed-hold-btn');
     const errorNotice   = document.getElementById('booking-error');
+    const overlay       = document.getElementById('payment-processing-overlay');
 
     // Summary elements
     const sumService  = document.getElementById('sum-service');
@@ -305,19 +369,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const sumGst      = document.getElementById('sum-gst');
     const sumTotal    = document.getElementById('sum-total');
 
-    // Hold elements
-    const holdBanner  = document.getElementById('hold-banner');
-    const holdRefText = document.getElementById('hold-ref');
-    const holdTimer   = document.getElementById('hold-timer');
-    const releaseBtn  = document.getElementById('release-hold-btn');
-
     let selectedSlot = null;
     let activeHold = null;
-    let timerInterval = null;
 
     // Fetch availability
     async function loadAvailability() {
-        const serviceId = serviceSelect.value;
+        const serviceId = serviceInput ? serviceInput.value : '<?= (int) $selectedService['id'] ?>';
         const date = dateInput.value;
 
         if (!serviceId || !date) return;
@@ -417,18 +474,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateSummary() {
-        const opt = serviceSelect.options[serviceSelect.selectedIndex];
-        if (!opt) return;
+        if (!serviceInput) return;
 
-        sumService.textContent = opt.textContent.split('(')[0].trim();
-        sumDuration.textContent = `${opt.dataset.duration} Minutes`;
+        sumService.textContent = serviceInput.dataset.name || 'Modality';
+        sumDuration.textContent = `${serviceInput.dataset.duration || '30'} Minutes`;
 
         const d = new Date(dateInput.value + 'T00:00:00');
         sumDate.textContent = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        const base = parseFloat(opt.dataset.base || '0');
-        const gst = parseFloat(opt.dataset.gst || '0');
-        const total = parseFloat(opt.dataset.total || '0');
+        const base = parseFloat(serviceInput.dataset.base || '0');
+        const gst = parseFloat(serviceInput.dataset.gst || '0');
+        const total = parseFloat(serviceInput.dataset.total || '0');
 
         sumBase.textContent = base.toFixed(2);
         sumGst.textContent = gst.toFixed(2);
@@ -443,10 +499,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateProceedButton() {
         const isReady = selectedSlot !== null && termsCheck.checked;
+        const total = parseFloat(serviceInput?.dataset?.total || '<?= $totalAmount ?>');
+
         if (isReady) {
             proceedBtn.disabled = false;
             proceedBtn.className = 'app-touch-target w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-[#075183]/25 hover:-translate-y-0.5 transition-all cursor-pointer';
-            proceedBtn.textContent = 'Hold Slot & Proceed to Payment';
+            proceedBtn.textContent = `Proceed to Payment • ₹${total.toFixed(2)}`;
         } else {
             proceedBtn.disabled = true;
             proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200';
@@ -464,39 +522,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const mockCancelBtn = document.getElementById('mock-cancel-btn');
     let currentOrder    = null;
 
-    // Start Hold Countdown Timer
-    function startHoldTimer(expiresAtString) {
-        if (timerInterval) clearInterval(timerInterval);
-
-        function update() {
-            const now = new Date().getTime();
-            const expires = new Date(expiresAtString).getTime();
-            const diff = Math.max(0, Math.floor((expires - now) / 1000));
-
-            if (diff <= 0) {
-                clearInterval(timerInterval);
-                holdTimer.textContent = '00:00';
-                holdBanner.classList.add('hidden');
-                mockModal.classList.add('hidden');
-                activeHold = null;
-                currentOrder = null;
-                showError('Your 10-minute hold has expired. The slot has been released back to capacity.');
-                loadAvailability();
-                return;
-            }
-
-            const m = Math.floor(diff / 60);
-            const s = diff % 60;
-            holdTimer.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        }
-
-        update();
-        timerInterval = setInterval(update, 1000);
-    }
-
     function showError(msg) {
         errorNotice.textContent = msg;
         errorNotice.classList.remove('hidden');
+        if (window.showToast) {
+            window.showToast(msg, 'error');
+        }
     }
 
     function hideError() {
@@ -504,105 +535,102 @@ document.addEventListener('DOMContentLoaded', () => {
         errorNotice.textContent = '';
     }
 
-    // Step 1: Secure Hold, Step 2: Checkout
-    proceedBtn.addEventListener('click', async () => {
-        if (!selectedSlot || !termsCheck.checked) return;
-
-        // If hold is already active, launch checkout
-        if (activeHold) {
-            await initiatePayment();
-            return;
-        }
-
-        hideError();
-        proceedBtn.disabled = true;
-        proceedBtn.textContent = 'Securing Hold...';
-
+    // Release hold silently
+    async function releaseHoldSilently(reference) {
+        if (!reference) return;
         try {
             const formData = new FormData();
             formData.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
-            formData.append('service_id', serviceSelect.value);
-            formData.append('booking_date', dateInput.value);
-            formData.append('start_time', selectedSlot.start_time);
-
-            const res = await fetch('<?= app_url('api/bookings/hold') ?>', {
+            formData.append('booking_reference', reference);
+            await fetch('<?= app_url('api/bookings/hold/release') ?>', {
                 method: 'POST',
                 headers: { 'Accept': 'application/json' },
                 body: formData
             });
+        } catch (e) {
+            console.error('Silent release error:', e);
+        }
+    }
 
-            const data = await res.json();
+    // Handle payment dismissal / cancellation
+    async function handlePaymentCancelled() {
+        if (activeHold) {
+            await releaseHoldSilently(activeHold.booking_reference);
+            activeHold = null;
+        }
+        currentOrder = null;
+        if (window.showToast) {
+            window.showToast('Payment was cancelled. Slot hold released.', 'info');
+        }
+        proceedBtn.disabled = false;
+        updateProceedButton();
+        loadAvailability();
+    }
 
-            if (!data.success || !data.data) {
-                showError(data.message || 'Unable to reserve this slot.');
+    // 1-Click Streamlined Proceed: Create Hold + Launch Payment Gateway Immediately
+    proceedBtn.addEventListener('click', async () => {
+        if (!selectedSlot || !termsCheck.checked) return;
+
+        hideError();
+        proceedBtn.disabled = true;
+        proceedBtn.textContent = 'Initiating Secure Payment...';
+
+        try {
+            // Step 1: Create 10-min backend hold
+            const holdForm = new FormData();
+            holdForm.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
+            holdForm.append('service_id', serviceInput.value);
+            holdForm.append('booking_date', dateInput.value);
+            holdForm.append('start_time', selectedSlot.start_time);
+
+            const holdRes = await fetch('<?= app_url('api/bookings/hold') ?>', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: holdForm
+            });
+            const holdData = await holdRes.json();
+
+            if (!holdData.success || !holdData.data) {
+                showError(holdData.message || 'Unable to reserve this slot.');
                 proceedBtn.disabled = false;
                 updateProceedButton();
                 loadAvailability();
                 return;
             }
 
-            activeHold = data.data;
-            holdRefText.textContent = activeHold.booking_reference;
-            holdBanner.classList.remove('hidden');
-            startHoldTimer(activeHold.expires_at);
+            activeHold = holdData.data;
 
-            // Re-render button for payment step
-            proceedBtn.textContent = 'Proceed to Razorpay Checkout';
-            proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all cursor-pointer';
-            proceedBtn.disabled = false;
+            // Step 2: Immediately create Razorpay Gateway Order
+            const orderForm = new FormData();
+            orderForm.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
+            orderForm.append('booking_reference', activeHold.booking_reference);
 
-            // Scroll banner into view smoothly
-            holdBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            // Refresh availability grid so this slot displays as held/consumed
-            loadAvailability();
-
-        } catch (err) {
-            showError('Network error while creating hold. Please try again.');
-            proceedBtn.disabled = false;
-            updateProceedButton();
-        }
-    });
-
-    // Step 2: Create Gateway Order and Open Razorpay Checkout
-    async function initiatePayment() {
-        if (!activeHold) return;
-
-        hideError();
-        proceedBtn.disabled = true;
-        proceedBtn.textContent = 'Opening Gateway...';
-
-        try {
-            const formData = new FormData();
-            formData.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
-            formData.append('booking_reference', activeHold.booking_reference);
-
-            const res = await fetch('<?= app_url('api/payment/create-order') ?>', {
+            const orderRes = await fetch('<?= app_url('api/payment/create-order') ?>', {
                 method: 'POST',
                 headers: { 'Accept': 'application/json' },
-                body: formData
+                body: orderForm
             });
+            const orderData = await orderRes.json();
 
-            const data = await res.json();
-
-            if (!data.success || !data.data) {
-                showError(data.message || 'Unable to initiate payment.');
+            if (!orderData.success || !orderData.data) {
+                await releaseHoldSilently(activeHold.booking_reference);
+                activeHold = null;
+                showError(orderData.message || 'Unable to initiate payment.');
                 proceedBtn.disabled = false;
-                proceedBtn.textContent = 'Proceed to Razorpay Checkout';
+                updateProceedButton();
                 return;
             }
 
-            currentOrder = data.data;
+            currentOrder = orderData.data;
 
+            // Step 3: Launch Gateway (Mock in Dev or Real Razorpay)
             if (currentOrder.is_mock) {
-                // Open Mock Gateway Modal for local development
                 mockService.textContent = currentOrder.service_name;
                 mockRef.textContent     = currentOrder.booking_reference;
                 mockOrderId.textContent = currentOrder.razorpay_order_id;
                 mockAmount.textContent  = '₹' + Number(currentOrder.amount_rupees).toFixed(2);
                 mockModal.classList.remove('hidden');
             } else {
-                // Open Real Razorpay Modal
                 const options = {
                     key: currentOrder.key_id,
                     amount: currentOrder.amount_paise,
@@ -615,9 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         email: currentOrder.customer_email,
                         contact: currentOrder.customer_mobile
                     },
-                    theme: {
-                        color: '#0284c7'
-                    },
+                    theme: { color: '#075183' },
                     handler: async function (response) {
                         await completeVerification(
                             currentOrder.booking_reference,
@@ -627,10 +653,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         );
                     },
                     modal: {
-                        ondismiss: function () {
-                            showError('Payment checkout dismissed. Your 10-minute hold remains active.');
-                            proceedBtn.disabled = false;
-                            proceedBtn.textContent = 'Proceed to Razorpay Checkout';
+                        ondismiss: async function () {
+                            await handlePaymentCancelled();
                         }
                     }
                 };
@@ -639,19 +663,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 rzp.open();
             }
 
-        } catch (e) {
+        } catch (err) {
             showError('Network error connecting to payment gateway.');
+            if (activeHold) {
+                await releaseHoldSilently(activeHold.booking_reference);
+                activeHold = null;
+            }
             proceedBtn.disabled = false;
-            proceedBtn.textContent = 'Proceed to Razorpay Checkout';
+            updateProceedButton();
         }
-    }
+    });
 
-    // Step 3: Verify Payment Server-Side
+    // Step 4: Verify Payment & Show Blocking Overlay
     async function completeVerification(reference, orderId, paymentId, signature) {
         hideError();
         mockModal.classList.add('hidden');
-        proceedBtn.disabled = true;
-        proceedBtn.textContent = 'Verifying Confirmation...';
+
+        // Full-screen blocking loader so user cannot click away
+        if (overlay) overlay.classList.remove('hidden');
 
         try {
             const formData = new FormData();
@@ -670,19 +699,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
 
             if (!data.success) {
+                if (overlay) overlay.classList.add('hidden');
                 showError(data.message || 'Payment verification failed.');
                 proceedBtn.disabled = false;
-                proceedBtn.textContent = 'Retry Payment Verification';
+                updateProceedButton();
                 return;
             }
 
-            // Redirect immediately to confirmed booking voucher
+            // Redirect to booking confirmation voucher
             window.location.href = '<?= app_url('booking-confirmation') ?>?ref=' + encodeURIComponent(reference);
 
         } catch (e) {
+            if (overlay) overlay.classList.add('hidden');
             showError('Verification request failed. Please check network.');
             proceedBtn.disabled = false;
-            proceedBtn.textContent = 'Retry Payment Verification';
+            updateProceedButton();
         }
     }
 
@@ -703,54 +734,14 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
 
-    mockCancelBtn.addEventListener('click', () => {
+    mockCancelBtn.addEventListener('click', async () => {
         mockModal.classList.add('hidden');
-        showError('Payment simulation cancelled. Your 10-minute hold is still active.');
-        proceedBtn.disabled = false;
-        proceedBtn.textContent = 'Proceed to Razorpay Checkout';
+        await handlePaymentCancelled();
     });
 
-    // Release Hold Button
-    releaseBtn.addEventListener('click', async () => {
-        if (!activeHold) return;
-
-        try {
-            const formData = new FormData();
-            formData.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
-            formData.append('booking_reference', activeHold.booking_reference);
-
-            await fetch('<?= app_url('api/bookings/hold/release') ?>', {
-                method: 'POST',
-                headers: { 'Accept': 'application/json' },
-                body: formData
-            });
-
-            if (timerInterval) clearInterval(timerInterval);
-            holdBanner.classList.add('hidden');
-            mockModal.classList.add('hidden');
-            activeHold = null;
-            currentOrder = null;
-            showError('Hold cancelled and slot capacity released.');
-            loadAvailability();
-        } catch (e) {
-            holdBanner.classList.add('hidden');
-        }
-    });
-
-    // Event Listeners
-    serviceSelect.addEventListener('change', () => {
-        updateSummary();
-        loadAvailability();
-    });
-
-    dateInput.addEventListener('change', () => {
-        updateSummary();
-        loadAvailability();
-    });
-
-    termsCheck.addEventListener('change', () => {
-        updateProceedButton();
-    });
+    // Date change listener
+    dateInput.addEventListener('change', loadAvailability);
+    termsCheck.addEventListener('change', updateProceedButton);
 
     // Initial load
     updateSummary();

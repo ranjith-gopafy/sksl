@@ -31,28 +31,25 @@ class CustomerBookingController
         CustomerAuth::handle();
 
         $userId = (int) $_SESSION['user_id'];
-        $activeTab = trim((string) ($_GET['tab'] ?? 'upcoming'));
-
-        if (!in_array($activeTab, ['upcoming', 'completed', 'cancelled'], true)) {
-            $activeTab = 'upcoming';
-        }
+        $rawTab = isset($_GET['tab']) ? trim((string) $_GET['tab']) : null;
 
         $allBookings = $this->bookingModel->findByUser($userId, null);
 
         $now = time();
+        $today = date('Y-m-d');
         $upcomingCount  = 0;
         $completedCount = 0;
         $cancelledCount = 0;
+        $totalCount     = count($allBookings);
 
         foreach ($allBookings as &$b) {
             $sessionEnd = strtotime($b['booking_date'] . ' ' . $b['end_time']);
-            $sessionStart = strtotime($b['booking_date'] . ' ' . $b['start_time']);
 
             if ($b['booking_status'] === 'cancelled') {
                 $cancelledCount++;
-            } elseif ($b['booking_status'] === 'completed' || ($b['booking_status'] === 'confirmed' && $sessionEnd < $now)) {
+            } elseif ($b['booking_status'] === 'completed' || ($b['booking_status'] === 'confirmed' && $sessionEnd < $now && $b['booking_date'] < $today)) {
                 $completedCount++;
-            } elseif ($b['booking_status'] === 'confirmed' && $sessionStart >= $now) {
+            } elseif ($b['booking_status'] === 'confirmed') {
                 $upcomingCount++;
             }
 
@@ -60,11 +57,23 @@ class CustomerBookingController
         }
         unset($b);
 
-        $filteredBookings = $this->bookingModel->findByUser($userId, $activeTab);
-        foreach ($filteredBookings as &$fb) {
-            $fb['cancellation'] = BookingModel::checkCancellationEligibility($fb, $userId);
+        // Determine active tab
+        if ($rawTab !== null && in_array($rawTab, ['all', 'upcoming', 'completed', 'cancelled'], true)) {
+            $activeTab = $rawTab;
+        } else {
+            // Default to 'upcoming' if any upcoming, else 'all' if user has bookings
+            $activeTab = ($upcomingCount > 0) ? 'upcoming' : (($totalCount > 0) ? 'all' : 'upcoming');
         }
-        unset($fb);
+
+        if ($activeTab === 'all') {
+            $filteredBookings = $allBookings;
+        } else {
+            $filteredBookings = $this->bookingModel->findByUser($userId, $activeTab);
+            foreach ($filteredBookings as &$fb) {
+                $fb['cancellation'] = BookingModel::checkCancellationEligibility($fb, $userId);
+            }
+            unset($fb);
+        }
 
         $title = 'My Recovery Sessions — Sara Kinetic Sports Lab';
         $viewFile = dirname(__DIR__) . '/views/pages/my-bookings.php';

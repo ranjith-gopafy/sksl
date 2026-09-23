@@ -9,6 +9,14 @@
 
 declare(strict_types=1);
 
+// Serve static assets directly when running via PHP built-in web server
+if (php_sapi_name() === 'cli-server') {
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+    if ($path !== '/' && file_exists(__DIR__ . $path) && is_file(__DIR__ . $path)) {
+        return false;
+    }
+}
+
 // ─── Bootstrap ────────────────────────────────────────────────────────────
 require_once dirname(__DIR__) . '/bootstrap.php';
 require_once dirname(__DIR__) . '/Router.php';

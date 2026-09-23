@@ -95,7 +95,7 @@ test.describe('Homepage & Hero Carousel', () => {
   });
 
   test('navigation links to services page work', async ({ page }) => {
-    const servicesLink = page.locator('nav a[href*="services"]').first();
+    const servicesLink = page.locator('nav a[href*="services"]:visible').first();
     await expect(servicesLink).toBeVisible();
     await servicesLink.click();
     await page.waitForURL(/services/, { timeout: 10000 });

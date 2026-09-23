@@ -41,20 +41,26 @@
     <!-- Filter Tabs -->
     <div class="flex items-center gap-2 border-b border-slate-200 pb-4 mb-8 overflow-x-auto">
         <a 
+            href="<?= app_url('my-bookings?tab=all') ?>" 
+            class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap <?= $activeTab === 'all' ? 'bg-[#075183] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' ?>"
+        >
+            All Sessions (<?= $totalCount ?>)
+        </a>
+        <a 
             href="<?= app_url('my-bookings?tab=upcoming') ?>" 
-            class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap <?= $activeTab === 'upcoming' ? 'bg-sky-50 border border-sky-200 text-sky-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' ?>"
+            class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap <?= $activeTab === 'upcoming' ? 'bg-[#075183] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' ?>"
         >
             Upcoming (<?= $upcomingCount ?>)
         </a>
         <a 
             href="<?= app_url('my-bookings?tab=completed') ?>" 
-            class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap <?= $activeTab === 'completed' ? 'bg-sky-50 border border-sky-200 text-sky-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' ?>"
+            class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap <?= $activeTab === 'completed' ? 'bg-[#075183] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' ?>"
         >
             Completed (<?= $completedCount ?>)
         </a>
         <a 
             href="<?= app_url('my-bookings?tab=cancelled') ?>" 
-            class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap <?= $activeTab === 'cancelled' ? 'bg-sky-50 border border-sky-200 text-sky-800' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' ?>"
+            class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap <?= $activeTab === 'cancelled' ? 'bg-[#075183] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' ?>"
         >
             Cancelled (<?= $cancelledCount ?>)
         </a>
