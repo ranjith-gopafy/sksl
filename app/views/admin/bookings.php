@@ -49,13 +49,18 @@
             <!-- Date -->
             <div>
                 <label for="date" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Session Date</label>
-                <input 
-                    type="date" 
-                    id="date" 
-                    name="date" 
-                    value="<?= h($filters['date'] ?? '') ?>" 
-                    class="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-sky-500"
-                >
+                <div class="relative">
+                    <input 
+                        type="date" 
+                        id="date" 
+                        name="date" 
+                        value="<?= h($filters['date'] ?? '') ?>" 
+                        class="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-[#075183] transition-colors"
+                    >
+                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
             </div>
 
             <!-- Service -->

@@ -46,3 +46,7 @@ php_errors.log
 # Temporary files
 *.tmp
 *.bak
+
+# Playwright Test Artifacts
+/test-results/
+/playwright-report/

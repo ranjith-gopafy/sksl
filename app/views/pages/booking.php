@@ -21,15 +21,15 @@ $duration = (int) ($selectedService['duration_minutes'] ?? 30);
 $capacity = (int) ($selectedService['capacity'] ?? 4);
 ?>
 
-<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
     <!-- Header -->
-    <div class="mb-8">
+    <div class="mb-5">
         <span class="text-xs font-bold uppercase tracking-widest text-[#075183]">Seamless Reservation</span>
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 font-heading mt-1">Book Your Recovery Session</h1>
-        <p class="text-sm text-slate-600 mt-1">Select your preferred date and time slot. Capacity is strictly managed in real-time.</p>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading mt-0.5">Book Your Recovery Session</h1>
+        <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Pick a date on the calendar, choose your time slot, and reserve your session instantly.</p>
     </div>
 
-    <!-- Hidden compatibility select for testing/forms -->
+    <!-- Hidden compatibility select & inputs for tests / form posting -->
     <select id="service_selector" class="sr-only" aria-hidden="true" tabindex="-1">
         <?php foreach ($services as $srv): ?>
             <option 
@@ -58,16 +58,36 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
         data-total="<?= $totalAmount ?>"
     >
 
+    <!-- Hidden date compatibility inputs for forms & automated Playwright tests -->
+    <input 
+        type="date" 
+        id="date_selector" 
+        min="<?= date('Y-m-d') ?>"
+        max="<?= date('Y-m-d', strtotime('+30 days')) ?>"
+        value="<?= date('Y-m-d') ?>"
+        class="sr-only" 
+        tabindex="-1"
+    >
+    <input 
+        type="date" 
+        id="date_input" 
+        min="<?= date('Y-m-d') ?>"
+        max="<?= date('Y-m-d', strtotime('+30 days')) ?>"
+        value="<?= date('Y-m-d') ?>"
+        class="sr-only" 
+        tabindex="-1"
+    >
+
     <!-- Booking Form Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
         
         <!-- Left: Selected Modality & Slot Picker (2 Columns) -->
-        <div class="lg:col-span-2 space-y-6">
+        <div class="lg:col-span-2 space-y-4">
             
-            <!-- 1. Selected Modality Showcase Card (Locked) -->
-            <div id="selected-service-card" class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-7 shadow-xs relative overflow-hidden transition-all hover:border-[#075183]/40">
-                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                    <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shrink-0 shadow-sm border border-slate-200/80 bg-slate-100">
+            <!-- 1. Selected Modality Showcase Card (Locked & Compact) -->
+            <div id="selected-service-card" class="bg-white border border-[#D9DBDA] rounded-2xl p-4 sm:p-5 shadow-xs relative overflow-hidden transition-all hover:border-[#075183]/40">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 shadow-xs border border-slate-200/80 bg-slate-100">
                         <img 
                             src="<?= $modalityImg ?>" 
                             alt="<?= h($selectedService['name']) ?>" 
@@ -76,8 +96,8 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                         >
                     </div>
                     <div class="flex-1 min-w-0">
-                        <div class="flex flex-wrap items-center gap-2 mb-1.5">
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#075183]/10 text-[#075183]">
+                        <div class="flex flex-wrap items-center gap-2 mb-1">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#075183]/10 text-[#075183]">
                                 <?= h($selectedService['category'] ?? 'Active Modality') ?>
                             </span>
                             <span class="text-[11px] font-semibold text-slate-500">
@@ -88,111 +108,162 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                                 Max <?= $capacity ?> Athletes
                             </span>
                         </div>
-                        <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 font-heading">
+                        <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 font-heading leading-tight">
                             <?= h($selectedService['name']) ?>
                         </h2>
-                        <p class="text-xs text-slate-600 mt-1 line-clamp-2">
+                        <p class="text-xs text-slate-500 mt-0.5 line-clamp-1">
                             <?= h($selectedService['description'] ?? 'Science-backed athletic recovery modality designed to accelerate muscle repair and elevate performance.') ?>
                         </p>
-                        <div class="mt-3.5 flex items-center justify-between pt-3 border-t border-slate-100">
-                            <div class="text-sm font-extrabold text-[#075183] font-heading">
+                    </div>
+                    <div class="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 gap-2 shrink-0">
+                        <div class="text-left sm:text-right">
+                            <div class="text-[10px] uppercase tracking-wider font-bold text-slate-400">Total with 18% GST</div>
+                            <div class="text-base font-extrabold text-[#075183] font-heading leading-none mt-0.5">
                                 &#8377;<?= number_format($totalAmount, 2) ?>
-                                <span class="text-[10px] text-slate-400 font-normal">incl. 18% GST</span>
                             </div>
-                            <a 
-                                href="<?= app_url('services') ?>" 
-                                class="inline-flex items-center gap-1.5 text-xs font-bold text-[#075183] hover:text-[#4A9CC0] transition-colors"
-                            >
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                                </svg>
-                                Change Modality
-                            </a>
+                        </div>
+                        <a 
+                            href="<?= app_url('services') ?>" 
+                            class="inline-flex items-center gap-1 text-[11px] font-bold text-[#075183] hover:text-[#4A9CC0] transition-colors"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            Change Modality
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Integrated Interactive Tailwind Calendar & Live Slot Grid Card -->
+            <div class="bg-white border border-[#D9DBDA] rounded-2xl p-4 sm:p-5 shadow-xs">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+                    
+                    <!-- Left: Interactive Tailwind Calendar (5 cols on md) -->
+                    <div class="md:col-span-5 md:border-r md:border-slate-100 md:pr-5 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2.5">
+                                <div class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-[#075183]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span>Pick Session Date</span>
+                                </div>
+                            </div>
+
+                            <!-- Quick Presets -->
+                            <div class="flex items-center gap-1.5 mb-2.5 text-[11px]">
+                                <button type="button" id="cal-preset-today" class="cal-preset-btn px-2.5 py-1 rounded-lg border border-[#D9DBDA] bg-slate-50 hover:bg-slate-100 font-semibold text-slate-700 transition-all cursor-pointer">
+                                    Today
+                                </button>
+                                <button type="button" id="cal-preset-tomorrow" class="cal-preset-btn px-2.5 py-1 rounded-lg border border-[#D9DBDA] bg-slate-50 hover:bg-slate-100 font-semibold text-slate-700 transition-all cursor-pointer">
+                                    Tomorrow
+                                </button>
+                                <button type="button" id="cal-preset-weekend" class="cal-preset-btn px-2.5 py-1 rounded-lg border border-[#D9DBDA] bg-slate-50 hover:bg-slate-100 font-semibold text-slate-700 transition-all cursor-pointer">
+                                    Weekend
+                                </button>
+                            </div>
+
+                            <!-- Tailwind Interactive Calendar Container -->
+                            <div class="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3">
+                                <!-- Month Nav Header -->
+                                <div class="flex items-center justify-between mb-2">
+                                    <button type="button" id="cal-prev-month" aria-label="Previous Month" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-xs transition-all disabled:opacity-20 disabled:pointer-events-none cursor-pointer">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                    </button>
+                                    <span id="cal-month-year" class="text-xs font-extrabold font-heading text-slate-900 tracking-wide">
+                                        September 2026
+                                    </span>
+                                    <button type="button" id="cal-next-month" aria-label="Next Month" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-xs transition-all disabled:opacity-20 disabled:pointer-events-none cursor-pointer">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Day Headers -->
+                                <div class="grid grid-cols-7 gap-1 text-center mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    <div>Mo</div>
+                                    <div>Tu</div>
+                                    <div>We</div>
+                                    <div>Th</div>
+                                    <div>Fr</div>
+                                    <div>Sa</div>
+                                    <div>Su</div>
+                                </div>
+
+                                <!-- Calendar Days Grid -->
+                                <div id="cal-days-grid" class="grid grid-cols-7 gap-1 text-center text-xs">
+                                    <!-- Populated via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Selected Date Display Footer -->
+                        <div class="mt-2.5 pt-2 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
+                            <span>Selected Date:</span>
+                            <span id="cal-selected-label" class="font-bold text-[#075183]"><?= date('D, d M Y') ?></span>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- 2. Date Selection Card -->
-            <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-7 shadow-xs">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <label for="date_selector" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                            Pick Session Date
-                        </label>
-                        <p class="text-xs text-slate-500">Select any date within the next 30 days.</p>
-                    </div>
-                    <div class="w-full sm:w-auto sm:min-w-[220px]">
-                        <input 
-                            type="date" 
-                            id="date_selector" 
-                            min="<?= date('Y-m-d') ?>"
-                            max="<?= date('Y-m-d', strtotime('+30 days')) ?>"
-                            value="<?= date('Y-m-d') ?>"
-                            class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-[#D9DBDA] text-slate-900 font-semibold focus:bg-white focus:outline-none focus:border-[#075183] focus:ring-1 focus:ring-[#075183] text-sm transition-all"
-                        >
-                    </div>
-                </div>
+                    <!-- Right: Live Time Slots (7 cols on md) -->
+                    <div class="md:col-span-7 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                    Available Time Slots
+                                </div>
+                                <div id="slots-count-badge" class="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                    Checking availability...
+                                </div>
+                            </div>
 
-                <!-- Operating Specs -->
-                <div class="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-                    <div>
-                        Facility Hours: <strong class="text-slate-800 font-bold">06:00 – 22:00 IST</strong>
-                    </div>
-                    <div>
-                        Session Window: <strong class="text-[#075183] font-bold"><?= $duration ?> Minutes</strong>
-                    </div>
-                    <div>
-                        Direct Check-in: <strong class="text-slate-800 font-bold">10 min prior</strong>
-                    </div>
-                </div>
-            </div>
+                            <!-- Loading State -->
+                            <div id="slots-loading" class="py-12 text-center">
+                                <div class="w-7 h-7 border-2 border-[#075183] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                                <div class="text-xs text-slate-500 font-medium">Fetching real-time slots...</div>
+                            </div>
 
-            <!-- 3. Dynamic Slot Grid Card -->
-            <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-8 shadow-xs">
-                <div class="flex items-center justify-between mb-5">
-                    <div class="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        Choose Available Time Slot
-                    </div>
-                    <div id="slots-count-badge" class="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-                        Checking availability...
-                    </div>
-                </div>
+                            <!-- Empty / Closed Message -->
+                            <div id="slots-empty" class="hidden py-10 text-center">
+                                <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <h3 id="empty-title" class="text-xs font-bold text-slate-900 font-heading">No Available Slots</h3>
+                                <p id="empty-subtitle" class="text-[11px] text-slate-500 mt-0.5 max-w-xs mx-auto">
+                                    No bookable slots for this date. Please pick another date on the calendar.
+                                </p>
+                            </div>
 
-                <!-- Loading State -->
-                <div id="slots-loading" class="py-16 text-center">
-                    <div class="w-8 h-8 border-2 border-[#075183] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                    <div class="text-xs text-slate-500 font-medium">Fetching real-time availability...</div>
-                </div>
+                            <!-- Slots Container -->
+                            <div id="slots-grid" class="hidden grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                                <!-- Populated via JavaScript -->
+                            </div>
+                        </div>
 
-                <!-- Empty / Closed Message -->
-                <div id="slots-empty" class="hidden py-14 text-center">
-                    <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                        <!-- Facility Operational Footer -->
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400">
+                            <div>Facility: <strong class="text-slate-600 font-semibold">06:00 – 22:00 IST</strong></div>
+                            <div>Session: <strong class="text-[#075183] font-semibold"><?= $duration ?> Min</strong></div>
+                            <div>Check-in: <strong class="text-slate-600 font-semibold">10 min prior</strong></div>
+                        </div>
                     </div>
-                    <h3 id="empty-title" class="text-sm font-bold text-slate-900 font-heading">No Available Slots</h3>
-                    <p id="empty-subtitle" class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                        There are no bookable slots for this date. Please select another date.
-                    </p>
-                </div>
-
-                <!-- Slots Container -->
-                <div id="slots-grid" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[420px] overflow-y-auto pr-1">
-                    <!-- Populated via JavaScript -->
                 </div>
             </div>
         </div>
 
         <!-- Right: Booking Summary & 1-Click Payment (1 Column) -->
         <div class="lg:col-span-1">
-            <div class="bg-white border border-[#D9DBDA] rounded-3xl p-6 sm:p-7 shadow-xs sticky top-24">
-                <h3 class="text-lg font-bold text-slate-900 font-heading border-b border-slate-100 pb-4 mb-5">
+            <div class="bg-white border border-[#D9DBDA] rounded-2xl p-4 sm:p-5 shadow-xs sticky top-20">
+                <h3 class="text-base font-bold text-slate-900 font-heading border-b border-slate-100 pb-3 mb-3.5">
                     Reservation Summary
                 </h3>
 
-                <div class="space-y-3.5 text-sm">
+                <div class="space-y-2.5 text-xs">
                     <div class="flex justify-between">
                         <span class="text-slate-500">Modality</span>
                         <span id="sum-service" class="font-bold text-slate-900"><?= h($selectedService['name']) ?></span>
@@ -213,7 +284,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                         <span id="sum-duration" class="text-slate-700"><?= $duration ?> Minutes</span>
                     </div>
 
-                    <div class="pt-4 border-t border-slate-100 space-y-2 text-xs">
+                    <div class="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
                         <div class="flex justify-between text-slate-500">
                             <span>Base Rate</span>
                             <span>&#8377;<span id="sum-base"><?= number_format($basePrice, 2) ?></span></span>
@@ -222,7 +293,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                             <span>GST (18%)</span>
                             <span>&#8377;<span id="sum-gst"><?= number_format($gstAmount, 2) ?></span></span>
                         </div>
-                        <div class="flex justify-between text-base font-extrabold text-slate-900 pt-3 border-t border-slate-200 font-heading">
+                        <div class="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200 font-heading">
                             <span>Total Payable</span>
                             <span class="text-[#075183] font-black">&#8377;<span id="sum-total"><?= number_format($totalAmount, 2) ?></span></span>
                         </div>
@@ -230,36 +301,36 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                 </div>
 
                 <!-- Terms Acknowledgement -->
-                <div class="mt-6 pt-5 border-t border-slate-100">
-                    <label class="flex items-start gap-3 cursor-pointer text-xs text-slate-600">
+                <div class="mt-4 pt-3.5 border-t border-slate-100">
+                    <label class="flex items-start gap-2.5 cursor-pointer text-xs text-slate-600">
                         <input 
                             type="checkbox" 
                             id="terms-check" 
                             class="mt-0.5 rounded border-slate-300 text-[#075183] focus:ring-[#075183]"
                         >
-                        <span>
-                            I agree to the <a href="<?= app_url('terms') ?>" target="_blank" class="text-[#075183] underline hover:text-[#4A9CC0] font-medium">Terms &amp; Health Declaration</a>. I confirm physical fitness for thermal therapy.
+                        <span class="text-[11px] leading-snug">
+                            I agree to the <a href="<?= app_url('terms') ?>" target="_blank" class="text-[#075183] underline hover:text-[#4A9CC0] font-medium">Terms &amp; Health Declaration</a>. I confirm physical fitness.
                         </span>
                     </label>
                 </div>
 
                 <!-- 1-Click Proceed to Payment Button -->
-                <div class="mt-6">
+                <div class="mt-4">
                     <button 
                         type="button" 
                         id="proceed-hold-btn" 
                         disabled 
-                        class="app-touch-target w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200"
+                        class="app-touch-target w-full py-3.5 px-4 rounded-xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200"
                     >
                         Select Time Slot
                     </button>
-                    <p class="text-[11px] text-slate-500 text-center mt-2.5">
-                        Slot is automatically secured for 10 min during checkout.
+                    <p class="text-[10px] text-slate-400 text-center mt-2">
+                        10-min slot hold auto-assigned on gateway launch.
                     </p>
                 </div>
 
                 <!-- Error Notice -->
-                <div id="booking-error" class="hidden mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+                <div id="booking-error" class="hidden mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
                     <!-- Dynamic error text -->
                 </div>
             </div>
@@ -349,6 +420,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
 document.addEventListener('DOMContentLoaded', () => {
     const serviceInput  = document.getElementById('service_id');
     const dateInput     = document.getElementById('date_selector');
+    const dateInputCompat = document.getElementById('date_input');
     const slotsGrid     = document.getElementById('slots-grid');
     const slotsLoading  = document.getElementById('slots-loading');
     const slotsEmpty    = document.getElementById('slots-empty');
@@ -369,13 +441,191 @@ document.addEventListener('DOMContentLoaded', () => {
     const sumGst      = document.getElementById('sum-gst');
     const sumTotal    = document.getElementById('sum-total');
 
+    // Tailwind Calendar elements
+    const calMonthYear     = document.getElementById('cal-month-year');
+    const calDaysGrid      = document.getElementById('cal-days-grid');
+    const calPrevMonth     = document.getElementById('cal-prev-month');
+    const calNextMonth     = document.getElementById('cal-next-month');
+    const calSelectedLabel = document.getElementById('cal-selected-label');
+    const presetToday      = document.getElementById('cal-preset-today');
+    const presetTomorrow   = document.getElementById('cal-preset-tomorrow');
+    const presetWeekend    = document.getElementById('cal-preset-weekend');
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const maxBookingDate = new Date(today);
+    maxBookingDate.setDate(maxBookingDate.getDate() + 30);
+
+    let viewYear = today.getFullYear();
+    let viewMonth = today.getMonth(); // 0-11
+    let selectedDate = new Date(today);
+
+    function formatDateIso(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function formatDisplayDate(d) {
+        return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function updateSelectedDate(newDate, triggerReload = true) {
+        selectedDate = new Date(newDate);
+        selectedDate.setHours(0, 0, 0, 0);
+        viewYear = selectedDate.getFullYear();
+        viewMonth = selectedDate.getMonth();
+
+        const isoStr = formatDateIso(selectedDate);
+        if (dateInput) {
+            dateInput.value = isoStr;
+        }
+        if (dateInputCompat) {
+            dateInputCompat.value = isoStr;
+        }
+
+        if (calSelectedLabel) {
+            calSelectedLabel.textContent = formatDisplayDate(selectedDate);
+        }
+        if (sumDate) {
+            sumDate.textContent = selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        renderCalendar();
+
+        if (triggerReload) {
+            loadAvailability();
+        }
+    }
+
+    function renderCalendar() {
+        if (!calDaysGrid || !calMonthYear) return;
+
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        calMonthYear.textContent = `${monthNames[viewMonth]} ${viewYear}`;
+
+        // Disable prev button if viewMonth/viewYear is current month
+        if (calPrevMonth) {
+            const isCurrentMonth = (viewYear === today.getFullYear() && viewMonth === today.getMonth());
+            calPrevMonth.disabled = isCurrentMonth;
+        }
+        // Disable next button if viewMonth/viewYear is on or after max date's month
+        if (calNextMonth) {
+            const isMaxMonth = (viewYear === maxBookingDate.getFullYear() && viewMonth === maxBookingDate.getMonth());
+            calNextMonth.disabled = isMaxMonth;
+        }
+
+        calDaysGrid.innerHTML = '';
+
+        // Calculate days in month and starting day of week
+        // Monday = 0, Sunday = 6
+        const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
+        let startDay = firstDayOfMonth.getDay() - 1;
+        if (startDay < 0) startDay = 6;
+
+        const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+        // Empty cells for preceding days of the week
+        for (let i = 0; i < startDay; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'w-7 h-7 sm:w-8 sm:h-8';
+            calDaysGrid.appendChild(emptyCell);
+        }
+
+        const selIso = formatDateIso(selectedDate);
+        const todayIso = formatDateIso(today);
+        const maxIso = formatDateIso(maxBookingDate);
+
+        // Days of current month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const cellDate = new Date(viewYear, viewMonth, day);
+            cellDate.setHours(0, 0, 0, 0);
+            const cellIso = formatDateIso(cellDate);
+
+            const isPast = cellIso < todayIso;
+            const isBeyond = cellIso > maxIso;
+            const isSelected = cellIso === selIso;
+            const isToday = cellIso === todayIso;
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.setAttribute('data-date', cellIso);
+
+            if (isPast || isBeyond) {
+                btn.disabled = true;
+                btn.className = 'w-7 h-7 sm:w-8 sm:h-8 mx-auto rounded-lg flex items-center justify-center text-slate-300 cursor-not-allowed text-[11px]';
+                btn.textContent = day;
+            } else if (isSelected) {
+                btn.className = 'w-7 h-7 sm:w-8 sm:h-8 mx-auto rounded-lg flex items-center justify-center bg-[#075183] text-white font-extrabold text-[11px] shadow-xs cursor-pointer transition-transform scale-105';
+                btn.textContent = day;
+            } else {
+                btn.className = `w-7 h-7 sm:w-8 sm:h-8 mx-auto rounded-lg flex items-center justify-center text-slate-700 hover:bg-[#075183]/10 hover:text-[#075183] font-semibold text-[11px] transition-all cursor-pointer ${
+                    isToday ? 'border border-[#075183]/50 text-[#075183] font-bold' : ''
+                }`;
+                btn.textContent = day;
+                btn.addEventListener('click', () => {
+                    updateSelectedDate(cellDate, true);
+                });
+            }
+
+            calDaysGrid.appendChild(btn);
+        }
+    }
+
+    if (calPrevMonth) {
+        calPrevMonth.addEventListener('click', () => {
+            viewMonth--;
+            if (viewMonth < 0) {
+                viewMonth = 11;
+                viewYear--;
+            }
+            renderCalendar();
+        });
+    }
+
+    if (calNextMonth) {
+        calNextMonth.addEventListener('click', () => {
+            viewMonth++;
+            if (viewMonth > 11) {
+                viewMonth = 0;
+                viewYear++;
+            }
+            renderCalendar();
+        });
+    }
+
+    if (presetToday) {
+        presetToday.addEventListener('click', () => updateSelectedDate(today, true));
+    }
+    if (presetTomorrow) {
+        presetTomorrow.addEventListener('click', () => {
+            const tom = new Date(today);
+            tom.setDate(tom.getDate() + 1);
+            updateSelectedDate(tom, true);
+        });
+    }
+    if (presetWeekend) {
+        presetWeekend.addEventListener('click', () => {
+            const sat = new Date(today);
+            const dayOfWeek = today.getDay(); // 0 is Sun, 6 is Sat
+            const daysUntilSat = (6 - dayOfWeek + 7) % 7;
+            sat.setDate(sat.getDate() + (daysUntilSat === 0 ? 0 : daysUntilSat));
+            updateSelectedDate(sat, true);
+        });
+    }
+
     let selectedSlot = null;
     let activeHold = null;
 
     // Fetch availability
     async function loadAvailability() {
         const serviceId = serviceInput ? serviceInput.value : '<?= (int) $selectedService['id'] ?>';
-        const date = dateInput.value;
+        const date = dateInput ? dateInput.value : formatDateIso(selectedDate);
 
         if (!serviceId || !date) return;
 
@@ -414,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = `app-touch-target p-3 rounded-2xl border text-left flex flex-col justify-between transition-all ${
+                btn.className = `slot-btn app-touch-target p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
                     slot.available
                         ? 'bg-white border-[#D9DBDA] hover:border-[#075183] hover:bg-[#075183]/5 text-slate-900 cursor-pointer shadow-xs'
                         : 'bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed opacity-70'
@@ -422,18 +672,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let capLabel = '';
                 if (slot.available) {
-                    capLabel = `<span class="text-[10px] text-[#075183] font-bold bg-[#075183]/10 px-1.5 py-0.5 rounded">${slot.remaining_capacity} left</span>`;
+                    capLabel = `<span class="text-[9px] sm:text-[10px] text-[#075183] font-bold bg-[#075183]/10 px-1.5 py-0.5 rounded">${slot.remaining_capacity} left</span>`;
                 } else if (slot.unavailable_reason === 'past') {
-                    capLabel = '<span class="text-[10px] text-slate-400 uppercase font-semibold">Passed</span>';
+                    capLabel = '<span class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">Passed</span>';
                 } else if (slot.unavailable_reason === 'user_conflict') {
-                    capLabel = '<span class="text-[10px] text-[#D6981E] font-semibold">Conflict</span>';
+                    capLabel = '<span class="text-[9px] sm:text-[10px] text-[#D6981E] font-semibold">Conflict</span>';
                 } else {
-                    capLabel = '<span class="text-[10px] text-rose-500 font-semibold">Full</span>';
+                    capLabel = '<span class="text-[9px] sm:text-[10px] text-rose-500 font-semibold">Full</span>';
                 }
 
                 btn.innerHTML = `
-                    <div class="text-sm font-extrabold font-heading text-slate-900">${slot.display_start}</div>
-                    <div class="flex items-center justify-between mt-2 text-[11px] text-slate-500">
+                    <div class="text-xs sm:text-sm font-extrabold font-heading text-slate-900 leading-tight">${slot.display_start}</div>
+                    <div class="flex items-center justify-between mt-1 text-[10px] sm:text-[11px] text-slate-500">
                         <span>${slot.duration_minutes}m</span>
                         ${capLabel}
                     </div>
@@ -443,12 +693,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.addEventListener('click', () => {
                         // Deselect other buttons
                         slotsGrid.querySelectorAll('button').forEach(b => {
-                            b.classList.remove('border-[#075183]', 'bg-[#075183]/10', 'ring-2', 'ring-[#075183]/20');
+                            b.classList.remove('border-[#075183]', 'bg-[#075183]/10', 'ring-2', 'ring-[#075183]/20', 'slot-selected');
                             b.classList.add('border-[#D9DBDA]', 'bg-white');
                         });
                         // Highlight this button
                         btn.classList.remove('border-[#D9DBDA]', 'bg-white');
-                        btn.classList.add('border-[#075183]', 'bg-[#075183]/10', 'ring-2', 'ring-[#075183]/20');
+                        btn.classList.add('border-[#075183]', 'bg-[#075183]/10', 'ring-2', 'ring-[#075183]/20', 'slot-selected');
 
                         selectedSlot = slot;
                         updateSummary();
@@ -739,11 +989,33 @@ document.addEventListener('DOMContentLoaded', () => {
         await handlePaymentCancelled();
     });
 
-    // Date change listener
-    dateInput.addEventListener('change', loadAvailability);
+    // Date change listener for two-way sync with hidden inputs
+    dateInput.addEventListener('change', () => {
+        if (dateInput.value) {
+            const parts = dateInput.value.split('-');
+            if (parts.length === 3) {
+                const parsed = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                updateSelectedDate(parsed, false);
+            }
+        }
+        loadAvailability();
+    });
+    if (dateInputCompat) {
+        dateInputCompat.addEventListener('change', () => {
+            if (dateInputCompat.value) {
+                const parts = dateInputCompat.value.split('-');
+                if (parts.length === 3) {
+                    const parsed = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    updateSelectedDate(parsed, false);
+                }
+            }
+            loadAvailability();
+        });
+    }
     termsCheck.addEventListener('change', updateProceedButton);
 
     // Initial load
+    renderCalendar();
     updateSummary();
     loadAvailability();
 });

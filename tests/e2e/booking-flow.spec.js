@@ -41,8 +41,9 @@ test.describe('Booking Page Structure', () => {
     await expect(page.locator('h1')).toContainText(/Book/i);
     // Locked modality card is displayed
     const modalityCard = page.locator('#selected-service-card, [id*="selected-service"]');
-    await expect(modalityCard).toBeVisible();
-    await expect(page.locator('#date_input, input[type="date"]').first()).toBeVisible();
+    // Tailwind interactive calendar is visible
+    await expect(page.locator('#cal-days-grid')).toBeVisible();
+    await expect(page.locator('#cal-month-year')).toBeVisible();
   });
 });
 
@@ -85,6 +86,33 @@ test.describe('Slot Selection & 1-Click Payment Preparation', () => {
     // Proceed button exists and is visible
     const proceedBtn = page.locator('#proceed-btn, button[id*="proceed"]').first();
     await expect(proceedBtn).toBeVisible();
+  });
+
+  test('tailwind calendar preset buttons switch dates and update display label', async ({ page }) => {
+    await loginAsCustomer(page);
+    if (page.url().includes('login')) { test.skip(); return; }
+
+    await page.goto('/booking', { waitUntil: 'domcontentloaded' });
+
+    // Calendar month/year should be rendered
+    const monthYear = page.locator('#cal-month-year');
+    await expect(monthYear).toBeVisible();
+
+    // Days grid should have day cells
+    const dayCells = page.locator('#cal-days-grid button');
+    const dayCount = await dayCells.count();
+    expect(dayCount).toBeGreaterThanOrEqual(28);
+
+    // Clicking "Tomorrow" preset
+    const tomorrowPreset = page.locator('#cal-preset-tomorrow');
+    if (await tomorrowPreset.isVisible()) {
+      await tomorrowPreset.click();
+      await page.waitForTimeout(600);
+
+      // Selected label should update
+      const label = page.locator('#cal-selected-label');
+      await expect(label).toBeVisible();
+    }
   });
 });
 

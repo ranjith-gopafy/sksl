@@ -52,14 +52,19 @@
                         <label for="closed_date" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
                             Closure Date
                         </label>
-                        <input 
-                            type="date" 
-                            id="closed_date" 
-                            name="closed_date" 
-                            min="<?= date('Y-m-d') ?>" 
-                            required 
-                            class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-sky-500"
-                        >
+                        <div class="relative">
+                            <input 
+                                type="date" 
+                                id="closed_date" 
+                                name="closed_date" 
+                                min="<?= date('Y-m-d') ?>" 
+                                required 
+                                class="w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:bg-white focus:outline-none focus:border-[#075183] transition-colors"
+                            >
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
                     </div>
 
                     <div>
