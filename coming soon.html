@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#075183">
+
+  <title>SKSL — Sara Kinetic Sports Lab | Bengaluru</title>
+  <meta
+    name="description"
+    content="Sara Kinetic Sports Lab (SKSL) — Premier athletic recovery and sports performance lab in Bengaluru. Recover. Recharge. Perform. Launching soon."
+  >
+
+  <!-- Open Graph / WhatsApp / Facebook / LinkedIn -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="SKSL — Sara Kinetic Sports Lab | Bengaluru">
+  <meta property="og:description"
+    content="A new space for better performance. Recover. Recharge. Perform. Launching soon in Bengaluru.">
+  <meta property="og:image" content="assets/sksl-logo.png">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="SKSL — Sara Kinetic Sports Lab | Bengaluru">
+  <meta name="twitter:description"
+    content="A new space for better performance. Recover. Recharge. Perform. Launching soon in Bengaluru.">
+  <meta name="twitter:image" content="assets/sksl-logo.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/sksl-logo.png">
+
+  <!-- Google Fonts: Outfit (Brand Headings), Inter (Brand Body), Cormorant Garamond (Editorial Italics) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap"
+    rel="stylesheet"
+  >
+
+  <style>
+    /* =====================================================
+       SKSL OFFICIAL BRAND COLOR SYSTEM
+    ====================================================== */
+    :root {
+      --color-sksl-navy: #075183;
+      --color-sksl-cerulean: #4A9CC0;
+      --color-sksl-gold: #D6981E;
+      --color-sksl-orange: #BF5B2B;
+      --color-sksl-platinum: #D9DBDA;
+      --color-sksl-bg: #F8FAFC;
+      --color-sksl-text: #0F172A;
+      --color-sksl-muted: #64748B;
+      --color-sksl-border: #E2E8F0;
+      --color-sksl-card: #FFFFFF;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 100vh viewport constraint: perfectly fits viewport without scrollbar */
+    html,
+    body {
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    body {
+      background-color: var(--color-sksl-bg);
+      background-image:
+        radial-gradient(circle at 50% -10%, rgba(74, 156, 192, 0.14) 0%, transparent 60%),
+        radial-gradient(circle at 10% 85%, rgba(7, 81, 131, 0.07) 0%, transparent 50%),
+        radial-gradient(circle at 90% 90%, rgba(214, 152, 30, 0.06) 0%, transparent 45%);
+      color: var(--color-sksl-text);
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* =====================================================
+       ANIMATIONS
+    ====================================================== */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(22px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.35);
+        opacity: 0.65;
+      }
+    }
+
+    /* =====================================================
+       ARCHITECTURAL PAGE FRAME
+    ====================================================== */
+    .page-frame {
+      position: fixed;
+      inset: clamp(12px, 1.8vw, 24px);
+      border: 1px solid rgba(7, 81, 131, 0.12);
+      pointer-events: none;
+      z-index: 1;
+      border-radius: 16px;
+    }
+
+    /* Corner accent marks */
+    .page-frame::before {
+      content: "";
+      position: absolute;
+      top: -1px;
+      left: 24px;
+      width: 48px;
+      height: 2px;
+      background: var(--color-sksl-navy);
+      opacity: 0.4;
+    }
+
+    .page-frame::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      right: 24px;
+      width: 48px;
+      height: 2px;
+      background: var(--color-sksl-cerulean);
+      opacity: 0.4;
+    }
+
+    /* =====================================================
+       PAGE CONTAINER (FLUID, COMMANDING ON DESKTOP, 100VH)
+    ====================================================== */
+    .page {
+      width: 100%;
+      max-width: 1180px;
+      height: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
+      margin: 0 auto;
+      padding: clamp(20px, 3.4vh, 44px) clamp(24px, 4vw, 64px) clamp(16px, 2.5vh, 32px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* =====================================================
+       HEADER & PROMINENT CENTERED LOGO
+    ====================================================== */
+    .header {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .logo {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(8px, 1.3vh, 14px);
+      text-decoration: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .logo:hover {
+      opacity: 0.94;
+    }
+
+    .logo-badge {
+      position: relative;
+      width: clamp(68px, 9.5vh, 96px);
+      height: clamp(68px, 9.5vh, 96px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 50%;
+      box-shadow: 0 8px 28px rgba(7, 81, 131, 0.18);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .logo:hover img {
+      transform: scale(1.06);
+    }
+
+    .logo-text {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      text-align: center;
+      font-family: "Outfit", sans-serif;
+    }
+
+    .logo-title {
+      font-size: clamp(15px, 2.1vh, 19px);
+      font-weight: 800;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--color-sksl-navy);
+      line-height: 1.15;
+    }
+
+    .logo-sub {
+      font-size: clamp(11px, 1.5vh, 13.5px);
+      font-weight: 700;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+      color: var(--color-sksl-orange);
+      line-height: 1.15;
+    }
+
+    .logo-sub span {
+      color: var(--color-sksl-muted);
+      font-weight: 600;
+    }
+
+    .logo-fallback {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .fallback-mark {
+      width: 58px;
+      height: 58px;
+      border: 2px solid var(--color-sksl-navy);
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      color: var(--color-sksl-navy);
+      border-radius: 50%;
+    }
+
+    .fallback-name {
+      font-size: 15px;
+      line-height: 1.25;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--color-sksl-navy);
+      text-align: center;
+    }
+
+    .fallback-name small {
+      display: block;
+      margin-top: 3px;
+      color: var(--color-sksl-orange);
+      font-size: 11.5px;
+      letter-spacing: .20em;
+    }
+
+    /* =====================================================
+       HERO (BOLD, HIGH-IMPACT DESKTOP SCALE, 100VH)
+    ====================================================== */
+    .hero {
+      width: 100%;
+      max-width: 1020px;
+      margin: auto 0;
+      padding: clamp(6px, 1.4vh, 18px) 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    /* =====================================================
+       TWO-TONE ATHLETIC CAPSULE (BENGALURU · LAUNCHING SOON)
+    ====================================================== */
+    .eyebrow-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: clamp(14px, 2.2vh, 24px);
+      padding: 3.5px;
+      background: #FFFFFF;
+      border: 1px solid rgba(7, 81, 131, 0.16);
+      border-radius: 9999px;
+      box-shadow:
+        0 2px 10px rgba(7, 81, 131, 0.06),
+        0 1px 3px rgba(15, 23, 42, 0.04);
+      animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      cursor: default;
+      user-select: none;
+    }
+
+    .eyebrow-capsule:hover {
+      transform: translateY(-1px);
+      border-color: rgba(7, 81, 131, 0.3);
+      box-shadow:
+        0 6px 18px rgba(7, 81, 131, 0.12),
+        0 2px 4px rgba(15, 23, 42, 0.05);
+    }
+
+    /* Left segment: Solid SKSL Navy chip */
+    .capsule-city {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: clamp(5px, 0.8vh, 7px) clamp(12px, 1.2vw, 16px);
+      background: var(--color-sksl-navy);
+      color: #FFFFFF;
+      font-family: "Outfit", sans-serif;
+      font-size: clamp(11px, 1.35vh, 12.5px);
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      border-radius: 9999px;
+      box-shadow: 0 1px 4px rgba(7, 81, 131, 0.3);
+    }
+
+    .capsule-pin {
+      width: clamp(11px, 1.3vh, 13px);
+      height: clamp(11px, 1.3vh, 13px);
+      stroke: var(--color-sksl-cerulean);
+      flex-shrink: 0;
+    }
+
+    /* Right segment: Soft translucent status text with pulse beacon */
+    .capsule-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: clamp(5px, 0.8vh, 7px) clamp(14px, 1.3vw, 18px) clamp(5px, 0.8vh, 7px) clamp(10px, 1vw, 14px);
+      color: var(--color-sksl-navy);
+      font-family: "Outfit", sans-serif;
+      font-size: clamp(11px, 1.35vh, 12.5px);
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    /* Animated radar-ping beacon */
+    .capsule-beacon {
+      position: relative;
+      width: 8px;
+      height: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .beacon-core {
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--color-sksl-gold);
+      box-shadow: 0 0 6px rgba(214, 152, 30, 0.8);
+    }
+
+    .beacon-wave {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--color-sksl-gold);
+      opacity: 0.75;
+      animation: beaconPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes beaconPing {
+      0% {
+        transform: scale(0.9);
+        opacity: 0.85;
+      }
+      70%, 100% {
+        transform: scale(2.8);
+        opacity: 0;
+      }
+    }
+
+    /* Grand athletic headline on desktop */
+    .launching {
+      max-width: 1000px;
+      font-family: "Outfit", sans-serif;
+      font-size: clamp(42px, 5.2vw, 76px);
+      line-height: 1.03;
+      font-weight: 800;
+      letter-spacing: -.035em;
+      color: var(--color-sksl-text);
+      text-align: center;
+      animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
+    }
+
+    .launching em {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 1.13em;
+      line-height: .8;
+      font-style: italic;
+      font-weight: 500;
+      letter-spacing: -.02em;
+      color: var(--color-sksl-navy);
+      background: linear-gradient(135deg, var(--color-sksl-navy) 15%, var(--color-sksl-cerulean) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Elegant editorial quote */
+    .quote-wrap {
+      margin-top: clamp(16px, 2.4vh, 28px);
+      padding: 0 clamp(16px, 3vw, 40px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.32s both;
+    }
+
+    .quote-divider {
+      width: 52px;
+      height: 2.5px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--color-sksl-navy), var(--color-sksl-cerulean));
+      margin-bottom: clamp(10px, 1.5vh, 16px);
+    }
+
+    .quote {
+      max-width: 720px;
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: clamp(23px, 2.4vw, 36px);
+      line-height: 1.22;
+      font-style: italic;
+      font-weight: 500;
+      letter-spacing: -.015em;
+      color: #334155;
+      text-align: center;
+    }
+
+    .quote span {
+      font-style: normal;
+      color: var(--color-sksl-navy);
+      font-weight: 700;
+    }
+
+    /* Brand signature lockup */
+    .signature {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin-top: clamp(18px, 2.8vh, 36px);
+      animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.42s both;
+    }
+
+    .signature-item {
+      display: inline-flex;
+      align-items: center;
+      font-family: "Outfit", sans-serif;
+      font-size: clamp(12px, 1.1vw, 15.5px);
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+      color: #475569;
+      white-space: nowrap;
+      transition: color 0.25s ease, transform 0.25s ease;
+      cursor: default;
+    }
+
+    .signature-item:hover {
+      color: var(--color-sksl-navy);
+      transform: translateY(-1px);
+    }
+
+    .signature-item + .signature-item::before {
+      content: "";
+      width: clamp(20px, 2.4vw, 32px);
+      height: 1.5px;
+      margin: 0 clamp(14px, 1.6vw, 22px);
+      background: var(--color-sksl-platinum);
+    }
+
+    .signature-item:last-child {
+      color: var(--color-sksl-navy);
+      font-weight: 800;
+    }
+
+    .signature-item:first-child::after {
+      content: "";
+      display: inline-block;
+      width: 5.5px;
+      height: 5.5px;
+      margin-left: 14px;
+      border-radius: 50%;
+      background: var(--color-sksl-gold);
+    }
+
+    /* =====================================================
+       FOOTER
+    ====================================================== */
+    .footer {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      padding-top: clamp(12px, 1.8vh, 20px);
+      border-top: 1px solid var(--color-sksl-border);
+
+      color: var(--color-sksl-muted);
+      font-family: "Outfit", sans-serif;
+      font-size: clamp(11px, 1.4vh, 13px);
+      line-height: 1.5;
+      font-weight: 600;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      animation: fadeIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.52s both;
+    }
+
+    .footer-location {
+      color: var(--color-sksl-navy);
+      font-weight: 700;
+    }
+
+    .footer-right {
+      text-align: right;
+    }
+
+    /* =====================================================
+       RESPONSIVE BREAKPOINTS (ALL DEVICES)
+    ====================================================== */
+
+    /* Large & Ultra-Wide Desktop (min-width: 1440px) */
+    @media (min-width: 1440px) and (min-height: 850px) {
+      .page {
+        max-width: 1200px;
+      }
+
+      .logo-badge {
+        width: 92px;
+        height: 92px;
+      }
+
+      .launching {
+        font-size: 78px;
+      }
+
+      .quote {
+        font-size: 34px;
+      }
+
+      .signature-item {
+        font-size: 15px;
+      }
+    }
+
+    /* Tablet & Small Laptops (max-width: 1024px) */
+    @media (max-width: 1024px) {
+      .page {
+        max-width: 860px;
+        padding-left: 32px;
+        padding-right: 32px;
+      }
+
+      .launching {
+        font-size: clamp(38px, 6.2vh, 64px);
+      }
+
+      .quote {
+        font-size: clamp(20px, 2.8vh, 28px);
+      }
+    }
+
+    /* Mobile Phones (max-width: 640px) */
+    @media (max-width: 640px) {
+      .page-frame {
+        inset: 10px;
+        border-radius: 12px;
+      }
+
+      .page {
+        padding: clamp(16px, 3vh, 24px) 18px clamp(14px, 2.5vh, 20px);
+      }
+
+      .logo-badge {
+        width: 52px;
+        height: 52px;
+      }
+
+      .logo-title {
+        font-size: 13.5px;
+        letter-spacing: .15em;
+      }
+
+      .logo-sub {
+        font-size: 10px;
+        letter-spacing: .18em;
+      }
+
+      .eyebrow-capsule {
+        padding: 2.5px;
+        margin-bottom: 16px;
+      }
+
+      .capsule-city {
+        padding: 4px 11px;
+        font-size: 10px;
+        letter-spacing: .14em;
+        gap: 4px;
+      }
+
+      .capsule-pin {
+        width: 10.5px;
+        height: 10.5px;
+      }
+
+      .capsule-status {
+        padding: 4px 11px 4px 8px;
+        font-size: 10px;
+        letter-spacing: .14em;
+        gap: 6px;
+      }
+
+      .launching {
+        font-size: clamp(30px, 8.5vw, 44px);
+        line-height: 1.08;
+      }
+
+      .quote-wrap {
+        margin-top: 16px;
+      }
+
+      .quote-divider {
+        width: 32px;
+        margin-bottom: 10px;
+      }
+
+      .quote {
+        font-size: clamp(18px, 5vw, 22px);
+        line-height: 1.25;
+      }
+
+      .signature {
+        margin-top: 20px;
+        gap: 6px 0;
+      }
+
+      .signature-item {
+        font-size: 10.5px;
+        letter-spacing: .16em;
+      }
+
+      .signature-item + .signature-item::before {
+        width: 12px;
+        margin: 0 8px;
+      }
+
+      .footer {
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+        padding-top: 14px;
+        font-size: 10px;
+      }
+
+      .footer-right {
+        text-align: center;
+      }
+    }
+
+    /* Very short displays (Landscape mobile / height < 540px) */
+    @media (max-height: 540px) {
+      html,
+      body {
+        height: auto;
+        overflow-y: auto;
+      }
+
+      .page {
+        height: auto;
+        min-height: 100vh;
+        padding: 24px 20px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="page-frame" aria-hidden="true"></div>
+
+  <div class="page">
+
+    <!-- ===================================================
+         HEADER (PROMINENT CENTERED LOGO & BRAND TYPOGRAPHY)
+    ==================================================== -->
+    <header class="header">
+
+      <a class="logo" href="#" aria-label="Sara Kinetic Sports Lab — Bengaluru">
+
+        <span class="logo-badge">
+          <img
+            src="assets/sksl-logo.png"
+            alt="Sara Kinetic Sports Lab"
+            width="88"
+            height="88"
+            onerror="this.style.display='none'; this.parentElement.nextElementSibling.style.display='none'; this.parentElement.parentElement.querySelector('.logo-fallback').style.display='flex';"
+          >
+        </span>
+
+        <div class="logo-text">
+          <span class="logo-title">Sara Kinetic</span>
+          <span class="logo-sub">Sports Lab &nbsp;<span>·&nbsp; Bengaluru</span></span>
+        </div>
+
+        <!-- Fallback if logo image fails -->
+        <span class="logo-fallback">
+          <span class="fallback-mark">SKSL</span>
+          <span class="fallback-name">
+            Sara Kinetic
+            <small>Sports Lab · Bengaluru</small>
+          </span>
+        </span>
+
+      </a>
+
+    </header>
+
+
+    <!-- ===================================================
+         HERO (GRAND HEADLINE, QUOTE, SIGNATURE)
+    ==================================================== -->
+    <main class="hero">
+
+      <div class="eyebrow-capsule" role="status" aria-label="Bengaluru, Launching soon">
+        <span class="capsule-city">
+          <svg class="capsule-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          Bengaluru
+        </span>
+        <span class="capsule-status">
+          <span class="capsule-beacon" aria-hidden="true">
+            <span class="beacon-core"></span>
+            <span class="beacon-wave"></span>
+          </span>
+          Launching Soon
+        </span>
+      </div>
+
+      <h1 class="launching">
+        A new space<br>
+        for <em>better</em><br>
+        performance.
+      </h1>
+
+      <div class="quote-wrap">
+        <div class="quote-divider" aria-hidden="true"></div>
+        <p class="quote">
+          “The best performance begins
+          with how you <span>recover.</span>”
+        </p>
+      </div>
+
+      <div class="signature" aria-label="Recover Recharge Perform">
+
+        <span class="signature-item">
+          Recover
+        </span>
+
+        <span class="signature-item">
+          Recharge
+        </span>
+
+        <span class="signature-item">
+          Perform
+        </span>
+
+      </div>
+
+    </main>
+
+
+    <!-- ===================================================
+         FOOTER
+    ==================================================== -->
+    <footer class="footer">
+
+      <span>
+        Sara Kinetic Sports Lab &nbsp;·&nbsp; <span class="footer-location">Bengaluru</span>
+      </span>
+
+      <span class="footer-right">
+        © <span id="year"></span> SKSL
+      </span>
+
+    </footer>
+
+  </div>
+
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+
+</body>
+</html>
