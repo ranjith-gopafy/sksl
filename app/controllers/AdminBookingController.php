@@ -35,13 +35,18 @@ class AdminBookingController
     {
         AdminAuth::handle();
 
+        $rawStatus = isset($_GET['status']) ? trim((string) $_GET['status']) : null;
+        // Default to 'confirmed' if status parameter not provided
+        $activeStatus = ($rawStatus === null || $rawStatus === '') ? 'confirmed' : $rawStatus;
+
         $filters = [
             'date'       => trim((string) ($_GET['date'] ?? '')),
             'service_id' => !empty($_GET['service_id']) ? (int) $_GET['service_id'] : null,
-            'status'     => trim((string) ($_GET['status'] ?? '')),
+            'status'     => $activeStatus,
             'search'     => trim((string) ($_GET['search'] ?? '')),
         ];
 
+        $statusCounts = $this->bookingModel->getAdminStatusCounts($filters);
         $bookings = $this->bookingModel->getAdminBookings($filters);
         $services = $this->serviceModel->getAll();
 

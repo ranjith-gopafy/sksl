@@ -89,11 +89,11 @@
                         name="status" 
                         class="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-sky-500"
                     >
-                        <option value="">All Statuses</option>
-                        <option value="confirmed" <?= (($filters['status'] ?? '') === 'confirmed') ? 'selected' : '' ?>>Confirmed</option>
+                        <option value="confirmed" <?= (($filters['status'] ?? 'confirmed') === 'confirmed') ? 'selected' : '' ?>>Confirmed</option>
                         <option value="completed" <?= (($filters['status'] ?? '') === 'completed') ? 'selected' : '' ?>>Completed</option>
                         <option value="cancelled" <?= (($filters['status'] ?? '') === 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
                         <option value="pending" <?= (($filters['status'] ?? '') === 'pending') ? 'selected' : '' ?>>Pending</option>
+                        <option value="all" <?= (($filters['status'] ?? '') === 'all') ? 'selected' : '' ?>>All Statuses</option>
                     </select>
                     <button 
                         type="submit" 
@@ -101,7 +101,7 @@
                     >
                         Filter
                     </button>
-                    <?php if (!empty(array_filter($filters))): ?>
+                    <?php if (!empty(array_filter($filters, fn($v, $k) => $k === 'status' ? $v !== 'confirmed' : !empty($v), ARRAY_FILTER_USE_BOTH))): ?>
                         <a 
                             href="<?= app_url('admin/bookings') ?>" 
                             class="px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs flex items-center justify-center transition-colors shrink-0"
@@ -117,10 +117,52 @@
 
     <!-- Bookings Table -->
     <div class="bg-white border border-slate-200/90 rounded-3xl overflow-hidden shadow-xs">
-        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 class="text-sm font-bold text-slate-900 font-heading uppercase tracking-wider">
-                Booking Records (<?= count($bookings) ?>)
-            </h2>
+        <div class="px-6 py-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex items-center gap-2.5">
+                <h2 class="text-sm font-bold text-slate-900 font-heading uppercase tracking-wider">
+                    Booking Records
+                </h2>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    <?= count($bookings) ?> <?= ucfirst(h($filters['status'] ?? 'confirmed')) ?>
+                </span>
+            </div>
+
+            <!-- Top Right Corner Status Filter Tabs: All, Confirmed, Completed, Cancelled, Pending -->
+            <div class="flex items-center gap-1.5 overflow-x-auto bg-slate-50 p-1.5 rounded-2xl border border-slate-200/80">
+                <?php
+                $statusTabs = [
+                    'all'       => 'All',
+                    'confirmed' => 'Confirmed',
+                    'completed' => 'Completed',
+                    'cancelled' => 'Cancelled',
+                    'pending'   => 'Pending',
+                ];
+                $currentStatus = $filters['status'] ?? 'confirmed';
+                foreach ($statusTabs as $statusCode => $statusLabel):
+                    $isActive = ($currentStatus === $statusCode);
+                    // Build query preserving date, service_id, and search
+                    $tabQueryParams = array_filter([
+                        'date'       => $filters['date'] ?? null,
+                        'service_id' => $filters['service_id'] ?? null,
+                        'search'     => $filters['search'] ?? null,
+                        'status'     => $statusCode,
+                    ]);
+                    $tabUrl = app_url('admin/bookings' . (!empty($tabQueryParams) ? '?' . http_build_query($tabQueryParams) : ''));
+                    $badgeCount = $statusCounts[$statusCode] ?? null;
+                ?>
+                    <a 
+                        href="<?= $tabUrl ?>" 
+                        class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 <?= $isActive ? 'bg-[#075183] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white' ?>"
+                    >
+                        <span><?= $statusLabel ?></span>
+                        <?php if ($badgeCount !== null): ?>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full <?= $isActive ? 'bg-white/20 text-white' : 'bg-slate-200/70 text-slate-600' ?>">
+                                <?= $badgeCount ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
         </div>
 
         <?php if (empty($bookings)): ?>

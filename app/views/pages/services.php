@@ -45,7 +45,7 @@
             } elseif (str_contains($nameLower, 'treadmill') || str_contains($nameLower, 'pool') || str_contains($nameLower, 'cycle') || str_contains($nameLower, 'walker')) {
                 $cat = 'aquatic';
             }
-            $totalPrice = (float) ($service['pricing']['total_amount'] ?? $service['price']);
+            $basePrice = (float) $service['price'];
         ?>
             <div 
                 class="service-item-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"
@@ -97,9 +97,9 @@
                         <!-- Price & CTA Bar -->
                         <div class="flex items-center justify-between pt-1.5 border-t border-[#D9DBDA]/60 mt-1">
                             <div>
-                                <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Total with GST</div>
+                                <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Base Rate</div>
                                 <div class="text-sm font-extrabold text-slate-900 font-heading -mt-0.5">
-                                    &#8377;<?= number_format($totalPrice, 2) ?>
+                                    &#8377;<?= number_format($basePrice, 2) ?>
                                 </div>
                             </div>
                             <a 
@@ -119,7 +119,7 @@
                         <div class="relative w-full h-52 sm:h-56 overflow-hidden bg-slate-100">
                             <img 
                                 src="<?= $imgSrc ?>" 
-                                alt="<?= h($service['name']) ?>"
+                                alt="<?= h($service['name']) ?>" 
                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                 loading="lazy"
                             >
@@ -138,7 +138,7 @@
                             <div class="absolute top-3 right-3">
                                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md border border-white/10">
                                     <svg class="w-3.5 h-3.5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                     </svg>
                                     Max <?= h($service['capacity']) ?>
                                 </span>
@@ -164,10 +164,10 @@
                         <div class="flex items-baseline justify-between">
                             <div>
                                 <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                                    Base &#8377;<?= number_format((float) $service['price'], 2) ?> + 18% GST
+                                    Base Rate / Session
                                 </div>
                                 <div class="text-2xl font-extrabold text-slate-900 font-heading mt-0.5">
-                                    &#8377;<?= number_format($totalPrice, 2) ?>
+                                    &#8377;<?= number_format($basePrice, 2) ?>
                                 </div>
                             </div>
                             <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">

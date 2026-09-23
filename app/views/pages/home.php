@@ -257,7 +257,7 @@ if (empty($bannerSlides)) {
                 } elseif (str_contains($nameLower, 'treadmill') || str_contains($nameLower, 'pool') || str_contains($nameLower, 'cycle') || str_contains($nameLower, 'walker')) {
                     $cat = 'aquatic';
                 }
-                $totalPrice = (float) ($srv['pricing']['total_amount'] ?? $srv['price']);
+                $basePrice = (float) $srv['price'];
             ?>
                 <div 
                     class="modality-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"
@@ -309,9 +309,9 @@ if (empty($bannerSlides)) {
                             <!-- Price & CTA Bar -->
                             <div class="flex items-center justify-between pt-1.5 border-t border-[#D9DBDA]/60 mt-1">
                                 <div>
-                                    <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Total with GST</div>
+                                    <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Base Rate</div>
                                     <div class="text-sm font-extrabold text-slate-900 font-heading -mt-0.5">
-                                        &#8377;<?= number_format($totalPrice, 2) ?>
+                                        &#8377;<?= number_format($basePrice, 2) ?>
                                     </div>
                                 </div>
                                 <a 
@@ -371,9 +371,9 @@ if (empty($bannerSlides)) {
                         <!-- Price & CTA Bar -->
                         <div class="px-5 pb-5 sm:px-6 sm:pb-6 pt-3 border-t border-[#D9DBDA]/80 flex items-center justify-between">
                             <div>
-                                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total with 18% GST</div>
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Base Rate / Session</div>
                                 <div class="text-xl font-extrabold text-slate-900 font-heading">
-                                    &#8377;<?= number_format($totalPrice, 2) ?>
+                                    &#8377;<?= number_format($basePrice, 2) ?>
                                 </div>
                             </div>
 
@@ -449,7 +449,7 @@ if (empty($bannerSlides)) {
             <div class="relative z-10 max-w-2xl mx-auto space-y-4">
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold text-[#D6981E] border border-[#D6981E]/30">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#D6981E] animate-pulse"></span>
-                    Chennai's Premier High-Performance Facility
+                    Bengaluru's Premier High-Performance Facility
                 </div>
                 <h2 class="text-3xl sm:text-4xl font-extrabold font-heading tracking-tight">
                     Elevate Your Recovery Today

@@ -186,8 +186,10 @@ class BookingModel
             $sql .= " AND (b.booking_status = 'completed' OR (b.booking_status = 'confirmed' AND CONCAT(b.booking_date, ' ', b.end_time) < NOW() AND b.booking_date < CURDATE()))";
         } elseif ($filter === 'cancelled') {
             $sql .= " AND b.booking_status = 'cancelled'";
+        } else {
+            // For 'all' or default: return real bookings (confirmed, completed, cancelled), excluding abandoned pending holds
+            $sql .= " AND b.booking_status != 'pending'";
         }
-        // If filter is 'all' or null, return all bookings
 
         $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC";
 
@@ -238,6 +240,67 @@ class BookingModel
     }
 
     /**
+     * Count bookings grouped by status matching search and date filters.
+     *
+     * @param array<string, mixed> $filters
+     * @return array<string, int>
+     */
+     public function getAdminStatusCounts(array $filters = []): array
+     {
+         $sql = "SELECT b.booking_status, COUNT(*) as cnt
+                 FROM bookings b
+                 JOIN services s ON b.service_id = s.id
+                 JOIN users u ON b.user_id = u.id
+                 WHERE 1=1";
+
+         $params = [];
+
+         if (!empty($filters['date'])) {
+             $sql .= " AND b.booking_date = :date";
+             $params['date'] = $filters['date'];
+         }
+
+         if (!empty($filters['service_id'])) {
+             $sql .= " AND b.service_id = :service_id";
+             $params['service_id'] = (int) $filters['service_id'];
+         }
+
+         if (!empty($filters['search'])) {
+             $sql .= " AND (b.booking_reference LIKE :s1 OR u.name LIKE :s2 OR u.email LIKE :s3 OR u.mobile LIKE :s4)";
+             $term = '%' . $filters['search'] . '%';
+             $params['s1'] = $term;
+             $params['s2'] = $term;
+             $params['s3'] = $term;
+             $params['s4'] = $term;
+         }
+
+         $sql .= " GROUP BY b.booking_status";
+
+         $stmt = $this->db->prepare($sql);
+         $stmt->execute($params);
+         $rows = $stmt->fetchAll() ?: [];
+
+         $counts = [
+             'all'       => 0,
+             'confirmed' => 0,
+             'completed' => 0,
+             'cancelled' => 0,
+             'pending'   => 0,
+         ];
+
+         foreach ($rows as $r) {
+             $st = (string) $r['booking_status'];
+             $c = (int) $r['cnt'];
+             if (isset($counts[$st])) {
+                 $counts[$st] = $c;
+             }
+             $counts['all'] += $c;
+         }
+
+         return $counts;
+     }
+
+    /**
      * Search and retrieve bookings for admin management.
      *
      * @param array<string, mixed> $filters
@@ -266,7 +329,7 @@ class BookingModel
             $params['service_id'] = (int) $filters['service_id'];
         }
 
-        if (!empty($filters['status'])) {
+        if (!empty($filters['status']) && $filters['status'] !== 'all') {
             $sql .= " AND b.booking_status = :status";
             $params['status'] = $filters['status'];
         }
