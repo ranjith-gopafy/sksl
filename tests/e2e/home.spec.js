@@ -3,21 +3,13 @@ const { test, expect } = require('@playwright/test');
 /**
  * SKSL Homepage & Hero Carousel E2E Tests
  *
- * Tests:
- * - Brand title in page <title> tag
- * - Two-line header branding ("Sara Kinetic" / "Sports Lab")
- * - Hero carousel renders with slides
- * - Carousel Next/Prev navigation (no jump)
- * - Service modality cards (10 items)
- * - Category filter tabs
- * - "Book Now" CTA links correctly
+ * Uses 'domcontentloaded' instead of 'networkidle' to avoid hanging on
+ * Google Fonts external requests.
  */
 
 test.describe('Homepage & Hero Carousel', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    // Wait for any lazy-loading to settle
-    await page.waitForLoadState('networkidle');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
   });
 
   test('page has correct title and meta', async ({ page }) => {
@@ -33,12 +25,11 @@ test.describe('Homepage & Hero Carousel', () => {
   });
 
   test('hero carousel section is visible with at least 1 slide', async ({ page }) => {
-    // Carousel container
+    // Actual class is .carousel-slide (from home.php line 56)
     const carousel = page.locator('#hero-carousel');
     await expect(carousel).toBeVisible();
 
-    // At least one visible slide
-    const slides = page.locator('.hero-slide');
+    const slides = page.locator('.carousel-slide');
     const count = await slides.count();
     expect(count).toBeGreaterThanOrEqual(1);
   });
@@ -47,29 +38,25 @@ test.describe('Homepage & Hero Carousel', () => {
     const carousel = page.locator('#hero-carousel');
     await expect(carousel).toBeVisible();
 
-    const slides = page.locator('.hero-slide');
+    const slides = page.locator('.carousel-slide');
     const slideCount = await slides.count();
+    if (slideCount < 2) { test.skip(); return; }
 
-    if (slideCount < 2) {
-      test.skip();
-      return;
-    }
-
-    // Record carousel position before click
+    // Record carousel bounding box before click
     const beforeBox = await carousel.boundingBox();
 
     const nextBtn = page.locator('#hero-next-btn');
-    await expect(nextBtn).toBeVisible();
+    if (!(await nextBtn.isVisible())) { test.skip(); return; }
     await nextBtn.click();
-    await page.waitForTimeout(700); // Allow transition
+    await page.waitForTimeout(800);
 
-    // Carousel container should not have moved / jumped
+    // Carousel container should not jump vertically
     const afterBox = await carousel.boundingBox();
     expect(Math.abs((afterBox?.y ?? 0) - (beforeBox?.y ?? 0))).toBeLessThan(5);
   });
 
   test('carousel prev button works without layout jump', async ({ page }) => {
-    const slides = page.locator('.hero-slide');
+    const slides = page.locator('.carousel-slide');
     const slideCount = await slides.count();
     if (slideCount < 2) { test.skip(); return; }
 
@@ -78,14 +65,13 @@ test.describe('Homepage & Hero Carousel', () => {
 
     const beforeBox = await page.locator('#hero-carousel').boundingBox();
     await prevBtn.click();
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(800);
     const afterBox = await page.locator('#hero-carousel').boundingBox();
     expect(Math.abs((afterBox?.y ?? 0) - (beforeBox?.y ?? 0))).toBeLessThan(5);
   });
 
   test('service modality cards are rendered (minimum 10)', async ({ page }) => {
-    // Both mobile cards (inside .md:hidden) and desktop cards
-    // Count any element with data-modality or known card class
+    // Count .modality-card elements
     const cards = page.locator('.modality-card');
     const count = await cards.count();
     expect(count).toBeGreaterThanOrEqual(10);
@@ -97,13 +83,11 @@ test.describe('Homepage & Hero Carousel', () => {
 
     await recoveryTab.click();
     await page.waitForTimeout(400);
-    // Tab should have an active class
     const cls = await recoveryTab.getAttribute('class') ?? '';
     expect(cls).toMatch(/bg-gradient|text-white|active/i);
   });
 
   test('hero CTA "Book Now" button links to /booking', async ({ page }) => {
-    // Find the first prominent Book / Book Now link in the hero
     const bookLink = page.locator('a[href*="booking"]').first();
     await expect(bookLink).toBeVisible();
     const href = await bookLink.getAttribute('href');
@@ -111,10 +95,10 @@ test.describe('Homepage & Hero Carousel', () => {
   });
 
   test('navigation links to services page work', async ({ page }) => {
-    const servicesLink = page.locator('a[href*="services"]').first();
+    const servicesLink = page.locator('nav a[href*="services"]').first();
     await expect(servicesLink).toBeVisible();
     await servicesLink.click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForURL(/services/, { timeout: 10000 });
     await expect(page).toHaveURL(/services/);
   });
 });

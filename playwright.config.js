@@ -22,8 +22,14 @@ module.exports = defineConfig({
     ['list'],
     ['html', { outputFolder: 'playwright-report', open: 'never' }]
   ],
+  webServer: {
+    command: 'php -S 127.0.0.1:8000 -t public public/index.php',
+    url: 'http://127.0.0.1:8000/health',
+    reuseExistingServer: !process.env.CI,
+    timeout: 15000,
+  },
   use: {
-    baseURL: process.env.APP_URL || 'http://localhost/sksl/public/',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

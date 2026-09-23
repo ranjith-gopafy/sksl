@@ -138,12 +138,27 @@ function h(string|int|float|null $value): string
 }
 
 /**
+ * Resolve the base URL dynamically based on the active HTTP request,
+ * falling back to config('app.url') for CLI/background workers.
+ */
+function app_base_url(): string
+{
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+        $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        $basePath = ($scriptDir !== '' && $scriptDir !== '/') ? $scriptDir : '';
+        return $scheme . $_SERVER['HTTP_HOST'] . $basePath;
+    }
+    return rtrim((string) (config('app.url') ?? 'http://localhost'), '/');
+}
+
+/**
  * Return the full public URL for a static asset.
  * Example: asset('css/app.css') → http://localhost/sksl/public/css/app.css
  */
 function asset(string $path): string
 {
-    return rtrim(config('app.url'), '/') . '/' . ltrim($path, '/');
+    return app_base_url() . '/' . ltrim($path, '/');
 }
 
 /**
@@ -152,5 +167,6 @@ function asset(string $path): string
  */
 function app_url(string $path = ''): string
 {
-    return rtrim(config('app.url'), '/') . '/' . ltrim($path, '/');
+    $base = app_base_url();
+    return $path === '' ? $base : $base . '/' . ltrim($path, '/');
 }

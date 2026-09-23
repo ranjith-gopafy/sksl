@@ -4,7 +4,7 @@ test.describe('Public Pages & Authentication Views', () => {
   test('should load services catalog page with modalities', async ({ page }) => {
     await page.goto('/services');
     await expect(page).toHaveTitle(/Services|Modality|Sara Kinetic/i);
-    await expect(page.locator('h1, h2')).toContainText(/Services|Modalities|Recovery/i);
+    await expect(page.locator('h1').first()).toContainText(/Services|Modalities|Recovery/i);
   });
 
   test('should load legal & compliance pages', async ({ page }) => {
