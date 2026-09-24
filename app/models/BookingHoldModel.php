@@ -45,25 +45,34 @@ class BookingHoldModel
 
     /**
      * Check if customer already has an active, non-expired hold overlapping this slot.
+     * When serviceId is provided, checks for conflicting holds on that specific modality.
      */
-    public function hasCustomerActiveHold(int $userId, string $date, string $startTime, string $endTime): bool
+    public function hasCustomerActiveHold(int $userId, string $date, string $startTime, string $endTime, ?int $serviceId = null): bool
     {
-        $stmt = $this->db->prepare(
-            "SELECT 1 FROM booking_holds
-             WHERE user_id = :user_id
-               AND booking_date = :booking_date
-               AND start_time < :end_time
-               AND end_time > :start_time
-               AND status = 'active'
-               AND expires_at > NOW()
-             LIMIT 1"
-        );
-        $stmt->execute([
+        $sql = "SELECT 1 FROM booking_holds
+              WHERE user_id = :user_id
+                AND booking_date = :booking_date
+                AND start_time < :end_time
+                AND end_time > :start_time
+                AND status = 'active'
+                AND expires_at > NOW()";
+
+        $params = [
             'user_id'      => $userId,
             'booking_date' => $date,
             'start_time'   => $startTime,
             'end_time'     => $endTime,
-        ]);
+        ];
+
+        if ($serviceId !== null) {
+            $sql .= " AND service_id = :service_id";
+            $params['service_id'] = $serviceId;
+        }
+
+        $sql .= " LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return (bool) $stmt->fetchColumn();
     }
 

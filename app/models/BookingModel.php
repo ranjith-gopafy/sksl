@@ -44,25 +44,33 @@ class BookingModel
 
     /**
      * Check if a specific customer already has an active overlapping booking on this date.
-     * Prevents a customer from accidentally double-booking conflicting modalities.
+     * When serviceId is supplied, checks for conflicting bookings on that specific modality.
      */
-    public function hasCustomerOverlap(int $userId, string $date, string $startTime, string $endTime): bool
+    public function hasCustomerOverlap(int $userId, string $date, string $startTime, string $endTime, ?int $serviceId = null): bool
     {
-        $stmt = $this->db->prepare(
-            "SELECT 1 FROM bookings
+        $sql = "SELECT 1 FROM bookings
              WHERE user_id = :user_id
                AND booking_date = :booking_date
                AND start_time < :end_time
                AND end_time > :start_time
-               AND booking_status = 'confirmed'
-             LIMIT 1"
-        );
-        $stmt->execute([
+               AND booking_status = 'confirmed'";
+
+        $params = [
             'user_id'      => $userId,
             'booking_date' => $date,
             'start_time'   => $startTime,
             'end_time'     => $endTime,
-        ]);
+        ];
+
+        if ($serviceId !== null) {
+            $sql .= " AND service_id = :service_id";
+            $params['service_id'] = $serviceId;
+        }
+
+        $sql .= " LIMIT 1";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return (bool) $stmt->fetchColumn();
     }
 

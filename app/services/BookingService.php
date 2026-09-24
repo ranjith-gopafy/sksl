@@ -124,20 +124,20 @@ class BookingService
             $dbStartTime = $startTime . ':00';
             $dbEndTime   = $endTimeStr . ':00';
 
-            // 3. Customer Conflict Check: Does this user already have a confirmed booking or active hold overlapping this interval?
-            if ($this->bookingModel->hasCustomerOverlap($userId, $date, $dbStartTime, $dbEndTime)) {
+            // 3. Customer Conflict Check: Does this user already have a confirmed booking or active hold for this modality overlapping this interval?
+            if ($this->bookingModel->hasCustomerOverlap($userId, $date, $dbStartTime, $dbEndTime, $serviceId)) {
                 $this->db->rollBack();
                 return [
                     'success' => false,
-                    'message' => 'You already have another confirmed booking scheduled during this time interval.',
+                    'message' => 'You already have another confirmed booking for this modality scheduled during this time interval.',
                 ];
             }
 
-            if ($this->holdModel->hasCustomerActiveHold($userId, $date, $dbStartTime, $dbEndTime)) {
+            if ($this->holdModel->hasCustomerActiveHold($userId, $date, $dbStartTime, $dbEndTime, $serviceId)) {
                 $this->db->rollBack();
                 return [
                     'success' => false,
-                    'message' => 'You already have an active payment hold for this time interval.',
+                    'message' => 'You already have an active payment hold for this modality during this time interval.',
                 ];
             }
 

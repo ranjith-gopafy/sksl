@@ -175,9 +175,9 @@ class AvailabilityService
                 }
             }
 
-            // Customer overlap conflict check
+            // Customer overlap conflict check (scoped to this specific modality)
             if ($available && $currentUserId !== null) {
-                if ($this->bookingModel->hasCustomerOverlap($currentUserId, $date, $dbStart, $dbEnd)) {
+                if ($this->bookingModel->hasCustomerOverlap($currentUserId, $date, $dbStart, $dbEnd, (int) $service['id'])) {
                     $available = false;
                     $unavailableReason = 'user_conflict';
                 }
