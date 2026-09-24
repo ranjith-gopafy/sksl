@@ -130,70 +130,133 @@ HTML;
 
         $htmlBody = <<<HTML
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmed — Sara Kinetic Sports Lab</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }
-        .card { max-width: 600px; margin: 0 auto; background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
-        .brand { font-size: 20px; font-weight: 900; color: #38bdf8; letter-spacing: 0.5px; margin-bottom: 2px; }
-        .tagline { font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 24px; }
-        .badge { display: inline-block; background-color: #064e3b; color: #34d399; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 12px; border-radius: 9999px; letter-spacing: 1px; margin-bottom: 12px; }
-        .title { font-size: 24px; font-weight: 800; color: #ffffff; margin: 0 0 12px 0; }
-        .session-box { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin: 24px 0; }
-        .checklist { margin: 24px 0; font-size: 12px; color: #cbd5e1; line-height: 1.6; }
-        .checklist strong { color: #38bdf8; }
-        .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #334155; font-size: 11px; color: #64748b; line-height: 1.5; text-align: center; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b; padding: 32px 16px; }
+        .wrapper { max-width: 600px; margin: 0 auto; }
+
+        /* Header */
+        .header { background-color: #053d63; border-radius: 16px 16px 0 0; padding: 28px 32px; }
+        .brand-name { font-size: 18px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px; }
+        .brand-tagline { font-size: 11px; color: #93c5fd; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 3px; }
+
+        /* Card */
+        .card { background: #ffffff; border-radius: 0 0 16px 16px; padding: 32px; border: 1px solid #e2e8f0; border-top: none; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+
+        /* Confirmed badge */
+        .badge { display: inline-flex; align-items: center; gap: 6px; background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 5px 12px; border-radius: 9999px; margin-bottom: 16px; }
+        .badge-dot { width: 7px; height: 7px; background: #22c55e; border-radius: 50%; display: inline-block; }
+
+        /* Heading */
+        .heading { font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+        .subtext { font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 24px; }
+
+        /* Session details box */
+        .session-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin: 24px 0; }
+        .session-box table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .session-box td { padding: 11px 16px; }
+        .session-box tr:not(:last-child) td { border-bottom: 1px solid #e2e8f0; }
+        .label-col { color: #64748b; font-weight: 500; width: 45%; }
+        .value-col { color: #0f172a; font-weight: 700; text-align: right; }
+        .ref-value { color: #075183; font-family: monospace; font-size: 14px; }
+        .total-row td { background: #f0f9ff; }
+        .total-label { color: #0f172a; font-weight: 700; font-size: 14px; }
+        .total-value { color: #16a34a; font-weight: 800; font-size: 15px; text-align: right; }
+
+        /* Checklist */
+        .checklist { margin: 24px 0; }
+        .checklist-title { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 12px; border-left: 3px solid #053d63; padding-left: 10px; }
+        .checklist-item { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; color: #475569; line-height: 1.6; margin-bottom: 8px; }
+        .checklist-dot { width: 6px; height: 6px; background: #053d63; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+        .checklist-item strong { color: #1e293b; }
+
+        /* CTA Button */
+        .cta-wrap { text-align: center; margin: 28px 0 0; }
+        .cta-btn { display: inline-block; background-color: #053d63; color: #ffffff !important; padding: 13px 32px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; }
+
+        /* Footer */
+        .footer { margin-top: 28px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; line-height: 1.6; text-align: center; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="brand">SARA KINETIC SPORTS LAB</div>
-        <div class="tagline">Recover. Recharge. Perform.</div>
-        
-        <div>
-            <span class="badge">&bull; Session Confirmed &amp; Paid</span>
-            <h1 class="title">Get Ready to Recover, {$toName}</h1>
-            <p style="color: #cbd5e1; font-size: 14px; margin-top: 4px;">
-                Your recovery session has been locked in. We have generated your official GST Tax Invoice and attached it to this email.
+    <div class="wrapper">
+        <!-- Header -->
+        <div class="header">
+            <div class="brand-name">SARA KINETIC SPORTS LAB</div>
+            <div class="brand-tagline">Recover &bull; Recharge &bull; Perform</div>
+        </div>
+
+        <!-- Card Body -->
+        <div class="card">
+            <div class="badge"><span class="badge-dot"></span> Session Confirmed &amp; Paid</div>
+            <h1 class="heading">Get Ready to Recover, {$toName}!</h1>
+            <p class="subtext">
+                Your recovery session has been successfully confirmed and payment received. Your official GST Tax Invoice is attached to this email for your records.
             </p>
-        </div>
 
-        <div class="session-box">
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                <tr>
-                    <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #1e293b;">Booking Reference:</td>
-                    <td style="color: #38bdf8; font-family: monospace; font-weight: 700; text-align: right; padding: 8px 0; border-bottom: 1px solid #1e293b;">{$ref}</td>
-                </tr>
-                <tr>
-                    <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #1e293b;">Modality:</td>
-                    <td style="color: #ffffff; font-weight: 700; text-align: right; padding: 8px 0; border-bottom: 1px solid #1e293b;">{$service}</td>
-                </tr>
-                <tr>
-                    <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #1e293b;">Appointment Date:</td>
-                    <td style="color: #ffffff; font-weight: 600; text-align: right; padding: 8px 0; border-bottom: 1px solid #1e293b;">{$date}</td>
-                </tr>
-                <tr>
-                    <td style="color: #94a3b8; padding: 8px 0; border-bottom: 1px solid #1e293b;">Time Window:</td>
-                    <td style="color: #ffffff; font-weight: 600; text-align: right; padding: 8px 0; border-bottom: 1px solid #1e293b;">{$time}</td>
-                </tr>
-                <tr>
-                    <td style="color: #94a3b8; padding: 8px 0;">Total Paid:</td>
-                    <td style="color: #34d399; font-weight: 800; text-align: right; padding: 8px 0; font-size: 15px;">&#8377;{$amount}</td>
-                </tr>
-            </table>
-        </div>
+            <!-- Session Details Table -->
+            <div class="session-box">
+                <table>
+                    <tr>
+                        <td class="label-col">Booking Reference</td>
+                        <td class="value-col ref-value">{$ref}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Modality</td>
+                        <td class="value-col">{$service}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Appointment Date</td>
+                        <td class="value-col">{$date}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-col">Time Window</td>
+                        <td class="value-col">{$time}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td class="label-col total-label">Total Paid</td>
+                        <td class="total-value">&#8377;{$amount}</td>
+                    </tr>
+                </table>
+            </div>
 
-        <div class="checklist">
-            <h3 style="color: #ffffff; font-size: 14px; margin-bottom: 8px;">Important Arrival Checklist:</h3>
-            <p>&bull; <strong>Arrive 10 minutes early</strong> for facility check-in and acclimation.</p>
-            <p>&bull; <strong>Attire:</strong> Athletic compression gear or clean athletic swimwear.</p>
-            <p>&bull; Fresh towels, hot showers, and private lockers are provided at our Chennai center.</p>
-        </div>
+            <!-- Arrival Checklist -->
+            <div class="checklist">
+                <div class="checklist-title">Important Arrival Checklist</div>
+                <div class="checklist-item">
+                    <span class="checklist-dot"></span>
+                    <span><strong>Arrive 10 minutes early</strong> for facility check-in and thermal acclimation.</span>
+                </div>
+                <div class="checklist-item">
+                    <span class="checklist-dot"></span>
+                    <span><strong>Attire:</strong> Athletic compression gear or clean athletic swimwear. Fresh towels and private lockers are provided.</span>
+                </div>
+                <div class="checklist-item">
+                    <span class="checklist-dot"></span>
+                    <span><strong>Hydration:</strong> Please ensure you are adequately hydrated before hot sauna or cold plunge sessions.</span>
+                </div>
+                <div class="checklist-item">
+                    <span class="checklist-dot"></span>
+                    <span>Present this email or your <strong>Booking Reference ({$ref})</strong> at the reception desk on arrival.</span>
+                </div>
+            </div>
 
-        <div class="footer">
-            Sara Kinetic Sports Lab &bull; Chennai, Tamil Nadu, India<br>
-            Please show this confirmation email or your booking reference upon arrival.
+            <!-- CTA -->
+            <div class="cta-wrap">
+                <a href="https://sk-sports-lab.com/my-bookings" class="cta-btn">View My Bookings</a>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                Sara Kinetic Sports Lab &bull; Bengaluru, Karnataka, India<br>
+                This is an automated confirmation. Please do not reply to this email.<br>
+                &copy; <?= date('Y') ?> Sara Kinetic Sports Lab. All rights reserved.
+            </div>
         </div>
     </div>
 </body>

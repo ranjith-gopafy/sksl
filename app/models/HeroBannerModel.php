@@ -7,7 +7,7 @@ namespace App\Models;
 /**
  * Hero Banner Model
  *
- * Manages the dynamic, admin-controlled hero banner on the homepage.
+ * Manages dynamic hero banners (up to 5) for the homepage carousel.
  */
 class HeroBannerModel
 {
@@ -19,66 +19,95 @@ class HeroBannerModel
     }
 
     /**
-     * Get the currently active hero banner for display on the homepage.
+     * Get the first active banner.
      *
      * @return array<string, mixed>|null
      */
     public function getActive(): ?array
     {
-        $stmt = $this->db->query(
-            'SELECT * FROM hero_banners WHERE is_active = 1 ORDER BY id DESC LIMIT 1'
-        );
+        $stmt = $this->db->query('SELECT * FROM hero_banners WHERE is_active = 1 ORDER BY id ASC LIMIT 1');
+        $banner = $stmt->fetch() ?: null;
+        if ($banner) {
+            return $banner;
+        }
+        $all = $this->getAllActive();
+        return !empty($all) ? $all[0] : null;
+    }
+
+    /**
+     * Get the default/first banner.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function get(): ?array
+    {
+        $stmt = $this->db->query('SELECT * FROM hero_banners ORDER BY id ASC LIMIT 1');
         return $stmt->fetch() ?: null;
     }
 
     /**
-     * Get all active carousel slides.
+     * Update the primary hero banner (backward compatibility).
+     *
+     * @param array<string, mixed> $data
+     */
+    public function update(array $data): bool
+    {
+        $first = $this->getAll();
+        $id = !empty($first) ? (int) $first[0]['id'] : 1;
+        return $this->updateById($id, $data);
+    }
+
+    /**
+     * Get all banners ordered by id.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getAll(): array
+    {
+        $stmt = $this->db->query('SELECT * FROM hero_banners ORDER BY id ASC LIMIT 5');
+        return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * Get banner by ID.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getById(int $id): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM hero_banners WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        return $stmt->fetch() ?: null;
+    }
+
+    /**
+     * Get active banners for homepage carousel (up to 5).
      *
      * @return array<int, array<string, mixed>>
      */
     public function getAllActive(): array
     {
         $stmt = $this->db->query(
-            'SELECT * FROM hero_banners WHERE is_active = 1 ORDER BY id ASC'
+            'SELECT * FROM hero_banners WHERE is_active = 1 ORDER BY id ASC LIMIT 5'
         );
         $slides = $stmt->fetchAll() ?: [];
 
-        if (count($slides) <= 1) {
-            $primary = $slides[0] ?? [
-                'badge_text'  => 'Sports Science & High-Performance Lab',
-                'headline'    => "Recover Faster.\nRecharge Fully.\nPerform at Your Peak.",
-                'subheadline' => 'Science-backed hot, cold, and hydrotherapy recovery protocols for peak athletic regeneration.',
-                'image_url'   => 'images/hero-banner.jpg',
-                'cta_text'    => 'Reserve Recovery Session',
-                'cta_link'    => '/booking',
-            ];
-
+        if (empty($slides)) {
+            $all = $this->getAll();
+            if (!empty($all)) {
+                return $all;
+            }
             return [
-                $primary,
                 [
-                    'badge_text'  => 'Extreme Cryo & Contrast Therapy',
-                    'headline'    => "Ice Bath & Cryo Immersion",
-                    'subheadline' => 'Cold water immersion (8°C – 10°C) to flush lactic acid and accelerate muscle reset.',
-                    'image_url'   => 'images/services/ice-bath.jpg',
-                    'cta_text'    => 'Book Cold Immersion',
-                    'cta_link'    => '/booking?service_id=4',
-                ],
-                [
-                    'badge_text'  => 'Infrared Heat & Detoxification',
-                    'headline'    => "Thermal Finnish Sauna",
-                    'subheadline' => 'Thermal dry sauna to release deep muscular tension and boost cardiovascular circulation.',
-                    'image_url'   => 'images/services/sauna.jpg',
-                    'cta_text'    => 'Book Thermal Session',
-                    'cta_link'    => '/booking?service_id=2',
-                ],
-                [
-                    'badge_text'  => 'Low-Impact Aquatic Conditioning',
-                    'headline'    => "Endless Pool & Underwater Treadmill",
-                    'subheadline' => 'Zero-impact buoyant conditioning for active injury recovery and movement rehabilitation.',
-                    'image_url'   => 'images/services/endless-pool.jpg',
-                    'cta_text'    => 'Explore Aquatic Protocols',
-                    'cta_link'    => '/services',
-                ],
+                    'id'          => 1,
+                    'badge_text'  => 'Sports Science & High-Performance Lab',
+                    'headline'    => "Recover Faster.\nRecharge Fully.\nPerform at Your Peak.",
+                    'subheadline' => 'Science-backed hot, cold, and hydrotherapy recovery protocols for peak athletic regeneration.',
+                    'image_url'   => 'images/hero-banner.jpg',
+                    'cta_text'    => 'Reserve Recovery Session',
+                    'cta_link'    => '/booking',
+                    'is_active'   => 1,
+                ]
             ];
         }
 
@@ -86,55 +115,59 @@ class HeroBannerModel
     }
 
     /**
-     * Get the latest banner record for administrative management.
-     *
-     * @return array<string, mixed>|null
+     * Count total banners.
      */
-    public function get(): ?array
+    public function count(): int
     {
-        $stmt = $this->db->query(
-            'SELECT * FROM hero_banners ORDER BY id DESC LIMIT 1'
-        );
-        return $stmt->fetch() ?: null;
+        return (int) $this->db->query('SELECT COUNT(*) FROM hero_banners')->fetchColumn();
     }
 
     /**
-     * Update the hero banner configurations.
+     * Insert a new banner record (max 5 allowed).
      *
      * @param array<string, mixed> $data
      */
-    public function update(array $data): bool
+    public function create(array $data): int
     {
-        $existing = $this->get();
-
-        if ($existing) {
-            $stmt = $this->db->prepare(
-                'UPDATE hero_banners SET
-                    badge_text  = :badge_text,
-                    headline    = :headline,
-                    subheadline = :subheadline,
-                    image_url   = :image_url,
-                    cta_text    = :cta_text,
-                    cta_link    = :cta_link,
-                    is_active   = :is_active
-                 WHERE id = :id'
-            );
-
-            return $stmt->execute([
-                'badge_text'  => $data['badge_text'] ?? 'Sports Science & High-Performance Lab',
-                'headline'    => $data['headline'] ?? 'Elite Athletic Recovery Lab',
-                'subheadline' => $data['subheadline'] ?? '',
-                'image_url'   => $data['image_url'] ?? 'images/hero-banner.jpg',
-                'cta_text'    => $data['cta_text'] ?? 'Reserve Recovery Session',
-                'cta_link'    => $data['cta_link'] ?? '/booking',
-                'is_active'   => (int) ($data['is_active'] ?? 1),
-                'id'          => (int) $existing['id'],
-            ]);
+        if ($this->count() >= 5) {
+            throw new \RuntimeException('Maximum 5 hero banners allowed.');
         }
 
         $stmt = $this->db->prepare(
             'INSERT INTO hero_banners (badge_text, headline, subheadline, image_url, cta_text, cta_link, is_active)
              VALUES (:badge_text, :headline, :subheadline, :image_url, :cta_text, :cta_link, :is_active)'
+        );
+
+        $stmt->execute([
+            'badge_text'  => $data['badge_text'] ?? 'Sports Science & High-Performance Lab',
+            'headline'    => $data['headline'] ?? 'Elite Athletic Recovery Lab',
+            'subheadline' => $data['subheadline'] ?? '',
+            'image_url'   => $data['image_url'] ?? 'images/hero-banner.jpg',
+            'cta_text'    => $data['cta_text'] ?? 'Reserve Recovery Session',
+            'cta_link'    => $data['cta_link'] ?? '/booking',
+            'is_active'   => (int) ($data['is_active'] ?? 1),
+        ]);
+
+        return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Update banner by ID.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function updateById(int $id, array $data): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE hero_banners SET
+                badge_text  = :badge_text,
+                headline    = :headline,
+                subheadline = :subheadline,
+                image_url   = :image_url,
+                cta_text    = :cta_text,
+                cta_link    = :cta_link,
+                is_active   = :is_active
+             WHERE id = :id'
         );
 
         return $stmt->execute([
@@ -145,6 +178,20 @@ class HeroBannerModel
             'cta_text'    => $data['cta_text'] ?? 'Reserve Recovery Session',
             'cta_link'    => $data['cta_link'] ?? '/booking',
             'is_active'   => (int) ($data['is_active'] ?? 1),
+            'id'          => $id,
         ]);
+    }
+
+    /**
+     * Delete banner by ID. Ensures at least 1 banner remains.
+     */
+    public function delete(int $id): bool
+    {
+        if ($this->count() <= 1) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare('DELETE FROM hero_banners WHERE id = ?');
+        return $stmt->execute([$id]);
     }
 }

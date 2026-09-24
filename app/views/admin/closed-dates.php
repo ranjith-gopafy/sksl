@@ -147,7 +147,7 @@
 
                     <button 
                         type="submit" 
-                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-amber-500/20 transition-all cursor-pointer"
+                        class="w-full py-3 px-4 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
                     >
                         Block Date Facility-Wide
                     </button>

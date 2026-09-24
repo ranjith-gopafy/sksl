@@ -22,7 +22,7 @@
                     <p class="text-sm text-slate-800 mt-1 leading-relaxed">
                         Sara Kinetic Sports Lab<br>
                         Sports City Complex, OMR Corridor<br>
-                        Chennai, Tamil Nadu, India
+                        Bengaluru, Karnataka, India
                     </p>
                 </div>
             </div>
@@ -78,7 +78,7 @@
             <div class="mt-8 pt-6 border-t border-slate-100 text-center">
                 <a 
                     href="<?= app_url('services') ?>" 
-                    class="block w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all"
+                    class="block w-full py-3.5 px-4 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all"
                 >
                     View All Modalities
                 </a>

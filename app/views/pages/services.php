@@ -104,7 +104,7 @@
                             </div>
                             <a 
                                 href="<?= app_url('booking?service_id=' . $service['id']) ?>" 
-                                class="app-touch-target px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] text-white font-heading font-bold text-[11px] uppercase tracking-wider shadow-xs"
+                                class="app-touch-target px-3.5 py-1.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-[11px] uppercase tracking-wider shadow-xs"
                             >
                                 Book
                             </a>
@@ -177,7 +177,7 @@
 
                         <a 
                             href="<?= app_url('booking?service_id=' . $service['id']) ?>" 
-                            class="app-touch-target block w-full text-center py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-[#075183]/20 hover:shadow-[#075183]/30 hover:-translate-y-0.5 transition-all"
+                            class="app-touch-target block w-full text-center py-3.5 px-4 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md hover:-translate-y-0.5 transition-all"
                         >
                             Book This Modality
                         </a>

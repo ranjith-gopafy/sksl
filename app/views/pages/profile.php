@@ -8,7 +8,7 @@
         <!-- Sidebar summary card -->
         <div class="md:col-span-1">
             <div class="bg-white border border-slate-200/90 rounded-3xl p-6 text-center shadow-xs">
-                <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-sky-600 to-blue-600 text-white font-heading font-extrabold text-2xl flex items-center justify-center mx-auto mb-4 shadow-md shadow-sky-600/20">
+                <div class="w-20 h-20 rounded-2xl bg-[#053d63] text-white font-heading font-extrabold text-2xl flex items-center justify-center mx-auto mb-4 shadow-md">
                     <?= h(strtoupper(substr($user['name'] ?? 'U', 0, 2))) ?>
                 </div>
                 <h2 class="text-lg font-extrabold text-slate-900 font-heading"><?= h($user['name'] ?? '') ?></h2>
@@ -105,7 +105,7 @@
                     <div class="pt-2">
                         <button 
                             type="submit" 
-                            class="py-3 px-6 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                            class="py-3 px-6 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer"
                         >
                             Save Details
                         </button>

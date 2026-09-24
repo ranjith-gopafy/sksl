@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title><?= h($title ?? 'Sara Kinetic Sports Lab — Recover. Recharge. Perform.') ?></title>
-    <meta name="description" content="Sara Kinetic Sports Lab (SKSL) — Premier athletic recovery and sports performance lab in Chennai. Science-backed ice baths, infrared sauna, hydrotherapy, and endless pools.">
+    <meta name="description" content="Sara Kinetic Sports Lab (SKSL) — Premier athletic recovery and sports performance lab in Bengaluru. Science-backed ice baths, infrared sauna, hydrotherapy, and endless pools.">
     
     <!-- Mobile App Capabilities & Theme Colors -->
     <meta name="theme-color" content="#075183">
@@ -19,16 +19,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
     
     <!-- Tailwind Compiled CSS -->
-    <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
+    <?php $cssPath = (defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__, 3)) . '/public/css/app.css'; ?>
+    <link rel="stylesheet" href="<?= asset('css/app.css') ?>?v=<?= file_exists($cssPath) ? filemtime($cssPath) : '1.0' ?>">
 
     <style>
         :root {
+            --color-sksl-dark: #053d63;
             --color-sksl-navy: #075183;
             --color-sksl-cerulean: #4A9CC0;
             --color-sksl-gold: #D6981E;
             --color-sksl-orange: #BF5B2B;
             --color-sksl-platinum: #D9DBDA;
         }
+        /* SKSL Primary Button & Brand Color Fallbacks */
+        .bg-\[\#053d63\] { background-color: #053d63 !important; }
+        .hover\:bg-\[\#075183\]:hover { background-color: #075183 !important; }
+        .text-\[\#053d63\] { color: #053d63 !important; }
+        .border-\[\#053d63\] { border-color: #053d63 !important; }
         body {
             font-family: 'Inter', sans-serif;
             -webkit-tap-highlight-color: transparent;
@@ -52,7 +59,7 @@
                 <span>Open Daily: <strong class="text-white">6:00 AM – 10:00 PM IST</strong> &bull; Sports Science &amp; Athletic Recovery</span>
             </div>
             <div class="flex items-center gap-4 text-slate-300">
-                <span class="inline-flex items-center gap-1.5"><span class="text-[#4A9CC0]">📍</span> Chennai, India</span>
+                <span class="inline-flex items-center gap-1.5"><span class="text-[#4A9CC0]">📍</span> Bengaluru, India</span>
                 <?php if (!empty($_SESSION['admin_id'])): ?>
                     <a href="<?= app_url('admin/bookings') ?>" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#075183]/40 text-[#4A9CC0] border border-[#4A9CC0]/40 hover:bg-[#075183]/60 font-semibold transition">
                         <span class="w-1.5 h-1.5 rounded-full bg-[#4A9CC0]"></span> Admin Control Center
@@ -115,7 +122,7 @@
                         <a href="<?= app_url('login') ?>" class="text-sm font-semibold text-slate-700 hover:text-[#075183] px-3.5 py-2 rounded-xl hover:bg-slate-100 transition-colors">
                             Sign In
                         </a>
-                        <a href="<?= app_url('services') ?>" class="inline-flex items-center justify-center font-heading font-bold text-sm px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white shadow-md shadow-[#075183]/20 hover:shadow-[#075183]/30 hover:-translate-y-0.5 transition-all">
+                        <a href="<?= app_url('services') ?>" class="inline-flex items-center justify-center font-heading font-bold text-sm px-5 py-2.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white shadow-md hover:-translate-y-0.5 transition-all">
                             Book Session
                         </a>
                     <?php endif; ?>
@@ -190,7 +197,7 @@
                     <h3 class="text-xs font-bold uppercase tracking-wider text-[#075183] mb-4 font-heading">Recovery Services</h3>
                     <ul class="space-y-2.5 text-sm text-slate-600">
                         <li><a href="<?= app_url('services') ?>" class="hover:text-[#075183] transition-colors">Catalog &amp; Pricing</a></li>
-                        <li><a href="<?= app_url('booking') ?>" class="hover:text-[#075183] transition-colors">Book a Time Slot</a></li>
+                        <li><a href="<?= app_url('services') ?>" class="hover:text-[#075183] transition-colors">Book a Time Slot</a></li>
                         <li><a href="<?= app_url('my-bookings') ?>" class="hover:text-[#075183] transition-colors">Manage Reservations</a></li>
                         <li><a href="<?= app_url('contact') ?>" class="hover:text-[#075183] transition-colors">Facility Location</a></li>
                     </ul>
@@ -213,7 +220,7 @@
 
             <div class="mt-12 pt-8 border-t border-[#D9DBDA]/60 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
                 <div>&copy; <?= date('Y') ?> Sara Kinetic Sports Lab. All rights reserved.</div>
-                <div>Statutory GST: 18% &bull; Facility Hours: 06:00 – 22:00 IST &bull; Chennai, Tamil Nadu</div>
+                <div>Statutory GST: 18% &bull; Facility Hours: 06:00 – 22:00 IST &bull; Bengaluru, Karnataka</div>
             </div>
         </div>
     </footer>
@@ -246,13 +253,13 @@
         </a>
 
         <!-- Tab 3: Center Elevated Book Action Pill -->
-        <a href="<?= app_url('booking') ?>" class="app-touch-target -mt-5 flex flex-col items-center justify-center">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-[#075183] to-[#4A9CC0] text-white flex items-center justify-center shadow-lg shadow-[#075183]/35 border-2 border-white transition-transform">
+        <a href="<?= app_url('services') ?>" class="app-touch-target -mt-5 flex flex-col items-center justify-center">
+            <div class="w-12 h-12 rounded-full bg-[#053d63] text-white flex items-center justify-center shadow-lg shadow-[#053d63]/35 border-2 border-white transition-transform">
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
                 </svg>
             </div>
-            <span class="text-[10px] font-extrabold text-[#075183] mt-1 tracking-tight">Book Now</span>
+            <span class="text-[10px] font-extrabold text-[#053d63] mt-1 tracking-tight">Book Now</span>
         </a>
 
         <!-- Tab 4: My Bookings -->

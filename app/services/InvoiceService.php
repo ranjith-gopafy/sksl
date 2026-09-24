@@ -90,7 +90,7 @@ class InvoiceService
             'razorpay_order_id'    => $payment['razorpay_order_id'] ?? 'N/A',
             'business_name'        => 'Sara Kinetic Sports Lab',
             'business_tagline'     => 'Recover. Recharge. Perform.',
-            'business_address'     => 'Athletic Recovery & Thermal Therapy Center, Chennai, Tamil Nadu, India',
+            'business_address'     => 'Athletic Recovery & Thermal Therapy Center, Bengaluru, Karnataka, India',
             'business_gstin'       => '33AATCS1234F1Z9',
             'business_contact'     => 'support@sk-sports-lab.com | +91 98765 43210',
         ];
@@ -280,7 +280,7 @@ class InvoiceService
                             <strong><?= htmlspecialchars($data['customer_name'], ENT_QUOTES, 'UTF-8') ?></strong><br>
                             Email: <?= htmlspecialchars($data['customer_email'], ENT_QUOTES, 'UTF-8') ?><br>
                             Phone: <?= htmlspecialchars($data['customer_mobile'], ENT_QUOTES, 'UTF-8') ?><br>
-                            Place of Supply: Tamil Nadu (33)
+                            Place of Supply: Karnataka (33)
                         </div>
                     </td>
                     <td style="width: 4%;"></td>
@@ -417,6 +417,13 @@ class InvoiceService
         if ($userId > 0 && (int) $booking['user_id'] !== $userId) {
             http_response_code(403);
             echo 'Unauthorized invoice access.';
+            exit;
+        }
+
+        // Restrict invoice download: tax invoices are not issued for cancelled or pending bookings
+        if ($booking['booking_status'] === 'cancelled' || $booking['booking_status'] === 'pending') {
+            http_response_code(403);
+            echo 'Tax Invoice is not available for ' . htmlspecialchars($booking['booking_status']) . ' bookings.';
             exit;
         }
 

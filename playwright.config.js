@@ -23,13 +23,13 @@ module.exports = defineConfig({
     ['html', { outputFolder: 'playwright-report', open: 'never' }]
   ],
   webServer: {
-    command: 'php -S 127.0.0.1:8000 -t public public/index.php',
-    url: 'http://127.0.0.1:8000/health',
-    reuseExistingServer: !process.env.CI,
+    command: 'php -S localhost:8000 -t public',
+    url: 'http://localhost:8000/health',
+    reuseExistingServer: true,
     timeout: 15000,
   },
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8000',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

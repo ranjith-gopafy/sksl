@@ -92,7 +92,7 @@ if (empty($bannerSlides)) {
                         <div class="pt-2 flex flex-wrap items-center gap-3 sm:gap-4">
                             <a 
                                 href="<?= str_starts_with($slideCtaLink, 'http') ? h($slideCtaLink) : app_url(ltrim($slideCtaLink, '/')) ?>" 
-                                class="app-touch-target inline-flex items-center justify-center font-heading font-bold text-sm px-6 py-3 sm:px-7 sm:py-3.5 rounded-2xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white shadow-lg shadow-[#075183]/40 hover:-translate-y-0.5 transition-all"
+                                class="app-touch-target inline-flex items-center justify-center font-heading font-bold text-sm px-6 py-3 sm:px-7 sm:py-3.5 rounded-2xl bg-[#053d63] hover:bg-[#075183] text-white shadow-lg shadow-[#053d63]/40 hover:-translate-y-0.5 transition-all"
                             >
                                 <span><?= h($slideCtaText) ?></span>
                                 <svg class="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
@@ -160,43 +160,6 @@ if (empty($bannerSlides)) {
                 <span class="text-[#4A9CC0] font-mono tracking-wider"><span id="carousel-current-index">01</span> / <span id="carousel-total-count"><?= sprintf('%02d', count($bannerSlides)) ?></span></span>
                 <span class="text-slate-400 font-normal border-l border-white/20 pl-2.5">Auto-advance 5s</span>
             </div>
-        </div>
-    </div>
-</section>
-
-<!-- Metric Counters Row (Styled with 5 SKSL Logo Brand Colors) -->
-<section class="bg-white border-b border-[#D9DBDA]/80 py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            
-            <!-- Metric 1: Modalities (#075183 Cobalt) -->
-            <div class="bg-[#F8FAFC] border border-[#D9DBDA] rounded-2xl p-5 text-center shadow-xs hover:border-[#075183] transition-colors">
-                <div class="text-3xl sm:text-4xl font-extrabold text-[#075183] font-heading">10</div>
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mt-1">Recovery Modalities</div>
-                <div class="text-[10px] text-[#4A9CC0] font-medium mt-0.5">Cold &bull; Heat &bull; Aquatic</div>
-            </div>
-
-            <!-- Metric 2: Daily Hours (#D6981E Kinetic Gold) -->
-            <div class="bg-[#F8FAFC] border border-[#D9DBDA] rounded-2xl p-5 text-center shadow-xs hover:border-[#D6981E] transition-colors">
-                <div class="text-3xl sm:text-4xl font-extrabold text-[#D6981E] font-heading">06:00 – 22:00</div>
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mt-1">Daily Facility Hours</div>
-                <div class="text-[10px] text-emerald-600 font-medium mt-0.5">Open 7 Days a Week</div>
-            </div>
-
-            <!-- Metric 3: Certification (#BF5B2B Burnt Orange) -->
-            <div class="bg-[#F8FAFC] border border-[#D9DBDA] rounded-2xl p-5 text-center shadow-xs hover:border-[#BF5B2B] transition-colors">
-                <div class="text-3xl sm:text-4xl font-extrabold text-[#BF5B2B] font-heading">100%</div>
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mt-1">Sports Science Certified</div>
-                <div class="text-[10px] text-slate-500 font-medium mt-0.5">Strict Athlete Capacity Limits</div>
-            </div>
-
-            <!-- Metric 4: Instant Hold (#4A9CC0 Cerulean) -->
-            <div class="bg-[#F8FAFC] border border-[#D9DBDA] rounded-2xl p-5 text-center shadow-xs hover:border-[#4A9CC0] transition-colors">
-                <div class="text-3xl sm:text-4xl font-extrabold text-[#4A9CC0] font-heading">10 Min</div>
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mt-1">Guaranteed Slot Hold</div>
-                <div class="text-[10px] text-[#075183] font-medium mt-0.5">Razorpay Instant Gateway</div>
-            </div>
-
         </div>
     </div>
 </section>
@@ -316,7 +279,7 @@ if (empty($bannerSlides)) {
                                 </div>
                                 <a 
                                     href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
-                                    class="app-touch-target px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] text-white font-heading font-bold text-[11px] uppercase tracking-wider shadow-xs"
+                                    class="app-touch-target px-3.5 py-1.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-[11px] uppercase tracking-wider shadow-xs"
                                 >
                                     Book
                                 </a>
@@ -379,7 +342,7 @@ if (empty($bannerSlides)) {
 
                             <a 
                                 href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
-                                class="app-touch-target inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
+                                class="app-touch-target inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
                             >
                                 Book Slot
                             </a>

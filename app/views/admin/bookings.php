@@ -97,7 +97,7 @@
                     </select>
                     <button 
                         type="submit" 
-                        class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shrink-0 shadow-xs"
+                        class="px-4 py-2.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shrink-0 shadow-xs"
                     >
                         Filter
                     </button>
@@ -241,29 +241,97 @@
                                 </td>
 
                                 <td class="py-4 px-6 text-right">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <!-- Invoice PDF Link -->
-                                        <a 
-                                            href="<?= app_url('bookings/' . h($b['booking_reference']) . '/invoice') ?>" 
-                                            class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition-colors border border-slate-200"
-                                            title="Download Tax Invoice"
+                                    <div class="relative inline-block text-left" id="action-wrap-<?= (int) $b['id'] ?>">
+                                        <!-- 3-Dots Kebab Button -->
+                                        <button 
+                                            type="button" 
+                                            onclick="toggleActionMenu(event, <?= (int) $b['id'] ?>)" 
+                                            class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 inline-flex items-center justify-center transition-colors border border-slate-200 cursor-pointer shadow-2xs"
+                                            title="Management Options"
+                                            aria-label="Actions for booking <?= h($b['booking_reference']) ?>"
                                         >
-                                            PDF
-                                        </a>
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                <circle cx="12" cy="5" r="1.75" />
+                                                <circle cx="12" cy="12" r="1.75" />
+                                                <circle cx="12" cy="19" r="1.75" />
+                                            </svg>
+                                        </button>
 
-                                        <!-- Status Update Dropdown -->
-                                        <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>" class="inline">
-                                            <?= \App\Helpers\Csrf::field() ?>
-                                            <select 
-                                                name="status" 
-                                                onchange="this.form.submit()" 
-                                                class="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 text-[11px] focus:outline-none focus:border-sky-500 cursor-pointer font-medium"
+                                        <!-- Dropdown Menu -->
+                                        <div 
+                                            id="action-dropdown-<?= (int) $b['id'] ?>" 
+                                            class="action-dropdown hidden absolute right-0 mt-1.5 w-48 rounded-2xl bg-white border border-slate-200 shadow-xl py-1.5 z-30 text-left text-xs"
+                                        >
+                                            <!-- 1. View Details (Read-Only View Modal) -->
+                                            <button 
+                                                type="button"
+                                                class="btn-view-booking-details w-full px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-slate-900 font-medium transition-colors cursor-pointer"
+                                                data-booking="<?= htmlspecialchars(json_encode($b), ENT_QUOTES, 'UTF-8') ?>"
                                             >
-                                                <option value="confirmed" <?= ($b['booking_status'] === 'confirmed') ? 'selected' : '' ?>>Confirmed</option>
-                                                <option value="completed" <?= ($b['booking_status'] === 'completed') ? 'selected' : '' ?>>Completed</option>
-                                                <option value="cancelled" <?= ($b['booking_status'] === 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
-                                            </select>
-                                        </form>
+                                                <svg class="w-4 h-4 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                                <span>View Details</span>
+                                            </button>
+
+                                            <!-- 2. Tax Invoice PDF (Hidden for cancelled and pending bookings) -->
+                                            <?php if ($b['booking_status'] !== 'cancelled' && $b['booking_status'] !== 'pending'): ?>
+                                                <a 
+                                                    href="<?= app_url('bookings/' . h($b['booking_reference']) . '/invoice') ?>" 
+                                                    target="_blank"
+                                                    class="w-full px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:text-slate-900 font-medium transition-colors"
+                                                >
+                                                    <svg class="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                    <span>Tax Invoice (PDF)</span>
+                                                </a>
+                                            <?php endif; ?>
+
+                                            <div class="my-1 border-t border-slate-100"></div>
+                                            <div class="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Change Status</div>
+
+                                            <!-- 3. Status Transitions -->
+                                            <?php if ($b['booking_status'] !== 'completed'): ?>
+                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>">
+                                                    <?= \App\Helpers\Csrf::field() ?>
+                                                    <input type="hidden" name="status" value="completed">
+                                                    <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-sky-50 flex items-center gap-2 text-sky-700 font-medium transition-colors cursor-pointer text-left">
+                                                        <svg class="w-3.5 h-3.5 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                        <span>Mark Completed</span>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+
+                                            <?php if ($b['booking_status'] !== 'confirmed'): ?>
+                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>">
+                                                    <?= \App\Helpers\Csrf::field() ?>
+                                                    <input type="hidden" name="status" value="confirmed">
+                                                    <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-emerald-50 flex items-center gap-2 text-emerald-700 font-medium transition-colors cursor-pointer text-left">
+                                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <span>Mark Confirmed</span>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+
+                                            <?php if ($b['booking_status'] !== 'cancelled'): ?>
+                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>" onsubmit="return confirm('Cancel booking #<?= h($b['booking_reference']) ?>?')">
+                                                    <?= \App\Helpers\Csrf::field() ?>
+                                                    <input type="hidden" name="status" value="cancelled">
+                                                    <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-rose-50 flex items-center gap-2 text-rose-700 font-medium transition-colors cursor-pointer text-left">
+                                                        <svg class="w-3.5 h-3.5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                        <span>Cancel Booking</span>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -274,3 +342,228 @@
         <?php endif; ?>
     </div>
 </div>
+
+<!-- Read-Only Booking Details View Modal -->
+<div id="booking-view-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl relative my-8">
+        <!-- Close Button -->
+        <button 
+            type="button" 
+            onclick="closeBookingViewModal()" 
+            class="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            aria-label="Close modal"
+        >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+
+        <!-- Modal Header -->
+        <div class="flex items-center gap-3 mb-5 pb-4 border-b border-slate-100">
+            <div class="w-10 h-10 rounded-2xl bg-sky-100 text-[#075183] flex items-center justify-center font-bold">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h3 class="text-base font-extrabold text-slate-900 font-heading">
+                        Booking Record Details
+                    </h3>
+                    <span id="modal-status-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"></span>
+                </div>
+                <p class="text-xs text-slate-500 font-mono" id="modal-ref-text">#SKSL-XXXX</p>
+            </div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="space-y-4 text-xs">
+            <!-- Athlete Profile -->
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Athlete Information</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Full Name</span>
+                        <span id="modal-user-name" class="font-bold text-slate-800"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Email</span>
+                        <span id="modal-user-email" class="font-bold text-slate-800 break-all"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Mobile</span>
+                        <span id="modal-user-mobile" class="font-bold text-slate-800"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modality & Schedule -->
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Modality &amp; Schedule</div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Modality</span>
+                        <span id="modal-service-name" class="font-bold text-[#075183]"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Duration</span>
+                        <span id="modal-duration" class="font-bold text-slate-800"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Session Date</span>
+                        <span id="modal-date" class="font-bold text-slate-800"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Time Window</span>
+                        <span id="modal-time" class="font-bold text-slate-800 font-mono"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Breakdown -->
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Financial Breakdown</div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Base Amount</span>
+                        <span id="modal-base-amount" class="font-bold text-slate-800"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">GST (18%)</span>
+                        <span id="modal-gst-amount" class="font-bold text-slate-800"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Convenience Fee</span>
+                        <span id="modal-conv-fee" class="font-bold text-slate-800">&#8377;0.00</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[11px]">Total Paid</span>
+                        <span id="modal-total-amount" class="font-extrabold text-emerald-600 text-sm"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Payment Verification</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px]">
+                    <div>
+                        <span class="text-slate-500 block text-[10px] font-sans">Razorpay Payment ID</span>
+                        <span id="modal-payment-id" class="text-slate-800 break-all font-semibold"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block text-[10px] font-sans">Payment Record Status</span>
+                        <span id="modal-payment-status" class="text-slate-800 font-semibold uppercase"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2">
+                <span>Created: <span id="modal-created-at" class="text-slate-600 font-medium"></span></span>
+                <span class="text-[10px] uppercase font-bold text-slate-400">SKSL Operations</span>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div id="modal-pdf-container">
+                <!-- Injected dynamically if valid for PDF -->
+            </div>
+            <button 
+                type="button" 
+                onclick="closeBookingViewModal()" 
+                class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+            >
+                Close View
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleActionMenu(event, id) {
+    event.stopPropagation();
+    const targetDropdown = document.getElementById('action-dropdown-' + id);
+    const isHidden = targetDropdown.classList.contains('hidden');
+    closeAllActionMenus();
+    if (isHidden) {
+        targetDropdown.classList.remove('hidden');
+    }
+}
+
+function closeAllActionMenus() {
+    document.querySelectorAll('.action-dropdown').forEach(el => el.classList.add('hidden'));
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.action-dropdown') && !e.target.closest('.action-menu-btn')) {
+        closeAllActionMenus();
+    }
+});
+
+function openBookingViewModal(b) {
+    document.getElementById('modal-ref-text').textContent = '#' + b.booking_reference;
+    document.getElementById('modal-user-name').textContent = b.user_name || 'N/A';
+    document.getElementById('modal-user-email').textContent = b.user_email || 'N/A';
+    document.getElementById('modal-user-mobile').textContent = b.user_mobile || 'N/A';
+    document.getElementById('modal-service-name').textContent = b.service_name || 'N/A';
+    document.getElementById('modal-duration').textContent = (b.service_duration_minutes || '30') + ' Minutes';
+    document.getElementById('modal-date').textContent = b.booking_date || 'N/A';
+    document.getElementById('modal-time').textContent = (b.start_time || '').substring(0, 5) + ' - ' + (b.end_time || '').substring(0, 5);
+    document.getElementById('modal-base-amount').textContent = '₹' + parseFloat(b.base_amount || 0).toFixed(2);
+    document.getElementById('modal-gst-amount').textContent = '₹' + parseFloat(b.gst_amount || 0).toFixed(2);
+    document.getElementById('modal-total-amount').textContent = '₹' + parseFloat(b.total_amount || 0).toFixed(2);
+    document.getElementById('modal-payment-id').textContent = b.razorpay_payment_id || 'N/A';
+    document.getElementById('modal-payment-status').textContent = b.payment_record_status || b.payment_status || 'Pending';
+    document.getElementById('modal-created-at').textContent = b.created_at || 'N/A';
+
+    const statusBadge = document.getElementById('modal-status-badge');
+    statusBadge.textContent = (b.booking_status || 'pending').toUpperCase();
+    if (b.booking_status === 'confirmed') {
+        statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 border border-emerald-200 text-emerald-800';
+    } else if (b.booking_status === 'completed') {
+        statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-sky-50 border border-sky-200 text-sky-800';
+    } else if (b.booking_status === 'cancelled') {
+        statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 border border-rose-200 text-rose-800';
+    } else {
+        statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600';
+    }
+
+    const pdfContainer = document.getElementById('modal-pdf-container');
+    if (b.booking_status !== 'cancelled' && b.booking_status !== 'pending') {
+        pdfContainer.innerHTML = `<a href="<?= app_url('bookings/') ?>${b.booking_reference}/invoice" target="_blank" class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Download PDF Invoice</a>`;
+    } else {
+        pdfContainer.innerHTML = `<span class="text-slate-400 text-xs italic">Tax invoice unavailable for ${b.booking_status} booking</span>`;
+    }
+
+    document.getElementById('booking-view-modal').classList.remove('hidden');
+}
+
+function closeBookingViewModal() {
+    document.getElementById('booking-view-modal').classList.add('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.btn-view-booking-details').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var raw = this.getAttribute('data-booking');
+            if (raw) {
+                try {
+                    var booking = JSON.parse(raw);
+                    openBookingViewModal(booking);
+                } catch(err) {
+                    console.error('Failed to parse booking data', err);
+                }
+            }
+            closeAllActionMenus();
+        });
+    });
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeBookingViewModal();
+        closeAllActionMenus();
+    }
+});
+</script>

@@ -124,11 +124,20 @@ class AvailabilityService
         $startMinutesLimit = ($openH * 60) + $openM;
         $closeMinutesLimit = ($closeH * 60) + $closeM;
 
+        // Turnaround / operational buffer between consecutive sessions
+        $checkinBuffer  = (int) ($_ENV['CHECKIN_BUFFER_MINUTES'] ?? 0);
+        $checkoutBuffer = (int) ($_ENV['CHECKOUT_BUFFER_MINUTES'] ?? 0);
+        $generalBuffer  = (int) ($_ENV['BUFFER_MINUTES'] ?? 0);
+        $totalBuffer    = $generalBuffer > 0 ? $generalBuffer : ($checkinBuffer + $checkoutBuffer);
+
         $isToday = ($date === TimeHelper::today());
         $currentTimeStr = TimeHelper::currentTime();
 
         $slots = [];
         $cursorMinutes = $startMinutesLimit;
+
+        // Slot step interval: session duration + turnaround cleaning/buffer minutes
+        $slotStep = $durationMinutes + max(0, $totalBuffer);
 
         // 7. Dynamic candidate slot generation loop
         while (($cursorMinutes + $durationMinutes) <= $closeMinutesLimit) {
@@ -180,6 +189,7 @@ class AvailabilityService
                 'display_start'      => TimeHelper::formatTime($slotStartStr),
                 'display_end'        => TimeHelper::formatTime($slotEndStr),
                 'duration_minutes'   => $durationMinutes,
+                'buffer_minutes'     => $totalBuffer,
                 'capacity'           => $capacity,
                 'occupied'           => $totalOccupied,
                 'remaining_capacity' => $remainingCap,
@@ -187,8 +197,8 @@ class AvailabilityService
                 'unavailable_reason' => $unavailableReason,
             ];
 
-            // Advance cursor by service duration
-            $cursorMinutes += $durationMinutes;
+            // Advance cursor by service duration + buffer minutes
+            $cursorMinutes += $slotStep;
         }
 
         return [

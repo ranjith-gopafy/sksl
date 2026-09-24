@@ -14,6 +14,26 @@
   }
 }
 
+/* SKSL Primary Brand Colors & Buttons fallback */
+.bg-\[\#053d63\], .bg-brand-dark {
+  background-color: #053d63 !important;
+}
+.hover\:bg-\[\#075183\]:hover, .hover\:bg-brand-navy:hover {
+  background-color: #075183 !important;
+}
+.text-\[\#053d63\], .text-brand-dark {
+  color: #053d63 !important;
+}
+.border-\[\#053d63\], .border-brand-dark {
+  border-color: #053d63 !important;
+}
+.shadow-\[\#053d63\]\/40 {
+  --tw-shadow-color: rgba(5, 61, 99, 0.4) !important;
+}
+.shadow-\[\#053d63\]\/35 {
+  --tw-shadow-color: rgba(5, 61, 99, 0.35) !important;
+}
+
 /* Touch feedback for mobile app feel */
 .app-touch-target {
   -webkit-tap-highlight-color: transparent;

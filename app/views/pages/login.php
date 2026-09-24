@@ -45,7 +45,7 @@
 
             <button 
                 type="submit" 
-                class="w-full mt-2 py-4 px-4 rounded-2xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-heading font-bold text-sm tracking-wide shadow-md shadow-sky-600/20 hover:shadow-sky-600/35 hover:-translate-y-0.5 transition-all cursor-pointer"
+                class="w-full mt-2 py-4 px-4 rounded-2xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-sm tracking-wide shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
             >
                 Sign In
             </button>

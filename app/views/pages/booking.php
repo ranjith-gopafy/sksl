@@ -397,7 +397,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
             <button 
                 type="button" 
                 id="mock-success-btn" 
-                class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                class="w-full py-3.5 px-4 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
             >
                 Simulate Successful Payment
             </button>
@@ -753,7 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isReady) {
             proceedBtn.disabled = false;
-            proceedBtn.className = 'app-touch-target w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-[#075183] to-[#4A9CC0] hover:from-[#053d63] hover:to-[#3888ab] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg shadow-[#075183]/25 hover:-translate-y-0.5 transition-all cursor-pointer';
+            proceedBtn.className = 'app-touch-target w-full py-4 px-4 rounded-2xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer';
             proceedBtn.textContent = `Proceed to Payment • ₹${total.toFixed(2)}`;
         } else {
             proceedBtn.disabled = true;

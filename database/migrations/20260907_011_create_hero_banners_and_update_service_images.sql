@@ -20,7 +20,7 @@ INSERT INTO `hero_banners` (`badge_text`, `headline`, `subheadline`, `image_url`
 VALUES (
     'Sports Science & High-Performance Lab',
     'Recover Faster. Recharge Fully. Perform at Your Peak.',
-    'Chennai\'s premier sports recovery center combining clinical contrast therapy, ice baths, infrared saunas, and aquatic conditioning for marathoners, triathletes, and competitive sports performers.',
+    'Bengaluru\'s premier sports recovery center combining clinical contrast therapy, ice baths, infrared saunas, and aquatic conditioning for marathoners, triathletes, and competitive sports performers.',
     'images/hero-banner.jpg',
     'Reserve Recovery Session',
     '/booking',

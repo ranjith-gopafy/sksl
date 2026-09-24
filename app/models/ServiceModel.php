@@ -118,7 +118,7 @@ class ServiceModel
     }
 
     /**
-     * Update editable attributes of a service (price, capacity, description).
+     * Update editable attributes of a service (price, capacity, description, status, image).
      *
      * @param array<string, mixed> $data
      */
@@ -126,7 +126,7 @@ class ServiceModel
     {
         $stmt = $this->db->prepare(
             'UPDATE services 
-             SET price = :price, capacity = :capacity, description = :description, status = :status
+             SET price = :price, capacity = :capacity, description = :description, status = :status, image = :image
              WHERE id = :id'
         );
         return $stmt->execute([
@@ -134,6 +134,7 @@ class ServiceModel
             'capacity'    => $data['capacity'],
             'description' => $data['description'],
             'status'      => $data['status'] ?? 'active',
+            'image'       => $data['image'] ?? null,
             'id'          => $id,
         ]);
     }

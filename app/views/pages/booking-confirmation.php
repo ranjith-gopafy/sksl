@@ -106,7 +106,7 @@
                         <dt class="text-xs text-slate-500 uppercase font-semibold">Facility Location</dt>
                         <dd class="text-slate-700 text-xs mt-1 leading-relaxed">
                             <strong class="text-slate-900">Sara Kinetic Sports Lab (SKSL)</strong><br>
-                            Athletic Recovery Center, Chennai, Tamil Nadu, India<br>
+                            Athletic Recovery Center, Bengaluru, Karnataka, India<br>
                             <span class="text-slate-500">Please report to the reception check-in desk upon arrival.</span>
                         </dd>
                     </div>
@@ -200,30 +200,22 @@
 
                 <!-- Actions -->
                 <div class="mt-6 pt-5 border-t border-slate-100 space-y-3">
-                    <a 
-                        href="<?= app_url('bookings/' . h($booking['booking_reference']) . '/invoice') ?>" 
-                        class="w-full py-3 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
-                    >
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Download Tax Invoice (PDF)
-                    </a>
+                    <?php if (($booking['booking_status'] ?? '') !== 'cancelled' && ($booking['booking_status'] ?? '') !== 'pending'): ?>
+                        <a 
+                            href="<?= app_url('bookings/' . h($booking['booking_reference']) . '/invoice') ?>" 
+                            class="w-full py-3 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
+                        >
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Download Tax Invoice (PDF)
+                        </a>
+                    <?php endif; ?>
 
-                    <button 
-                        type="button" 
-                        onclick="window.print()" 
-                        class="w-full py-3 px-4 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-[#075183] font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs"
-                    >
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                        </svg>
-                        Print / Save Voucher
-                    </button>
 
                     <a 
-                        href="<?= app_url('booking') ?>" 
-                        class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-heading font-bold text-xs uppercase tracking-wider flex items-center justify-center transition-all shadow-md shadow-sky-600/20"
+                        href="<?= app_url('services') ?>" 
+                        class="w-full py-3 px-4 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider flex items-center justify-center transition-all shadow-md"
                     >
                         Book Another Session
                     </a>

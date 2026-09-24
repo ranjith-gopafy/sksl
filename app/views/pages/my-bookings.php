@@ -7,8 +7,8 @@
             <p class="text-sm text-slate-600 mt-1">Review your confirmed appointments, download tax invoices, or manage reservations.</p>
         </div>
         <a 
-            href="<?= app_url('booking') ?>" 
-            class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-sky-600/20 hover:shadow-sky-600/35 transition-all self-start md:self-auto"
+            href="<?= app_url('services') ?>" 
+            class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md transition-all self-start md:self-auto"
         >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
@@ -86,8 +86,8 @@
             </p>
             <div class="mt-6">
                 <a 
-                    href="<?= app_url('booking') ?>" 
-                    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
+                    href="<?= app_url('services') ?>" 
+                    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
                 >
                     Reserve a Modality
                 </a>
@@ -163,7 +163,7 @@
 
                             <div class="flex flex-wrap items-center gap-2">
                                 <!-- Download Invoice Button -->
-                                <?php if ($b['payment_status'] === 'paid'): ?>
+                                <?php if ($b['payment_status'] === 'paid' && $b['booking_status'] !== 'cancelled' && $b['booking_status'] !== 'pending'): ?>
                                     <a 
                                         href="<?= app_url('bookings/' . h($b['booking_reference']) . '/invoice') ?>" 
                                         class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs flex items-center gap-1.5 transition-colors border border-slate-200"
@@ -181,8 +181,12 @@
                                     <?php if (!empty($b['cancellation']['can_cancel'])): ?>
                                         <button 
                                             type="button" 
-                                            onclick="openCancelModal('<?= h($b['booking_reference']) ?>', '<?= h($b['service_name']) ?>', '<?= date('d M Y', strtotime($b['booking_date'])) ?>', '<?= date('h:i A', strtotime($b['start_time'])) ?>', '<?= (float) $b['cancellation']['hours_remaining'] ?>')" 
-                                            class="px-3.5 py-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-700 font-semibold text-xs transition-colors cursor-pointer"
+                                            class="btn-open-cancel-modal px-3.5 py-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-700 font-semibold text-xs transition-colors cursor-pointer"
+                                            data-ref="<?= h($b['booking_reference']) ?>"
+                                            data-service="<?= h($b['service_name']) ?>"
+                                            data-date="<?= date('d M Y', strtotime($b['booking_date'])) ?>"
+                                            data-time="<?= date('h:i A', strtotime($b['start_time'])) ?>"
+                                            data-hours="<?= (float) $b['cancellation']['hours_remaining'] ?>"
                                         >
                                             Cancel Session
                                         </button>
@@ -261,4 +265,17 @@ function openCancelModal(ref, service, date, time, hours) {
 function closeCancelModal() {
     document.getElementById('cancel-modal').classList.add('hidden');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.btn-open-cancel-modal').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var ref = this.getAttribute('data-ref');
+            var service = this.getAttribute('data-service');
+            var date = this.getAttribute('data-date');
+            var time = this.getAttribute('data-time');
+            var hours = this.getAttribute('data-hours');
+            openCancelModal(ref, service, date, time, hours);
+        });
+    });
+});
 </script>
