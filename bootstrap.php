@@ -147,13 +147,23 @@ function h(string|int|float|null $value): string
  */
 function app_base_url(): string
 {
+    $configuredUrl = rtrim((string) (config('app.url') ?? ''), '/');
+    if ($configuredUrl !== '' && !str_contains($configuredUrl, 'localhost')) {
+        return $configuredUrl;
+    }
+
     if (!empty($_SERVER['HTTP_HOST'])) {
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
         $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+        if (str_ends_with($scriptDir, '/public') && !str_starts_with($requestUri, '/public')) {
+            $scriptDir = rtrim(substr($scriptDir, 0, -7), '/');
+        }
         $basePath = ($scriptDir !== '' && $scriptDir !== '/') ? $scriptDir : '';
         return $scheme . $_SERVER['HTTP_HOST'] . $basePath;
     }
-    return rtrim((string) (config('app.url') ?? 'http://localhost'), '/');
+
+    return $configuredUrl !== '' ? $configuredUrl : 'http://localhost';
 }
 
 /**
