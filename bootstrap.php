@@ -102,8 +102,9 @@ if (!headers_sent() && PHP_SAPI !== 'cli') {
         "form-action 'self'",
         "script-src 'self' 'nonce-" . csp_nonce() . "' https://checkout.razorpay.com",
         // Inline style attributes are used throughout the Tailwind markup and by Razorpay Checkout.
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src 'self' https://fonts.gstatic.com data:",
+        // Fonts are self-hosted from public/fonts, so no font/style origin other than our own.
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self' data:",
         "img-src 'self' data: https:",
         // Razorpay Checkout opens an iframe and talks to api./lumberjack. sub-domains.
         "frame-src https://*.razorpay.com",

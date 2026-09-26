@@ -51,11 +51,10 @@ $policyUpdated = '26 September 2026';
             <p>We share data only with the service providers needed to run the platform, each acting on our instructions:</p>
             <ul class="list-disc pl-5 space-y-1.5 text-slate-600">
                 <li><strong>Razorpay Software Pvt. Ltd.</strong> (payments). When you pay, we pass your name, email address, mobile number, the booking reference and the amount to Razorpay so the checkout can be prefilled and the payment matched to your booking. Card and bank data is entered directly into Razorpay&rsquo;s PCI-DSS certified checkout and never touches our servers. Razorpay&rsquo;s own privacy policy applies to that processing.</li>
-                <li><strong>Google Fonts</strong> (typefaces). Pages currently load the Inter and Outfit typefaces from <code>fonts.googleapis.com</code> / <code>fonts.gstatic.com</code>. Your browser therefore sends your IP address and browser details to Google when a page loads. No cookies are set by this request and Google does not receive your account data.</li>
                 <li><strong>Our email provider</strong> (SMTP). Transactional emails are relayed through the email service configured by SKSL; it receives your email address, name and the message content in order to deliver it.</li>
                 <li><strong>Our hosting provider</strong>. The website, database and invoice files are stored on servers operated for SKSL. Access is restricted to authorised SKSL staff.</li>
             </ul>
-            <p>We do not sell personal data and we do not use advertising networks, analytics trackers or social-media pixels on this site.</p>
+            <p>We do not sell personal data and we do not use advertising networks, analytics trackers or social-media pixels on this site. Typefaces are served from our own domain, so ordinary page views make no requests to third parties; only the payment step contacts Razorpay.</p>
 
             <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">4. Cookies</h2>
             <p>

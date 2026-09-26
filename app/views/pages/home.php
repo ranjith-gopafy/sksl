@@ -64,9 +64,12 @@ if (empty($bannerSlides)) {
                 <?= $isActive ? '' : 'aria-hidden="true"' ?>
             >
                 <!-- Full-Bleed Background Photography with Ken Burns effect -->
+                <!-- width/height reserve the aspect ratio (no layout shift); only the first slide loads eagerly -->
                 <img 
                     src="<?= safe_image($slideImage, 'images/hero-banner.jpg') ?>" 
                     alt="<?= h($slideHeadline) ?>" 
+                    width="1376" height="768"
+                    <?= $isActive ? 'fetchpriority="high" decoding="async"' : 'loading="lazy" decoding="async"' ?>
                     class="absolute inset-0 w-full h-full object-cover object-center transform transition-transform duration-[6000ms] ease-out will-change-transform"
                 >
 
@@ -238,8 +241,9 @@ if (empty($bannerSlides)) {
                             <img 
                                 src="<?= $imgSrc ?>" 
                                 alt="<?= h($srv['name']) ?>" 
+                                width="1200" height="896"
                                 class="w-full h-full object-cover"
-                                loading="lazy"
+                                loading="lazy" decoding="async"
                             >
                             <!-- Duration Badge on Thumbnail -->
                             <div class="absolute bottom-1.5 left-1.5">
@@ -300,8 +304,9 @@ if (empty($bannerSlides)) {
                                 <img 
                                     src="<?= $imgSrc ?>" 
                                     alt="<?= h($srv['name']) ?>" 
+                                    width="1200" height="896"
                                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    loading="lazy"
+                                    loading="lazy" decoding="async"
                                 >
                                 <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
                                 

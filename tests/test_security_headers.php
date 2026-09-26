@@ -88,6 +88,9 @@ if ($probe === false) {
         $nonce = $nm[1] ?? '';
         check(!preg_match("/script-src[^;]*unsafe-inline/", $csp), "2.{$path} script-src has no unsafe-inline");
         check(str_contains($csp, "object-src 'none'") && str_contains($csp, "base-uri 'self'") && str_contains($csp, "frame-ancestors 'self'") && str_contains($csp, "form-action 'self'"), "2.{$path} CSP has object-src/base-uri/frame-ancestors/form-action");
+        // Fonts are self-hosted: no Google origins anywhere in the policy or the page
+        check(!str_contains($csp, 'googleapis') && !str_contains($csp, 'gstatic') && str_contains($csp, "font-src 'self'"), "2.{$path} CSP font/style sources are self only");
+        check(!str_contains($body, 'fonts.googleapis.com') && !str_contains($body, 'fonts.gstatic.com') && str_contains($body, 'css/fonts.css'), "2.{$path} page loads self-hosted fonts.css, no Google Fonts");
         // Every inline <script> in the body must carry the header nonce
         preg_match_all('/<script(?![^>]*\bsrc=)[^>]*>/i', $body, $tags);
         $bad = array_filter($tags[0], static fn ($t) => !str_contains($t, 'nonce="' . $nonce . '"'));

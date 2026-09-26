@@ -53,11 +53,12 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="SKSL Sports Lab">
 
-    <!-- Google Fonts: Outfit & Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    
+    <!-- Self-hosted fonts (Inter body, Outfit headings): no third-party request, latin files preloaded -->
+    <link rel="preload" href="<?= h(asset('fonts/inter-300-700-latin.woff2')) ?>" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="<?= h(asset('fonts/outfit-500-900-latin.woff2')) ?>" as="font" type="font/woff2" crossorigin>
+    <?php $fontsCssPath = (defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__, 3)) . '/public/css/fonts.css'; ?>
+    <link rel="stylesheet" href="<?= asset('css/fonts.css') ?>?v=<?= file_exists($fontsCssPath) ? filemtime($fontsCssPath) : '1.0' ?>">
+
     <!-- Tailwind Compiled CSS -->
     <?php $cssPath = (defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__, 3)) . '/public/css/app.css'; ?>
     <link rel="stylesheet" href="<?= asset('css/app.css') ?>?v=<?= file_exists($cssPath) ? filemtime($cssPath) : '1.0' ?>">
@@ -133,6 +134,7 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
                     <img 
                         src="<?= asset('images/sksl-logo.png') ?>" 
                         alt="Sara Kinetic Sports Lab" 
+                        width="500" height="500" decoding="async"
                         class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]"
                     >
                     <div class="border-l border-[#D9DBDA] pl-2.5 sm:pl-3 leading-none">
@@ -228,6 +230,7 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
                         <img 
                             src="<?= asset('images/sksl-logo.png') ?>" 
                             alt="SKSL Logo" 
+                            width="500" height="500" loading="lazy" decoding="async"
                             class="h-12 w-auto object-contain"
                         >
                         <div>

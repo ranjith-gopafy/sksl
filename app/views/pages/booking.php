@@ -91,6 +91,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                         <img 
                             src="<?= $modalityImg ?>" 
                             alt="<?= h($selectedService['name']) ?>" 
+                            width="1200" height="896" decoding="async"
                             class="w-full h-full object-cover"
                             data-fallback-src="<?= h(asset('images/services/spa.jpg')) ?>"
                         >
