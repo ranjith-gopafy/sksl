@@ -255,44 +255,68 @@ class BookingModel
     }
 
     /**
-     * Check if a booking is eligible for cancellation by the customer.
-     * Policy: Confirmed booking, owned by customer, and at least 2 hours before session start time.
+     * Allowed staff-driven status transitions.
+     *
+     * Customers cannot cancel online; SKSL staff cancel on request (see
+     * cancellation policy). Cancelled and completed are terminal: a cancelled
+     * booking is never resurrected because its slot may have been re-sold and
+     * its payment may already be refunded — a new booking must be made instead.
+     * pending -> confirmed is only performed by the payment flow (confirmIfPending).
+     */
+    public const ADMIN_TRANSITIONS = [
+        'pending'   => ['cancelled'],
+        'confirmed' => ['completed', 'cancelled'],
+        'completed' => [],
+        'cancelled' => [],
+    ];
+
+    /**
+     * Validate a staff-requested status change against the state machine.
      *
      * @param array<string, mixed> $booking
-     * @return array{can_cancel: bool, reason?: string, hours_remaining?: float}
+     * @return array{allowed: bool, reason?: string}
      */
-    public static function checkCancellationEligibility(array $booking, int $userId): array
+    public static function checkAdminTransition(array $booking, string $to): array
     {
-        if ((int) $booking['user_id'] !== $userId) {
-            return ['can_cancel' => false, 'reason' => 'Unauthorized booking access.'];
+        $from = (string) ($booking['booking_status'] ?? '');
+
+        if (!isset(self::ADMIN_TRANSITIONS[$from])) {
+            return ['allowed' => false, 'reason' => 'Booking is in an unknown state.'];
+        }
+        if ($from === $to) {
+            return ['allowed' => false, 'reason' => 'Booking is already ' . $to . '.'];
+        }
+        if ($from === 'cancelled') {
+            return ['allowed' => false, 'reason' => 'A cancelled booking cannot be reopened. Ask the athlete to book a new session.'];
+        }
+        if ($from === 'completed') {
+            return ['allowed' => false, 'reason' => 'A completed booking is final.'];
+        }
+        if ($to === 'confirmed') {
+            return ['allowed' => false, 'reason' => 'Bookings are confirmed automatically once payment is verified; they cannot be confirmed manually.'];
+        }
+        if ($to === 'completed' && ($booking['payment_status'] ?? '') !== 'paid') {
+            return ['allowed' => false, 'reason' => 'Only paid bookings can be marked completed.'];
+        }
+        if (!in_array($to, self::ADMIN_TRANSITIONS[$from], true)) {
+            return ['allowed' => false, 'reason' => "Cannot move a {$from} booking to {$to}."];
         }
 
-        if ($booking['booking_status'] !== 'confirmed') {
-            return ['can_cancel' => false, 'reason' => 'Only confirmed bookings can be cancelled.'];
-        }
+        return ['allowed' => true];
+    }
 
-        $sessionStart = strtotime($booking['booking_date'] . ' ' . $booking['start_time']);
-        $now = time();
-
-        if ($sessionStart === false || $sessionStart <= $now) {
-            return ['can_cancel' => false, 'reason' => 'Past sessions cannot be cancelled.'];
-        }
-
-        $secondsRemaining = $sessionStart - $now;
-        $hoursRemaining = round($secondsRemaining / 3600, 1);
-
-        if ($secondsRemaining < 7200) { // 2 hours = 7200 seconds
-            return [
-                'can_cancel' => false,
-                'reason' => 'Cancellations must be made at least 2 hours before the session start time. (Currently ' . $hoursRemaining . ' hrs remaining).',
-                'hours_remaining' => $hoursRemaining,
-            ];
-        }
-
-        return [
-            'can_cancel' => true,
-            'hours_remaining' => $hoursRemaining,
-        ];
+    /**
+     * Atomically move a booking from one status to another. Returns true only
+     * if the row was still in $from when the update ran, so two staff members
+     * acting at once cannot both "win".
+     */
+    public function transitionStatus(int $id, string $from, string $to): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE bookings SET booking_status = ? WHERE id = ? AND booking_status = ?'
+        );
+        $stmt->execute([$to, $id, $from]);
+        return $stmt->rowCount() === 1;
     }
 
     /**

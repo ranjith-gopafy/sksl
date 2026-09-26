@@ -68,4 +68,13 @@ test.describe('My Bookings Dashboard UI', () => {
     const anyBookLink = page.locator('a[href*="booking"], a[href*="services"]').first();
     await expect(anyBookLink).toBeVisible();
   });
+
+  test('no self-service cancel; shows "contact SKSL" help panel', async ({ page }) => {
+    await page.goto('/my-bookings', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.btn-open-cancel-modal, #cancel-modal, form[action*="/cancel"]')).toHaveCount(0);
+    const help = page.getByTestId('cancellation-help');
+    await expect(help).toBeVisible();
+    await expect(help).toContainText(/cancel or request a refund/i);
+    await expect(help.locator('a[href*="cancellation-refund"]')).toBeVisible();
+  });
 });

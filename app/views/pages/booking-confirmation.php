@@ -137,7 +137,7 @@
                     </li>
                     <li class="flex items-start gap-2.5">
                         <div class="w-1.5 h-1.5 rounded-full bg-sky-600 mt-1.5 shrink-0"></div>
-                        <span><strong>Cancellations:</strong> As per our policy, cancellations must be requested at least 2 hours in advance.</span>
+                        <span><strong>Cancellations:</strong> To cancel or request a refund, contact SKSL with your booking reference at least 2 hours in advance. <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-600 font-semibold hover:underline">Policy</a></span>
                     </li>
                 </ul>
             </div>

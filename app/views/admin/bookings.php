@@ -289,11 +289,22 @@
                                                 </a>
                                             <?php endif; ?>
 
+                                            <?php
+                                            $canComplete = \App\Models\BookingModel::checkAdminTransition($b, 'completed')['allowed'];
+                                            $canCancel   = \App\Models\BookingModel::checkAdminTransition($b, 'cancelled')['allowed'];
+                                            ?>
+                                            <?php if ($canComplete || $canCancel): ?>
                                             <div class="my-1 border-t border-slate-100"></div>
                                             <div class="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Change Status</div>
+                                            <?php else: ?>
+                                            <div class="my-1 border-t border-slate-100"></div>
+                                            <div class="px-3.5 py-1.5 text-[11px] text-slate-400 italic">
+                                                <?= $b['booking_status'] === 'cancelled' ? 'Cancelled — final. Athlete must book again.' : 'Completed — final.' ?>
+                                            </div>
+                                            <?php endif; ?>
 
-                                            <!-- 3. Status Transitions -->
-                                            <?php if ($b['booking_status'] !== 'completed'): ?>
+                                            <!-- 3. Status Transitions (staff only; see BookingModel::ADMIN_TRANSITIONS) -->
+                                            <?php if ($canComplete): ?>
                                                 <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>">
                                                     <?= \App\Helpers\Csrf::field() ?>
                                                     <input type="hidden" name="status" value="completed">
@@ -306,21 +317,8 @@
                                                 </form>
                                             <?php endif; ?>
 
-                                            <?php if ($b['booking_status'] !== 'confirmed'): ?>
-                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>">
-                                                    <?= \App\Helpers\Csrf::field() ?>
-                                                    <input type="hidden" name="status" value="confirmed">
-                                                    <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-emerald-50 flex items-center gap-2 text-emerald-700 font-medium transition-colors cursor-pointer text-left">
-                                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                        <span>Mark Confirmed</span>
-                                                    </button>
-                                                </form>
-                                            <?php endif; ?>
-
-                                            <?php if ($b['booking_status'] !== 'cancelled'): ?>
-                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>" onsubmit="return confirm('Cancel booking #<?= h($b['booking_reference']) ?>?')">
+                                            <?php if ($canCancel): ?>
+                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>" onsubmit="return confirm(<?= h(json_encode('Cancel booking #' . $b['booking_reference'] . '?' . ($b['payment_status'] === 'paid' ? ' The athlete has paid — you will need to refund via Razorpay.' : ''))) ?>)">
                                                     <?= \App\Helpers\Csrf::field() ?>
                                                     <input type="hidden" name="status" value="cancelled">
                                                     <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-rose-50 flex items-center gap-2 text-rose-700 font-medium transition-colors cursor-pointer text-left">

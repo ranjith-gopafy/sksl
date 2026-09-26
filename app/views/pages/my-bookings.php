@@ -34,7 +34,7 @@
         <div class="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs relative overflow-hidden">
             <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cancelled Sessions</div>
             <div class="text-3xl font-black text-slate-400 font-heading mt-1"><?= $cancelledCount ?></div>
-            <div class="text-xs text-slate-500 mt-1">Released prior to cutoff</div>
+            <div class="text-xs text-slate-500 mt-1">Cancelled by SKSL on request</div>
         </div>
     </div>
 
@@ -176,29 +176,6 @@
                                     </a>
                                 <?php endif; ?>
 
-                                <!-- Cancellation Action -->
-                                <?php if ($b['booking_status'] === 'confirmed'): ?>
-                                    <?php if (!empty($b['cancellation']['can_cancel'])): ?>
-                                        <button 
-                                            type="button" 
-                                            class="btn-open-cancel-modal px-3.5 py-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-700 font-semibold text-xs transition-colors cursor-pointer"
-                                            data-ref="<?= h($b['booking_reference']) ?>"
-                                            data-service="<?= h($b['service_name']) ?>"
-                                            data-date="<?= date('d M Y', strtotime($b['booking_date'])) ?>"
-                                            data-time="<?= date('h:i A', strtotime($b['start_time'])) ?>"
-                                            data-hours="<?= (float) $b['cancellation']['hours_remaining'] ?>"
-                                        >
-                                            Cancel Session
-                                        </button>
-                                    <?php else: ?>
-                                        <span 
-                                            class="px-3 py-1.5 rounded-xl bg-slate-50 text-slate-400 text-[11px] font-medium border border-slate-200 cursor-not-allowed" 
-                                            title="<?= h($b['cancellation']['reason'] ?? 'Cancellation policy: minimum 2 hours notice required') ?>"
-                                        >
-                                            Non-cancellable (&lt;2h)
-                                        </span>
-                                    <?php endif; ?>
-                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -207,75 +184,36 @@
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
-</div>
 
-<!-- Cancellation Confirmation Modal -->
-<div id="cancel-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-    <div class="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl">
-        <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4 border border-rose-200">
-            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    <?php
+    $supportPhone = (string) (($business ?? [])['phone'] ?? '');
+    $supportEmail = (string) (($business ?? [])['support_email'] ?? '');
+    ?>
+    <!-- Cancellations & refunds are handled by SKSL staff, not self-service -->
+    <div class="mt-8 bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center gap-4" data-testid="cancellation-help">
+        <div class="w-10 h-10 shrink-0 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center border border-sky-100">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
             </svg>
         </div>
-
-        <h3 class="text-lg font-bold text-slate-900 font-heading">Cancel Recovery Session?</h3>
-        <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-            Are you sure you want to cancel your <strong id="modal-service" class="text-slate-900"></strong> session on <strong id="modal-datetime" class="text-slate-900"></strong>?
-        </p>
-
-        <div class="my-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
-            <div>Booking Ref: <strong id="modal-ref" class="text-sky-700 font-mono"></strong></div>
-            <div>Notice window remaining: <strong id="modal-hours" class="text-slate-800"></strong> hours</div>
-            <div class="text-[11px] text-slate-500 pt-1.5 border-t border-slate-200">
-                Cancellation complies with the 2-hour minimum notice requirement. Slot capacity will be released back to other athletes.
-            </div>
+        <div class="flex-1">
+            <h2 class="text-sm font-bold text-slate-900 font-heading">Need to cancel or request a refund?</h2>
+            <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+                Cancellations and refunds are handled by the SKSL team. Contact us with your booking reference
+                and we will update the booking for you.
+                <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-600 font-semibold hover:underline">Read the policy</a>.
+            </p>
         </div>
-
-        <form id="cancel-form" method="POST" action="">
-            <input type="hidden" name="_csrf_token" value="<?= \App\Helpers\Csrf::token() ?>">
-            <div class="flex items-center gap-3">
-                <button 
-                    type="submit" 
-                    class="flex-1 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-heading font-bold text-xs uppercase tracking-wider shadow-md shadow-rose-600/20 transition-all cursor-pointer"
-                >
-                    Confirm Cancellation
-                </button>
-                <button 
-                    type="button" 
-                    onclick="closeCancelModal()" 
-                    class="py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
-                >
-                    Keep Session
-                </button>
-            </div>
-        </form>
+        <div class="flex flex-col gap-1.5 text-xs font-semibold shrink-0">
+            <?php if ($supportPhone !== ''): ?>
+                <a href="tel:<?= h(preg_replace('/[^0-9+]/', '', $supportPhone)) ?>" class="px-3.5 py-2 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white text-center transition-colors"><?= h($supportPhone) ?></a>
+            <?php endif; ?>
+            <?php if ($supportEmail !== ''): ?>
+                <a href="mailto:<?= h($supportEmail) ?>" class="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-800 text-center transition-colors"><?= h($supportEmail) ?></a>
+            <?php endif; ?>
+            <?php if ($supportPhone === '' && $supportEmail === ''): ?>
+                <a href="<?= app_url('contact') ?>" class="px-3.5 py-2 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white text-center transition-colors">Contact SKSL</a>
+            <?php endif; ?>
+        </div>
     </div>
 </div>
-
-<script>
-function openCancelModal(ref, service, date, time, hours) {
-    document.getElementById('modal-ref').textContent = ref;
-    document.getElementById('modal-service').textContent = service;
-    document.getElementById('modal-datetime').textContent = `${date} at ${time}`;
-    document.getElementById('modal-hours').textContent = hours;
-    document.getElementById('cancel-form').action = '<?= app_url('my-bookings') ?>/' + encodeURIComponent(ref) + '/cancel';
-    document.getElementById('cancel-modal').classList.remove('hidden');
-}
-
-function closeCancelModal() {
-    document.getElementById('cancel-modal').classList.add('hidden');
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.btn-open-cancel-modal').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var ref = this.getAttribute('data-ref');
-            var service = this.getAttribute('data-service');
-            var date = this.getAttribute('data-date');
-            var time = this.getAttribute('data-time');
-            var hours = this.getAttribute('data-hours');
-            openCancelModal(ref, service, date, time, hours);
-        });
-    });
-});
-</script>

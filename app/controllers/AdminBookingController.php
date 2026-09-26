@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\BookingModel;
+use App\Models\BookingHoldModel;
 use App\Models\ServiceModel;
 use App\Middleware\AdminAuth;
 use App\Helpers\Flash;
@@ -13,18 +14,23 @@ use App\Helpers\Flash;
  * Admin Booking Controller
  *
  * Manages facility-wide bookings: search, filters, session completion, and cancellations.
+ * Cancellations are staff-only (customers contact SKSL) and follow
+ * BookingModel::ADMIN_TRANSITIONS.
  */
 class AdminBookingController
 {
     private BookingModel $bookingModel;
     private ServiceModel $serviceModel;
+    private BookingHoldModel $holdModel;
 
     public function __construct(
         ?BookingModel $bookingModel = null,
-        ?ServiceModel $serviceModel = null
+        ?ServiceModel $serviceModel = null,
+        ?BookingHoldModel $holdModel = null
     ) {
         $this->bookingModel = $bookingModel ?? new BookingModel();
         $this->serviceModel = $serviceModel ?? new ServiceModel();
+        $this->holdModel    = $holdModel ?? new BookingHoldModel();
     }
 
     /**
@@ -81,11 +87,25 @@ class AdminBookingController
             exit;
         }
 
-        $success = $this->bookingModel->updateStatus($id, $status);
+        $check = BookingModel::checkAdminTransition($booking, $status);
+        if (!$check['allowed']) {
+            Flash::set('error', $check['reason'] ?? 'That status change is not allowed.');
+            header('Location: ' . app_url('admin/bookings'));
+            exit;
+        }
+
+        $success = $this->bookingModel->transitionStatus($id, (string) $booking['booking_status'], $status);
         if ($success) {
-            Flash::set('success', "Booking #{$booking['booking_reference']} updated to " . ucfirst($status) . '.');
+            if ($status === 'cancelled') {
+                // Free the slot immediately for other athletes.
+                $this->holdModel->release((string) $booking['booking_reference']);
+            }
+            $note = ($status === 'cancelled' && ($booking['payment_status'] ?? '') === 'paid')
+                ? ' Remember to process the refund through the Razorpay dashboard.'
+                : '';
+            Flash::set('success', "Booking #{$booking['booking_reference']} updated to " . ucfirst($status) . '.' . $note);
         } else {
-            Flash::set('error', 'Failed to update booking status.');
+            Flash::set('error', 'Booking status changed in the meantime; please review and try again.');
         }
 
         header('Location: ' . app_url('admin/bookings'));

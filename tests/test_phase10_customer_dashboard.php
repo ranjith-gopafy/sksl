@@ -81,35 +81,34 @@ $upcoming = $bookingModel->findByUser($userId, 'upcoming');
 assert(count($upcoming) >= 1, 'Expected at least 1 upcoming booking');
 echo "[PASS] 4. Upcoming filter returned valid active bookings\n";
 
-// 5. Test 2-Hour Cancellation Policy Enforcement
+// 5. Customers have no self-cancel capability; staff cancel via the state machine
+assert(!method_exists(BookingModel::class, 'checkCancellationEligibility'), 'Customer cancellation helper must be removed');
+assert(!method_exists(\App\Controllers\CustomerBookingController::class, 'cancel'), 'Customer cancel action must be removed');
+echo "[PASS] 5. Customer self-cancellation code removed (cancellations handled by SKSL staff)\n";
+
 $upcomingBooking = $bookingModel->findById($upcomingBookingId);
-$eligibility1 = BookingModel::checkCancellationEligibility($upcomingBooking, $userId);
-assert($eligibility1['can_cancel'] === true, 'Future booking should be eligible for cancellation');
-echo "[PASS] 5. Session >2 hours in future is eligible for cancellation\n";
+$check = BookingModel::checkAdminTransition($upcomingBooking, 'cancelled');
+assert($check['allowed'] === true, 'Staff may cancel a confirmed booking');
+echo "[PASS] 6. Staff cancellation permitted for a confirmed booking\n";
 
-$nearBooking = $bookingModel->findById($nearBookingId);
-$eligibility2 = BookingModel::checkCancellationEligibility($nearBooking, $userId);
-assert($eligibility2['can_cancel'] === false, 'Near-term booking should be non-cancellable');
-assert(str_contains($eligibility2['reason'], 'at least 2 hours before'), 'Error message should cite 2-hour policy');
-echo "[PASS] 6. Session <2 hours in future strictly blocked from cancellation: '{$eligibility2['reason']}'\n";
-
-// 6. Test Unauthorized Cancellation
-$eligibility3 = BookingModel::checkCancellationEligibility($upcomingBooking, $userId + 999);
-assert($eligibility3['can_cancel'] === false, 'Unauthorized user should be blocked');
-echo "[PASS] 7. Unauthorized cancellation attempt blocked\n";
-
-// 7. Perform Cancellation on Eligible Session
-$cancelSuccess = $bookingModel->updateStatus($upcomingBookingId, 'cancelled');
-assert($cancelSuccess === true, 'Failed to update status to cancelled');
+// 6. Perform staff cancellation atomically
+$cancelSuccess = $bookingModel->transitionStatus($upcomingBookingId, 'confirmed', 'cancelled');
+assert($cancelSuccess === true, 'Failed to transition to cancelled');
 
 $cancelledBooking = $bookingModel->findById($upcomingBookingId);
 assert($cancelledBooking['booking_status'] === 'cancelled', 'Status was not updated to cancelled');
-echo "[PASS] 8. Eligible session successfully transitioned to 'cancelled'\n";
+echo "[PASS] 7. Confirmed session transitioned to 'cancelled' by staff\n";
 
-// Re-check eligibility on already cancelled session
-$eligibility4 = BookingModel::checkCancellationEligibility($cancelledBooking, $userId);
-assert($eligibility4['can_cancel'] === false, 'Already cancelled booking cannot be cancelled again');
-echo "[PASS] 9. Already cancelled session cannot be re-cancelled\n";
+// 7. Cancelled is terminal — cannot be re-cancelled or resurrected
+assert(BookingModel::checkAdminTransition($cancelledBooking, 'cancelled')['allowed'] === false, 'Already cancelled booking cannot be cancelled again');
+assert(BookingModel::checkAdminTransition($cancelledBooking, 'confirmed')['allowed'] === false, 'Cancelled booking cannot be re-confirmed');
+assert($bookingModel->transitionStatus($upcomingBookingId, 'confirmed', 'completed') === false, 'Stale transition must not apply');
+echo "[PASS] 8. Cancelled session is terminal (no re-cancel, no resurrection)\n";
+
+// 8. Near-term booking remains a normal confirmed session
+$nearBooking = $bookingModel->findById($nearBookingId);
+assert($nearBooking['booking_status'] === 'confirmed', 'Near-term booking should remain confirmed');
+echo "[PASS] 9. Near-term session unaffected\n";
 
 // 8. Test HTTP Dashboard via Apache
 $baseUrl = 'http://localhost/sksl/public';

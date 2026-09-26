@@ -60,8 +60,6 @@ $router->get('/bookings/{ref}/invoice', [\App\Controllers\PaymentController::cla
 
 // ─── Customer Dashboard & Booking Management ──────────────────────────────
 $router->get('/my-bookings', [\App\Controllers\CustomerBookingController::class, 'index']);
-$router->post('/my-bookings/{ref}/cancel', [\App\Controllers\CustomerBookingController::class, 'cancel']);
-
 // ─── Admin Authentication Routes ──────────────────────────────────────────
 $router->get('/admin/login', [\App\Controllers\AdminAuthController::class, 'showLogin']);
 $router->post('/admin/login', [\App\Controllers\AdminAuthController::class, 'sendOtp']);

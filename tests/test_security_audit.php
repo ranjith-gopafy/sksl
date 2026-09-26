@@ -240,11 +240,16 @@ $payIdB = 'pay_mock_' . bin2hex(random_bytes(4));
 $validVerify = $paymentService->verifyPayment($customerBId, $bookingRefB, $orderId, $payIdB, sksl_test_sign($orderId, $payIdB));
 assert($validVerify['success'] === true, 'Customer B payment successfully verified');
 
-// 3.4 Customer A attempts to cancel Customer B's booking -> must fail
+// 3.4 Customers cannot cancel online at all: the self-cancel route must be gone (404 / method not allowed)
 $bookingB = $bookingModel->findByReference($bookingRefB);
-$cancelEligibility = BookingModel::checkCancellationEligibility($bookingB, $customerAId);
-assert($cancelEligibility['can_cancel'] === false, 'Customer A not eligible to cancel Customer B booking');
-echo "[PASS] 3.4 IDOR: Customer A blocked from cancelling Customer B's booking\n";
+$routes = file_get_contents(dirname(__DIR__) . '/public/index.php');
+assert(!str_contains($routes, '/cancel\''), 'No customer cancel route may be registered');
+assert(!method_exists(\App\Controllers\CustomerBookingController::class, 'cancel'), 'CustomerBookingController::cancel must be removed');
+$noCookies = '';
+$selfCancel = httpRequest('POST', $baseUrl . '/my-bookings/' . $bookingRefB . '/cancel', [], ['_csrf_token' => 'x'], $noCookies);
+assert(in_array($selfCancel['code'], [302, 403, 404, 405], true), 'Self-cancel must be rejected (CSRF redirect or 404), got HTTP ' . $selfCancel['code']);
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking untouched by removed route');
+echo "[PASS] 3.4 Customer self-cancellation removed (route + controller gone, HTTP {$selfCancel['code']}); cancellations are staff-only\n";
 
 // 3.5 Customer A attempts to download Customer B's invoice -> must fail
 $invoiceService = new InvoiceService($db, $bookingModel, $paymentModel);
@@ -392,33 +397,60 @@ assert($adminInvoiceRes['code'] === 200, 'Admin successfully authorized to downl
 assert(str_contains($adminInvoiceRes['headers'], 'application/pdf'), 'Admin invoice response is application/pdf');
 echo "[PASS] 5.4 Authenticated admin authorized to download athlete tax invoice\n";
 
+// 5.5 Admin bookings page renders and exposes only allowed transitions for Customer B's confirmed booking
+$adminListRes = httpRequest('GET', $baseUrl . '/admin/bookings?search=' . urlencode($bookingRefB), [], null, $adminCookieJar);
+assert($adminListRes['code'] === 200, 'Admin bookings page renders (HTTP ' . $adminListRes['code'] . ')');
+assert(str_contains($adminListRes['body'], $bookingRefB), 'Admin list shows the booking');
+assert(!str_contains($adminListRes['body'], 'Mark Confirmed'), 'No "Mark Confirmed" action offered to staff');
+assert(str_contains($adminListRes['body'], 'Cancel Booking'), 'Staff cancel action offered for confirmed booking');
+preg_match('/name="_csrf_token"\s+value="([a-f0-9]+)"/i', $adminListRes['body'], $csrfM);
+$adminCsrf = $csrfM[1] ?? '';
+assert($adminCsrf !== '', 'Admin CSRF token present');
+$bookingBRow = $bookingModel->findByReference($bookingRefB);
+
+// Staff cannot mark an unpaid/pending booking confirmed via the endpoint
+$badRes = httpRequest('POST', $baseUrl . '/admin/bookings/' . $bookingBRow['id'] . '/status', [], ['_csrf_token' => $adminCsrf, 'status' => 'confirmed'], $adminCookieJar);
+assert($badRes['code'] === 302, 'Status endpoint redirects');
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking unchanged after disallowed transition');
+
+// Staff cancel works and releases the slot hold
+$okRes = httpRequest('POST', $baseUrl . '/admin/bookings/' . $bookingBRow['id'] . '/status', [], ['_csrf_token' => $adminCsrf, 'status' => 'cancelled'], $adminCookieJar);
+assert($okRes['code'] === 302, 'Cancel redirects');
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'cancelled', 'Staff cancelled the booking');
+$holdRow = $db->prepare('SELECT status FROM booking_holds WHERE booking_reference = ?');
+$holdRow->execute([$bookingRefB]);
+$holdStatus = $holdRow->fetchColumn();
+assert($holdStatus === false || $holdStatus !== 'active', 'Hold released on staff cancellation');
+
+// Cancelled is terminal even for staff
+$resRes = httpRequest('POST', $baseUrl . '/admin/bookings/' . $bookingBRow['id'] . '/status', [], ['_csrf_token' => $adminCsrf, 'status' => 'confirmed'], $adminCookieJar);
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'cancelled', 'Cancelled booking cannot be resurrected via endpoint');
+// Restore so later scenarios can keep using the confirmed booking
+$bookingModel->updateStatus((int) $bookingBRow['id'], 'confirmed', 'paid');
+echo "[PASS] 5.5 Admin status endpoint enforces state machine (no manual confirm, cancel releases hold, cancelled is final)\n";
+
 
 // ─── SCENARIO 6: Timing & Business Logic Boundaries ──────────────────────────
 echo "\n--- Scenario 6: Timing & Business Logic Boundaries ---\n";
 
-// 6.1 Cancellation 2-hour policy boundary
-// Test 1: 119 minutes before session (cutoff violation: should be blocked)
-$cutoffViolationBooking = [
-    'user_id'        => $customerBId,
-    'booking_status' => 'confirmed',
-    'booking_date'   => date('Y-m-d', time() + (119 * 60)),
-    'start_time'     => date('H:i:s', time() + (119 * 60)),
-];
-$eligibility119 = BookingModel::checkCancellationEligibility($cutoffViolationBooking, $customerBId);
-assert($eligibility119['can_cancel'] === false, 'Session 119 mins away blocked from cancellation');
-assert(str_contains($eligibility119['reason'], '2 hours'), 'Reason explains 2-hour minimum notice');
-echo "[PASS] 6.1 Cancellation boundary: 119 minutes notice is strictly blocked\n";
+// 6.1 Admin status state machine: cancelled bookings are terminal
+$t = static fn(string $from, string $pay, string $to): bool =>
+    BookingModel::checkAdminTransition(['booking_status' => $from, 'payment_status' => $pay], $to)['allowed'];
+assert($t('cancelled', 'paid', 'confirmed') === false, 'cancelled -> confirmed must be refused');
+assert($t('cancelled', 'paid', 'completed') === false, 'cancelled -> completed must be refused');
+assert($t('completed', 'paid', 'cancelled') === false, 'completed -> cancelled must be refused');
+assert($t('pending', 'pending', 'confirmed') === false, 'pending -> confirmed is payment-flow only');
+assert($t('confirmed', 'pending', 'completed') === false, 'unpaid booking cannot be completed');
+assert($t('confirmed', 'paid', 'completed') === true, 'confirmed+paid -> completed allowed');
+assert($t('confirmed', 'paid', 'cancelled') === true, 'confirmed -> cancelled allowed (staff)');
+assert($t('pending', 'pending', 'cancelled') === true, 'pending -> cancelled allowed (staff)');
+echo "[PASS] 6.1 Admin transition rules: cancelled/completed are terminal, no manual confirm\n";
 
-// Test 2: 125 minutes before session (meets policy: should be allowed)
-$cutoffAllowedBooking = [
-    'user_id'        => $customerBId,
-    'booking_status' => 'confirmed',
-    'booking_date'   => date('Y-m-d', time() + (125 * 60)),
-    'start_time'     => date('H:i:s', time() + (125 * 60)),
-];
-$eligibility125 = BookingModel::checkCancellationEligibility($cutoffAllowedBooking, $customerBId);
-assert($eligibility125['can_cancel'] === true, 'Session 125 mins away is eligible for cancellation');
-echo "[PASS] 6.2 Cancellation boundary: 125 minutes notice is allowed\n";
+// 6.2 transitionStatus is atomic on the FROM state (a stale request cannot overwrite)
+$bookingBNow = $bookingModel->findByReference($bookingRefB);
+assert($bookingModel->transitionStatus((int) $bookingBNow['id'], 'cancelled', 'completed') === false, 'Transition with wrong FROM state must not update');
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking state unchanged after mismatched transition');
+echo "[PASS] 6.2 transitionStatus() only updates when the current state matches\n";
 
 // 6.3 Invalid calendar date (checkdate)
 $availService = new AvailabilityService();
