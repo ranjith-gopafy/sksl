@@ -102,6 +102,8 @@ Suggested:
 - `total_amount`
 - `booking_status`
 - `payment_status`
+- `invoice_number` nullable (migration 012; assigned once when paid)
+- `health_declared_at` nullable (migration 012; copied from the hold, see §7)
 - `created_at`
 - `updated_at`
 
@@ -119,6 +121,8 @@ Suggested:
 - `start_time`
 - `end_time`
 - `expires_at`
+- `health_declared_at` nullable (migration 015; set when the customer accepted the
+  Terms & Health Declaration at hold time — the hold endpoint rejects requests without it)
 - `status`
 - `created_at`
 

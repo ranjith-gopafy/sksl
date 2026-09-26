@@ -41,6 +41,35 @@ if (is_dir(__DIR__ . '/storage/logs') && is_writable(__DIR__ . '/storage/logs'))
     ini_set('error_log', __DIR__ . '/storage/logs/php-error.log');
 }
 
+// Uncaught exceptions: log the detail, show a branded 500 (or JSON for API
+// callers) instead of a blank page. With APP_DEBUG the exception is rethrown so
+// PHP prints it as usual in development.
+if (PHP_SAPI !== 'cli') {
+    set_exception_handler(static function (\Throwable $e) use ($appConfig): void {
+        error_log(sprintf('Uncaught %s: %s in %s:%d', get_class($e), $e->getMessage(), $e->getFile(), $e->getLine()));
+        if ($appConfig['debug'] === true) {
+            throw $e;
+        }
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Cache-Control: no-store');
+        }
+        $uri    = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+        $isJson = str_contains($uri, '/api/') || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
+        if ($isJson) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+            }
+            echo json_encode(['success' => false, 'message' => 'Internal server error.']);
+        } else {
+            if (!headers_sent()) {
+                header('Content-Type: text/html; charset=UTF-8');
+            }
+            require __DIR__ . '/app/views/errors/server-error.php';
+        }
+    });
+}
+
 // ─── Timezone ─────────────────────────────────────────────────────────────
 date_default_timezone_set($appConfig['timezone']);
 

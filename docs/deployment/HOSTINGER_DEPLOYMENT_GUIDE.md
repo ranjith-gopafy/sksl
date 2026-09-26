@@ -246,6 +246,26 @@ php -r "echo bin2hex(random_bytes(32));"
 
 Copy the output and use it as `APP_SECRET` in production `.env`.
 
+> [!NOTE]
+> `APP_SECRET` is reserved for future signed tokens and is not read by the current
+> code (CSRF tokens, admin OTPs and password-reset tokens are random per-session /
+> per-row values). Set it anyway so the placeholder never reaches production.
+
+### Crawler and disclosure files (generated, nothing to upload)
+
+`/robots.txt`, `/sitemap.xml` and `/.well-known/security.txt` are routes in
+`public/index.php`, so their URLs always follow `APP_URL`. `security.txt` uses
+`SECURITY_CONTACT_EMAIL` (fallback `BUSINESS_SUPPORT_EMAIL`) and is not served while
+both are empty. Submit `https://<domain>/sitemap.xml` in Google Search Console.
+
+### Compression and caching
+
+`public/.htaccess` sets long-lived `Cache-Control` for versioned CSS/JS and the
+self-hosted fonts in `public/fonts/`, 30 days for images, and `mod_deflate` rules for
+HTML/CSS/JS. Hostinger enables `mod_deflate` (and Brotli) by default; verify with
+`curl -sI -H "Accept-Encoding: gzip" https://<domain>/css/app.css | grep -i content-encoding`.
+Fonts are served from your own domain — there are no requests to Google Fonts.
+
 ---
 
 ## Step 7: Configure Cron Job for Hold Expiry

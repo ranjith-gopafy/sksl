@@ -177,7 +177,14 @@ if ($rpSecret === '') {
 }
 
 if ($rpWebhook === '') {
-    warn('RAZORPAY_WEBHOOK_SECRET is empty', 'Webhook signature verification disabled');
+    // PaymentController::webhook() refuses every webhook without a configured
+    // secret, so an empty value means paid bookings are never confirmed server-side.
+    if (($_ENV['APP_ENV'] ?? 'production') === 'production') {
+        fail('RAZORPAY_WEBHOOK_SECRET is empty', 'Webhooks are rejected without it — bookings paid outside the browser flow stay pending');
+        $allPassed = false;
+    } else {
+        warn('RAZORPAY_WEBHOOK_SECRET is empty', 'All incoming webhooks will be rejected (fine for local dev without webhooks)');
+    }
 } else {
     pass('RAZORPAY_WEBHOOK_SECRET configured');
 }

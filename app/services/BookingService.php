@@ -44,9 +44,11 @@ class BookingService
      * @param int    $serviceId
      * @param string $date       Format: Y-m-d
      * @param string $startTime  Format: H:i
+     * @param bool   $healthDeclared  Customer ticked the Terms & Health Declaration
+     *                                (recorded on the hold, copied to the booking).
      * @return array{success: bool, message: string, data?: array}
      */
-    public function createHold(int $userId, int $serviceId, string $date, string $startTime): array
+    public function createHold(int $userId, int $serviceId, string $date, string $startTime, bool $healthDeclared = false): array
     {
         // 1. Basic validation
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
@@ -197,6 +199,7 @@ class BookingService
                 'start_time'        => $dbStartTime,
                 'end_time'          => $dbEndTime,
                 'expires_at'        => $expiresAtDb,
+                'health_declared_at' => $healthDeclared ? TimeHelper::now()->format('Y-m-d H:i:s') : null,
             ]);
 
             // Commit the transaction to release the row lock and confirm hold

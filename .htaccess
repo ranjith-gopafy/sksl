@@ -11,8 +11,9 @@
 Options -Indexes
 ServerSignature Off
 
-# 1. Dotfiles (.env, .git*, .htaccess) and build/config manifests are never served
-<FilesMatch "^\.">
+# 1. Dotfiles (.env, .git*, .htaccess) and build/config manifests are never served.
+#    /.well-known/ (security.txt, ACME) is the one dot-path that must stay routable.
+<FilesMatch "^\.(?!well-known$)">
     Require all denied
 </FilesMatch>
 <FilesMatch "\.(env|env\..*|json|lock|sql|sql\.gz|md|log|txt|yml|yaml|ini|dist|example|bak|tmp|sh|ps1)$">

@@ -131,7 +131,37 @@ if ($probe === 0) {
 
     [$code, , $body] = $get($base . '/register');
     check(substr_count($body, 'aria-current="page"') === 1, '3.20 register marks only the mobile Sign In tab current');
+
+    // Branded error pages
+    [$code, , $body] = $get($base . '/definitely-not-a-route');
+    check($code === 404 && str_contains($body, 'Page Not Found') && str_contains($body, 'skip-link') && str_contains($body, '<footer'), '3.21 404 renders inside the site layout');
+    check(str_contains($body, '<meta name="robots" content="noindex, nofollow">') && !str_contains($body, 'rel="canonical"'), '3.22 404 is noindex without canonical');
+    check(str_contains($body, 'text-slate-900') && !str_contains($body, 'text-white font-heading mt-2">Page Not Found'), '3.23 404 uses dark text on the light layout');
+    [$code, $headers, $body] = $get($base . '/api/definitely-not-a-route');
+    check($code === 404 && json_decode($body, true) === ['success' => false, 'message' => 'Not found.'], '3.24 API 404 stays JSON');
+
+    // security.txt (RFC 9116) at both locations; content depends on configured contact
+    $contact = (string) ($_ENV['SECURITY_CONTACT_EMAIL'] ?? (config('business.support_email') ?: ''));
+    foreach (['/.well-known/security.txt', '/security.txt'] as $p) {
+        [$code, $headers, $body] = $get($base . $p);
+        if ($contact !== '') {
+            check($code === 200 && str_contains($body, 'Contact: mailto:' . $contact) && preg_match('~^Expires: \d{4}-\d{2}-\d{2}T~m', $body) === 1, "3.25 {$p} served with Contact/Expires");
+        } else {
+            check($code === 404 && stripos($headers, 'Content-Type: text/plain') !== false, "3.25 {$p} is 404 text when no contact is configured (not 403)");
+        }
+    }
 }
+
+// ── Section 4: 500 handler (source-level; the handler only installs for web SAPIs) ──
+echo "\n--- Section 4: branded 500 ---\n";
+$bootstrap = file_get_contents(dirname(__DIR__) . '/bootstrap.php');
+check(str_contains($bootstrap, 'set_exception_handler('), '4.1 global exception handler registered');
+check(str_contains($bootstrap, "require __DIR__ . '/app/views/errors/server-error.php'"), '4.2 handler renders errors/server-error.php');
+check(str_contains($bootstrap, "'message' => 'Internal server error.'"), '4.3 handler answers API callers with JSON');
+$errView = file_get_contents(dirname(__DIR__) . '/app/views/errors/server-error.php');
+check(!str_contains($errView, 'getMessage') && !str_contains($errView, 'getTrace') && str_contains($errView, 'name="robots" content="noindex"'), '4.4 500 page prints no exception detail and is noindex');
+$router = file_get_contents(dirname(__DIR__) . '/Router.php');
+check(str_contains($router, "errors/server-error.php") && str_contains($router, "views/layouts/main.php"), '4.5 Router uses branded 500 and layout-wrapped 404');
 
 echo "\nResults: {$passCount} Passed, {$failCount} Failed\n";
 echo $failCount === 0 ? ">>> ALL SEO TESTS PASSED <<<\n" : ">>> SEO TESTS FAILED <<<\n";

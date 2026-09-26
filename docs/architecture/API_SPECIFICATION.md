@@ -239,9 +239,16 @@ Requires customer authentication.
 {
   "service_id": 1,
   "booking_date": "2026-09-15",
-  "start_time": "10:00"
+  "start_time": "10:00",
+  "health_declared": "1"
 }
 ```
+
+`health_declared` is mandatory (`"1"`, `"true"` or `"on"`). It records that the
+customer accepted the Terms & Health Declaration; the server answers **422** without
+it. The acceptance time is stored on the hold (`booking_holds.health_declared_at`)
+and copied to `bookings.health_declared_at` when the booking row is created at
+`/api/payment/create-order`.
 
 The server must recalculate:
 
@@ -431,45 +438,45 @@ Destroy admin session.
 
 # 14. Admin Booking APIs
 
-## GET /admin/api/bookings
+Implemented routes (see `public/index.php`). There is no separate `/admin/api/...`
+namespace; admin pages are server-rendered and state changes are CSRF-protected
+POST forms.
+
+## GET /admin/bookings
 
 Requires admin authentication.
 
-Support:
+Supports:
 
-- search
-- date filter
-- status filter
-- payment status filter
-- pagination
+- `search` (reference, customer name, email, mobile — `LIKE` wildcards are escaped)
+- `date` filter
+- `status` tab (`pending`, `confirmed`, `completed`, `cancelled`, `expired`, `all`)
+- pagination (`page`)
 
-Never expose secrets.
+Never expose secrets. Loading this page also runs the hold / pending-booking
+expiry housekeeping.
 
 ---
 
-## GET /admin/api/bookings/{id}
+## POST /admin/bookings/{id}/status
 
-Requires admin authentication.
+Requires admin authentication and a CSRF token.
 
-Return appropriate booking details.
+Request field: `status` — the target booking status. Only the transitions in
+`BookingModel::ADMIN_TRANSITIONS` are accepted:
 
----
+| From        | Allowed targets           |
+|-------------|---------------------------|
+| `pending`   | `cancelled`               |
+| `confirmed` | `completed`, `cancelled`  |
+| `completed` | — (terminal)              |
+| `cancelled` | — (terminal)              |
+| `expired`   | — (terminal)              |
 
-## POST /admin/api/bookings/{id}/cancel
-
-Requires admin authentication.
-
-Cancellation/refund behavior must follow approved client policy.
-
-Do not invent refund rules.
-
----
-
-## POST /admin/api/bookings/{id}/complete
-
-Requires admin authentication.
-
-Mark booking completed.
+Cancellation is **admin-only**: customers do not cancel online. They contact SKSL
+with their booking reference (see `/cancellation-refund`). Refunds, if any, are
+processed manually in the Razorpay dashboard by SKSL; this application never
+issues a refund itself and does not invent refund rules.
 
 ---
 

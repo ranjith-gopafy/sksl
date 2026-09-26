@@ -192,9 +192,13 @@ class Router
             return;
         }
 
-        // Otherwise render a simple 404 page
-        if (file_exists(__DIR__ . '/app/views/pages/404.php')) {
-            require __DIR__ . '/app/views/pages/404.php';
+        // Otherwise render the branded 404 inside the site layout
+        $viewFile = __DIR__ . '/app/views/pages/404.php';
+        $layout   = __DIR__ . '/app/views/layouts/main.php';
+        if (file_exists($viewFile) && file_exists($layout) && function_exists('app_url')) {
+            $title   = 'Page Not Found — Sara Kinetic Sports Lab';
+            $noIndex = true;
+            require $layout;
         } else {
             echo '<h1>404 — Page Not Found</h1>';
         }
@@ -210,7 +214,11 @@ class Router
             return;
         }
 
-        echo '<h1>500 — Internal Server Error</h1>';
+        if (file_exists(__DIR__ . '/app/views/errors/server-error.php')) {
+            require __DIR__ . '/app/views/errors/server-error.php';
+        } else {
+            echo '<h1>500 — Internal Server Error</h1>';
+        }
     }
 
     private function isApiRequest(): bool

@@ -133,14 +133,14 @@ class BookingModel
                 service_name_snapshot, service_duration_minutes,
                 checkin_buffer_minutes, checkout_buffer_minutes,
                 base_amount, gst_percent, gst_amount, convenience_fee, total_amount,
-                booking_status, payment_status
+                booking_status, payment_status, health_declared_at
              ) VALUES (
                 :ref, :user_id, :service_id, :booking_date,
                 :start_time, :end_time,
                 :service_name, :duration,
                 :checkin_buf, :checkout_buf,
                 :base_amount, :gst_percent, :gst_amount, :conv_fee, :total_amount,
-                :b_status, :p_status
+                :b_status, :p_status, :health_declared_at
              )'
         );
 
@@ -162,6 +162,7 @@ class BookingModel
             'total_amount' => $data['total_amount'],
             'b_status'     => $data['booking_status'] ?? 'pending',
             'p_status'     => $data['payment_status'] ?? 'pending',
+            'health_declared_at' => $data['health_declared_at'] ?? null,
         ]);
 
         return (int) $this->db->lastInsertId();

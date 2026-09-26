@@ -152,12 +152,23 @@ assertHold(str_contains($authBooking['body'], 'Reservation Summary'), 'Summary c
 preg_match('/name="_csrf_token" value="([a-f0-9]+)"/', $authBooking['body'], $m);
 $csrfBook = $m[1] ?? $csrf;
 
+// POST /api/bookings/hold without the health declaration is refused (server-side, not just the checkbox)
+$noDecl = curlReq("{$baseUrl}/api/bookings/hold", 'POST', [
+    '_csrf_token'  => $csrfBook,
+    'service_id'   => 4,
+    'booking_date' => $testDate,
+    'start_time'   => '16:00',
+], $cookieJar);
+$noDeclJson = json_decode($noDecl['body'], true);
+assertHold(($noDecl['code'] ?? 0) === 422 && empty($noDeclJson['success']) && str_contains((string) ($noDeclJson['message'] ?? ''), 'Health Declaration'), 'HTTP hold without health_declared returns 422');
+
 // POST /api/bookings/hold
 $httpHold = curlReq("{$baseUrl}/api/bookings/hold", 'POST', [
     '_csrf_token'  => $csrfBook,
     'service_id'   => 4,
     'booking_date' => $testDate,
     'start_time'   => '16:00',
+    'health_declared' => '1',
 ], $cookieJar);
 
 $holdJson = json_decode($httpHold['body'], true);
@@ -165,6 +176,9 @@ assertHold(isset($holdJson['success']) && $holdJson['success'], 'HTTP POST /api/
 assertHold(isset($holdJson['data']['booking_reference']), 'Returned booking reference via HTTP');
 
 $httpRef = $holdJson['data']['booking_reference'] ?? '';
+$storedHold = $db->prepare('SELECT health_declared_at FROM booking_holds WHERE booking_reference = ? LIMIT 1');
+$storedHold->execute([$httpRef]);
+assertHold(!empty($storedHold->fetchColumn()), 'health_declared_at stored on the hold');
 
 // POST /api/bookings/hold/release
 $httpRel = curlReq("{$baseUrl}/api/bookings/hold/release", 'POST', [

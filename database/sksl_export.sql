@@ -1,7 +1,7 @@
 -- ============================================================
 -- SKSL — Database Export (GENERATED — do not edit by hand)
 -- Sara Kinetic Sports Lab — Online Booking Platform
--- Generated: 2026-09-26 14:34 by database/build-export.php
+-- Generated: 2026-09-26 15:15 by database/build-export.php
 --
 -- Contains every file in database/migrations/ and database/seeds/, in order,
 -- plus the `migrations` ledger so `php database/migrate.php` knows they ran.
@@ -454,6 +454,22 @@ ALTER TABLE `email_logs`
 ALTER TABLE `email_logs`
     ADD COLUMN `subject` VARCHAR(255) NULL DEFAULT NULL AFTER `email_type`;
 
+-- ── 20260926_015_hold_health_declaration.sql ──────────────────────────────
+-- Migration: 20260926_015_hold_health_declaration
+-- Purpose: Persist the customer's "Terms & Health Declaration" acceptance.
+--          The checkbox on the booking page was previously UI-only (audit, Low:
+--          "health declaration is never stored"). The hold endpoint now requires
+--          health_declared=1 and records the time on the hold; PaymentService
+--          copies it to bookings.health_declared_at (column added in 012) when
+--          the booking row is created.
+-- Tables: booking_holds
+-- Data impact: None (nullable column; existing holds stay NULL)
+-- Rollback:
+--   ALTER TABLE booking_holds DROP COLUMN health_declared_at;
+
+ALTER TABLE `booking_holds`
+    ADD COLUMN `health_declared_at` DATETIME NULL DEFAULT NULL AFTER `expires_at`;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ── Seed: admin_seed.sql ──────────────────────────────────────────────────
@@ -505,3 +521,4 @@ INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260907_011_create_hero_b
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_012_audit_fixes.sql');
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_013_auth_hardening.sql');
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_014_email_logs_subject_status.sql');
+INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_015_hold_health_declaration.sql');

@@ -56,6 +56,25 @@ $router->get('/robots.txt', function () {
     echo 'Sitemap: ' . app_url('sitemap.xml') . "\n";
 });
 
+// RFC 9116 vulnerability-disclosure contact (served at both standard locations)
+$securityTxt = function () {
+    header('Content-Type: text/plain; charset=UTF-8');
+    header('Cache-Control: public, max-age=86400');
+    $contact = (string) ($_ENV['SECURITY_CONTACT_EMAIL'] ?? (config('business.support_email') ?: ''));
+    if ($contact === '') {
+        http_response_code(404);
+        echo "No security contact configured.\n";
+        return;
+    }
+    echo 'Contact: mailto:' . $contact . "\n";
+    echo 'Expires: ' . gmdate('Y-m-d\TH:i:s\Z', strtotime('first day of january next year')) . "\n";
+    echo "Preferred-Languages: en\n";
+    echo 'Canonical: ' . app_url('.well-known/security.txt') . "\n";
+    echo 'Policy: ' . app_url('privacy-policy') . "\n";
+};
+$router->get('/.well-known/security.txt', $securityTxt);
+$router->get('/security.txt', $securityTxt);
+
 $router->get('/sitemap.xml', function () {
     header('Content-Type: application/xml; charset=UTF-8');
     header('Cache-Control: public, max-age=86400');

@@ -866,6 +866,7 @@ document.addEventListener('DOMContentLoaded', () => {
             holdForm.append('service_id', serviceInput.value);
             holdForm.append('booking_date', dateInput.value);
             holdForm.append('start_time', selectedSlot.start_time);
+            holdForm.append('health_declared', termsCheck.checked ? '1' : '0');
 
             const holdRes = await fetch('<?= app_url('api/bookings/hold') ?>', {
                 method: 'POST',

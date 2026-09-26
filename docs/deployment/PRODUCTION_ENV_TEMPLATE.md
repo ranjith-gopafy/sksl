@@ -18,7 +18,9 @@
 | `APP_DEBUG` | ✅ | Error display (must be `false` in production) | `false` |
 | `APP_URL` | ✅ | Full production URL with HTTPS | `https://www.yourdomain.com` |
 | `APP_TIMEZONE` | ✅ | PHP timezone for IST | `Asia/Kolkata` |
-| `APP_SECRET` | ✅ | 64-char random secret for CSRF tokens | Run: `php -r "echo bin2hex(random_bytes(32));"` |
+| `APP_SECRET` | ➖ | Reserved for future signed tokens. **Not used by the current code**: CSRF tokens, OTPs and reset tokens are random per-session / per-row values. Set a random value anyway so nothing ever ships with the placeholder. | Run: `php -r "echo bin2hex(random_bytes(32));"` |
+| `HEALTH_CHECK_TOKEN` | ➖ | Unlocks env/db details on `/health` for uptime monitors (`X-Health-Token`). Public response is only `{"success","status"}`. | Random string |
+| `SECURITY_CONTACT_EMAIL` | ➖ | Contact published in `/.well-known/security.txt` (falls back to `BUSINESS_SUPPORT_EMAIL`). | `security@yourdomain.com` |
 
 ---
 

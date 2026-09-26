@@ -97,6 +97,7 @@ curl_setopt_array($ch, [
         'service_id' => $serviceId,
         'booking_date' => $date,
         'start_time' => $startTime,
+        'health_declared' => '1',
     ]),
     CURLOPT_COOKIEJAR => $cookieFile,
     CURLOPT_COOKIEFILE => $cookieFile,
@@ -130,6 +131,12 @@ curl_close($ch);
 assert($httpCode === 200 && ($orderJson['success'] ?? false) === true, "Order creation failed: " . json_encode($orderJson));
 $orderId = $orderJson['data']['razorpay_order_id'];
 echo "[PASS] 3. HTTP Razorpay Order created: $orderId\n";
+
+// 3a. The health declaration accepted at hold time is carried onto the booking row
+$declStmt = getDb()->prepare('SELECT health_declared_at FROM bookings WHERE booking_reference = ? LIMIT 1');
+$declStmt->execute([$bookingRef]);
+assert(!empty($declStmt->fetchColumn()), 'bookings.health_declared_at must be set from the hold');
+echo "[PASS] 3a. bookings.health_declared_at stored for $bookingRef\n";
 
 // 5a. Verify with a forged signature via HTTP must be rejected
 $ch = curl_init("$baseUrl/api/payment/verify");

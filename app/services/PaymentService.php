@@ -176,6 +176,7 @@ class PaymentService
                 'total_amount'             => $pricing['total_amount'],
                 'booking_status'           => 'pending',
                 'payment_status'           => 'pending',
+                'health_declared_at'       => $hold['health_declared_at'] ?? null,
             ]);
 
             $booking = $this->bookingModel->findById($bookingId);

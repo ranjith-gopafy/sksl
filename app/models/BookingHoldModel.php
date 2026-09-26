@@ -100,20 +100,21 @@ class BookingHoldModel
         $stmt = $this->db->prepare(
             "INSERT INTO booking_holds (
                 booking_reference, user_id, service_id, booking_date,
-                start_time, end_time, expires_at, status
+                start_time, end_time, expires_at, health_declared_at, status
              ) VALUES (
                 :ref, :user_id, :service_id, :booking_date,
-                :start_time, :end_time, :expires_at, 'active'
+                :start_time, :end_time, :expires_at, :health_declared_at, 'active'
              )"
         );
         $stmt->execute([
-            'ref'          => $data['booking_reference'],
-            'user_id'      => $data['user_id'],
-            'service_id'   => $data['service_id'],
-            'booking_date' => $data['booking_date'],
-            'start_time'   => $data['start_time'],
-            'end_time'     => $data['end_time'],
-            'expires_at'   => $data['expires_at'],
+            'ref'                => $data['booking_reference'],
+            'user_id'            => $data['user_id'],
+            'service_id'         => $data['service_id'],
+            'booking_date'       => $data['booking_date'],
+            'start_time'         => $data['start_time'],
+            'end_time'           => $data['end_time'],
+            'expires_at'         => $data['expires_at'],
+            'health_declared_at' => $data['health_declared_at'] ?? null,
         ]);
         return (int) $this->db->lastInsertId();
     }

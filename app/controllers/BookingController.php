@@ -64,6 +64,7 @@ class BookingController
         $serviceId = (int) ($_POST['service_id'] ?? 0);
         $date      = trim((string) ($_POST['booking_date'] ?? ''));
         $startTime = trim((string) ($_POST['start_time'] ?? ''));
+        $declared  = (string) ($_POST['health_declared'] ?? '');
 
         // Also check raw JSON input if Content-Type is application/json
         if ($serviceId === 0 && empty($date)) {
@@ -73,6 +74,7 @@ class BookingController
                 $serviceId = (int) ($json['service_id'] ?? 0);
                 $date      = trim((string) ($json['booking_date'] ?? ''));
                 $startTime = trim((string) ($json['start_time'] ?? ''));
+                $declared  = (string) ($json['health_declared'] ?? '');
             }
         }
 
@@ -80,7 +82,13 @@ class BookingController
             Response::error('service_id, booking_date, and start_time are required parameters.', [], 422);
         }
 
-        $result = $this->bookingService->createHold($userId, $serviceId, $date, $startTime);
+        // The Terms & Health Declaration is a condition of every session and is
+        // stored with the booking, so the server enforces it (not only the UI).
+        if (!in_array($declared, ['1', 'true', 'on'], true)) {
+            Response::error('Please accept the Terms & Health Declaration to reserve a slot.', ['health_declared' => 'required'], 422);
+        }
+
+        $result = $this->bookingService->createHold($userId, $serviceId, $date, $startTime, true);
 
         if (!$result['success']) {
             Response::error($result['message'], [], 422);
