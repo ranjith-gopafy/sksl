@@ -16,13 +16,13 @@
                 
                 <div class="mt-5 pt-5 border-t border-slate-100 text-left space-y-2.5 text-xs text-slate-600">
                     <div class="flex justify-between">
-                        <span class="text-slate-400">Account Status</span>
+                        <span class="text-slate-500">Account Status</span>
                         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase">
                             <?= h($user['status'] ?? 'Active') ?>
                         </span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-slate-400">Member Since</span>
+                        <span class="text-slate-500">Member Since</span>
                         <span class="text-slate-800 font-semibold">
                             <?= h(date('d M Y', strtotime($user['created_at'] ?? 'now'))) ?>
                         </span>
@@ -79,7 +79,7 @@
                             id="email_static" 
                             disabled 
                             value="<?= h($user['email'] ?? '') ?>"
-                            class="w-full px-4 py-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed text-sm"
+                            class="w-full px-4 py-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed text-sm"
                         >
                         <p class="text-[11px] text-slate-500 mt-1">To change your email address, please reach out to facility management.</p>
                     </div>
@@ -89,7 +89,7 @@
                             Mobile Number
                         </label>
                         <div class="relative">
-                            <span class="absolute left-4 top-3 text-slate-400 text-sm font-semibold">+91</span>
+                            <span class="absolute left-4 top-3 text-slate-500 text-sm font-semibold">+91</span>
                             <input 
                                 type="tel" 
                                 id="mobile" 

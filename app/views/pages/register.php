@@ -44,7 +44,7 @@
                     Mobile Number <span class="text-rose-500">*</span>
                 </label>
                 <div class="relative">
-                    <span class="absolute left-4 top-3.5 text-slate-400 text-sm font-semibold">+91</span>
+                    <span class="absolute left-4 top-3.5 text-slate-500 text-sm font-semibold">+91</span>
                     <input 
                         type="tel" 
                         id="mobile" 

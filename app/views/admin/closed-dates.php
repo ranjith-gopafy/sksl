@@ -111,13 +111,13 @@
 
                             <!-- Day Headers -->
                             <div class="grid grid-cols-7 gap-1 text-center mb-1">
-                                <span class="text-[10px] font-bold text-slate-400 py-0.5">Mo</span>
-                                <span class="text-[10px] font-bold text-slate-400 py-0.5">Tu</span>
-                                <span class="text-[10px] font-bold text-slate-400 py-0.5">We</span>
-                                <span class="text-[10px] font-bold text-slate-400 py-0.5">Th</span>
-                                <span class="text-[10px] font-bold text-slate-400 py-0.5">Fr</span>
-                                <span class="text-[10px] font-bold text-slate-400 py-0.5">Sa</span>
-                                <span class="text-[10px] font-bold text-slate-400 py-0.5">Su</span>
+                                <span class="text-[10px] font-bold text-slate-500 py-0.5">Mo</span>
+                                <span class="text-[10px] font-bold text-slate-500 py-0.5">Tu</span>
+                                <span class="text-[10px] font-bold text-slate-500 py-0.5">We</span>
+                                <span class="text-[10px] font-bold text-slate-500 py-0.5">Th</span>
+                                <span class="text-[10px] font-bold text-slate-500 py-0.5">Fr</span>
+                                <span class="text-[10px] font-bold text-slate-500 py-0.5">Sa</span>
+                                <span class="text-[10px] font-bold text-slate-500 py-0.5">Su</span>
                             </div>
 
                             <!-- Interactive Days Grid -->
@@ -166,7 +166,7 @@
                 </div>
 
                 <?php if (empty($closedDates)): ?>
-                    <div class="text-center py-16 text-slate-400 text-xs">
+                    <div class="text-center py-16 text-slate-500 text-xs">
                         No closed dates recorded. The recovery facility operates normally 7 days a week (06:00 – 22:00 IST).
                     </div>
                 <?php else: ?>
@@ -192,7 +192,7 @@
                                             <?= h($cd['reason'] ?: 'Facility Closed / General Maintenance') ?>
                                         </td>
 
-                                        <td class="py-4 px-4 text-slate-400 text-[11px]">
+                                        <td class="py-4 px-4 text-slate-500 text-[11px]">
                                             <?= date('d M Y', strtotime($cd['created_at'])) ?>
                                         </td>
 

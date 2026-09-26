@@ -33,7 +33,7 @@
 
         <div class="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs relative overflow-hidden">
             <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Cancelled Sessions</div>
-            <div class="text-3xl font-black text-slate-400 font-heading mt-1"><?= $cancelledCount ?></div>
+            <div class="text-3xl font-black text-slate-500 font-heading mt-1"><?= $cancelledCount ?></div>
             <div class="text-xs text-slate-500 mt-1">Cancelled by SKSL on request</div>
         </div>
     </div>
@@ -69,7 +69,7 @@
     <!-- Bookings List -->
     <?php if (empty($filteredBookings)): ?>
         <div class="text-center py-16 bg-white border border-slate-200/90 rounded-3xl p-8 shadow-xs">
-            <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
+            <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-4">
                 <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -154,7 +154,7 @@
                         <!-- Right: Pricing & Actions -->
                         <div class="flex flex-col sm:flex-row lg:flex-col sm:items-end justify-between gap-3 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100">
                             <div class="text-left sm:text-right">
-                                <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Amount Paid</div>
+                                <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Amount Paid</div>
                                 <div class="text-lg font-extrabold text-slate-900 font-heading">
                                     &#8377;<?= number_format((float) $b['total_amount'], 2) ?>
                                     <span class="text-[10px] font-normal text-slate-500">(incl. 18% GST)</span>

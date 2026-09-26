@@ -95,7 +95,7 @@
                         <!-- Price & CTA Bar -->
                         <div class="flex items-center justify-between pt-1.5 border-t border-[#D9DBDA]/60 mt-1">
                             <div>
-                                <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Base Rate</div>
+                                <div class="text-[8px] uppercase tracking-wider font-bold text-slate-500">Base Rate</div>
                                 <div class="text-sm font-extrabold text-slate-900 font-heading -mt-0.5">
                                     &#8377;<?= number_format($basePrice, 2) ?>
                                 </div>
@@ -161,7 +161,7 @@
                     <div class="px-5 pb-5 sm:px-6 sm:pb-6 pt-4 border-t border-[#D9DBDA]/80 flex flex-col gap-4">
                         <div class="flex items-baseline justify-between">
                             <div>
-                                <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                                <div class="text-[10px] uppercase font-bold tracking-wider text-slate-500">
                                     Base Rate / Session
                                 </div>
                                 <div class="text-2xl font-extrabold text-slate-900 font-heading mt-0.5">

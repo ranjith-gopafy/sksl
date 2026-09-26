@@ -40,6 +40,14 @@ $closeLabel = date('g:i A', strtotime($facility['close'] ?? '22:00'));
                             <?= h($line) ?><br>
                         <?php endforeach; ?>
                     </address>
+                    <?php if (!empty($biz['address_line1'])): ?>
+                        <a href="https://www.google.com/maps/search/?api=1&amp;query=<?= h(rawurlencode($bizName . ', ' . implode(', ', $bizAddress))) ?>"
+                           target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:underline mt-2">
+                            Open in Google Maps
+                            <span class="sr-only">(opens in a new tab)</span>
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
 

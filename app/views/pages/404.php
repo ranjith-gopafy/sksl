@@ -6,7 +6,7 @@
     </div>
     <span class="text-xs font-bold uppercase tracking-widest text-cyan-400">404 Error</span>
     <h1 class="text-3xl font-extrabold text-white font-heading mt-2">Page Not Found</h1>
-    <p class="text-sm text-slate-400 mt-3 leading-relaxed">
+    <p class="text-sm text-slate-500 mt-3 leading-relaxed">
         The recovery session, page, or link you are looking for does not exist or has been moved.
     </p>
     <div class="mt-8">

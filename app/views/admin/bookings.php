@@ -58,7 +58,7 @@
                         value="<?= h($filters['date'] ?? '') ?>" 
                         class="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-[#075183] transition-colors"
                     >
-                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                 </div>
@@ -169,7 +169,7 @@
         </div>
 
         <?php if (empty($bookings)): ?>
-            <div class="text-center py-16 text-slate-400 text-xs">
+            <div class="text-center py-16 text-slate-500 text-xs">
                 No bookings match the selected filter criteria.
             </div>
         <?php else: ?>
@@ -191,7 +191,7 @@
                             <tr class="hover:bg-slate-50/70 transition-colors">
                                 <td class="py-4 px-6 font-mono text-sky-700 font-bold">
                                     <?= h($b['booking_reference']) ?>
-                                    <span class="block text-[10px] text-slate-400 font-sans font-normal mt-0.5">
+                                    <span class="block text-[10px] text-slate-500 font-sans font-normal mt-0.5">
                                         <?= date('d M Y, h:i A', strtotime($b['created_at'])) ?>
                                     </span>
                                 </td>
@@ -199,7 +199,7 @@
                                 <td class="py-4 px-4">
                                     <div class="font-bold text-slate-900"><?= h($b['user_name']) ?></div>
                                     <div class="text-[11px] text-slate-500"><?= h($b['user_email']) ?></div>
-                                    <div class="text-[10px] text-slate-400"><?= h($b['user_mobile']) ?></div>
+                                    <div class="text-[10px] text-slate-500"><?= h($b['user_mobile']) ?></div>
                                 </td>
 
                                 <td class="py-4 px-4">
@@ -214,7 +214,7 @@
 
                                 <td class="py-4 px-4 text-right">
                                     <div class="font-extrabold text-slate-900 font-heading">&#8377;<?= number_format((float) $b['total_amount'], 2) ?></div>
-                                    <div class="text-[10px] text-slate-400">Base: &#8377;<?= number_format((float) $b['base_amount'], 2) ?></div>
+                                    <div class="text-[10px] text-slate-500">Base: &#8377;<?= number_format((float) $b['base_amount'], 2) ?></div>
                                 </td>
 
                                 <td class="py-4 px-4 text-center">
@@ -237,7 +237,7 @@
                                     <?php endif; ?>
 
                                     <?php if (!empty($b['razorpay_payment_id'])): ?>
-                                        <span class="block text-[9px] font-mono text-slate-400 mt-1 truncate max-w-[120px] mx-auto" title="<?= h($b['razorpay_payment_id']) ?>">
+                                        <span class="block text-[9px] font-mono text-slate-500 mt-1 truncate max-w-[120px] mx-auto" title="<?= h($b['razorpay_payment_id']) ?>">
                                             <?= h($b['razorpay_payment_id']) ?>
                                         </span>
                                     <?php endif; ?>
@@ -298,10 +298,10 @@
                                             ?>
                                             <?php if ($canComplete || $canCancel): ?>
                                             <div class="my-1 border-t border-slate-100"></div>
-                                            <div class="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Change Status</div>
+                                            <div class="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Change Status</div>
                                             <?php else: ?>
                                             <div class="my-1 border-t border-slate-100"></div>
-                                            <div class="px-3.5 py-1.5 text-[11px] text-slate-400 italic">
+                                            <div class="px-3.5 py-1.5 text-[11px] text-slate-500 italic">
                                                 <?php
                                                 echo match ($b['booking_status']) {
                                                     'cancelled' => 'Cancelled — final. Athlete must book again.',
@@ -357,7 +357,7 @@
         <button 
             type="button" 
             data-action="closeBookingViewModal" 
-            class="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            class="absolute top-5 right-5 p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label="Close modal"
         >
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -387,7 +387,7 @@
         <div class="space-y-4 text-xs">
             <!-- Athlete Profile -->
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Athlete Information</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Athlete Information</div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
                         <span class="text-slate-500 block text-[11px]">Full Name</span>
@@ -406,7 +406,7 @@
 
             <!-- Modality & Schedule -->
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Modality &amp; Schedule</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Modality &amp; Schedule</div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div>
                         <span class="text-slate-500 block text-[11px]">Modality</span>
@@ -429,7 +429,7 @@
 
             <!-- Financial Breakdown -->
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Financial Breakdown</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Financial Breakdown</div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div>
                         <span class="text-slate-500 block text-[11px]">Base Amount</span>
@@ -452,7 +452,7 @@
 
             <!-- Payment Details -->
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Payment Verification</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Payment Verification</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px]">
                     <div>
                         <span class="text-slate-500 block text-[10px] font-sans">Razorpay Payment ID</span>
@@ -465,9 +465,9 @@
                 </div>
             </div>
 
-            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2">
+            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-2">
                 <span>Created: <span id="modal-created-at" class="text-slate-600 font-medium"></span></span>
-                <span class="text-[10px] uppercase font-bold text-slate-400">SKSL Operations</span>
+                <span class="text-[10px] uppercase font-bold text-slate-500">SKSL Operations</span>
             </div>
         </div>
 
@@ -556,7 +556,7 @@ function openBookingViewModal(b) {
         pdfContainer.appendChild(link);
     } else {
         const note = document.createElement('span');
-        note.className = 'text-slate-400 text-xs italic';
+        note.className = 'text-slate-500 text-xs italic';
         note.textContent = 'Tax invoice unavailable for ' + String(b.booking_status || 'this') + ' booking';
         pdfContainer.appendChild(note);
     }

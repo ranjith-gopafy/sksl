@@ -76,7 +76,7 @@
                 class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:text-slate-900 font-semibold text-xs transition-all shadow-xs"
             >
                 <span>View Live Site</span>
-                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
             </a>
@@ -89,7 +89,7 @@
             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                 <span>Active Carousel Slides (<?= count($banners) ?> Total)</span>
             </h3>
-            <span class="text-[11px] text-slate-400">Click a slide below to load into editor</span>
+            <span class="text-[11px] text-slate-500">Click a slide below to load into editor</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
@@ -139,7 +139,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
                                 <?php else: ?>
-                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
                                     </svg>
                                 <?php endif; ?>
@@ -173,7 +173,7 @@
                                 <input type="hidden" name="id" value="<?= (int) $b['id'] ?>">
                                 <button 
                                     type="submit" 
-                                    class="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    class="p-1 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                                     title="Delete banner"
                                 >
                                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -290,7 +290,7 @@
                             >
                             <!-- Quick Image Presets -->
                             <div class="flex flex-wrap items-center gap-1.5 mt-2">
-                                <span class="text-[10px] text-slate-400">Quick presets:</span>
+                                <span class="text-[10px] text-slate-500">Quick presets:</span>
                                 <button type="button" data-action="setPresetImg" data-preset-img="images/hero-banner.jpg" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">hero-banner.jpg</button>
                                 <button type="button" data-action="setPresetImg" data-preset-img="images/services/ice-bath.jpg" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">ice-bath.jpg</button>
                                 <button type="button" data-action="setPresetImg" data-preset-img="images/services/sauna.jpg" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">sauna.jpg</button>
@@ -351,7 +351,7 @@
                             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                             Live Slide Simulator
                         </span>
-                        <span class="text-[10px] text-slate-400">Desktop Scale</span>
+                        <span class="text-[10px] text-slate-500">Desktop Scale</span>
                     </div>
 
                     <!-- Simulator Card -->
@@ -399,7 +399,7 @@
                         </div>
                     </div>
 
-                    <p class="text-[10px] text-slate-400 mt-3 text-center">
+                    <p class="text-[10px] text-slate-500 mt-3 text-center">
                         Simulator mirrors text and background live as you type.
                     </p>
                 </div>
@@ -418,7 +418,7 @@
                 <h3 class="text-base font-extrabold text-slate-900 font-heading">Add New Hero Banner</h3>
                 <p class="text-xs text-slate-500">Banner <?= count($banners) + 1 ?> of 5 maximum</p>
             </div>
-            <button type="button" data-action="closeCreateBannerModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+            <button type="button" data-action="closeCreateBannerModal" class="text-slate-500 hover:text-slate-600 p-1 rounded-lg">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>

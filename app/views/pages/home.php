@@ -24,8 +24,11 @@ if (empty($bannerSlides)) {
 }
 ?>
 
+<!-- One page-level heading; slide headlines are h2 so hidden slides do not add extra h1s -->
+<h1 class="sr-only">Sara Kinetic Sports Lab — Sports Recovery Facility in Bengaluru</h1>
+
 <!-- Full-Bleed Carousel Hero Banner (End-to-End, Zero Gap, Left-Aligned Typography) -->
-<section id="hero-carousel" class="relative w-full overflow-hidden bg-slate-950 select-none h-[460px] sm:h-[520px] lg:h-[580px] flex items-stretch">
+<section id="hero-carousel" class="relative w-full overflow-hidden bg-slate-950 select-none h-[460px] sm:h-[520px] lg:h-[580px] flex items-stretch" aria-roledescription="carousel" aria-label="Featured">
     
     <?php if (!empty($_SESSION['admin_id'])): ?>
         <!-- Admin Quick Control Trigger (Floating Top-Right) -->
@@ -55,6 +58,10 @@ if (empty($bannerSlides)) {
             <div 
                 class="carousel-slide absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out flex items-center <?= $isActive ? 'opacity-100 z-10 pointer-events-auto active' : 'opacity-0 z-0 pointer-events-none' ?>" 
                 data-slide-index="<?= $idx ?>"
+                role="group"
+                aria-roledescription="slide"
+                aria-label="<?= $idx + 1 ?> of <?= count($bannerSlides) ?>"
+                <?= $isActive ? '' : 'aria-hidden="true"' ?>
             >
                 <!-- Full-Bleed Background Photography with Ken Burns effect -->
                 <img 
@@ -79,9 +86,9 @@ if (empty($bannerSlides)) {
                         </div>
 
                         <!-- Left-Aligned Headline -->
-                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] font-heading drop-shadow-md">
+                        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] font-heading drop-shadow-md">
                             <?= nl2br(h($slideHeadline)) ?>
-                        </h1>
+                        </h2>
 
                         <!-- Left-Aligned Subheadline (Concise) -->
                         <p class="text-sm sm:text-base text-[#D9DBDA] leading-relaxed font-normal max-w-xl drop-shadow-sm line-clamp-2">
@@ -158,7 +165,7 @@ if (empty($bannerSlides)) {
             <!-- Slide Counter & Mobile Swipe Hint -->
             <div class="hidden sm:flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-bold text-white">
                 <span class="text-[#4A9CC0] font-mono tracking-wider"><span id="carousel-current-index">01</span> / <span id="carousel-total-count"><?= sprintf('%02d', count($bannerSlides)) ?></span></span>
-                <span class="text-slate-400 font-normal border-l border-white/20 pl-2.5">Auto-advance 5s</span>
+                <span class="text-slate-500 font-normal border-l border-white/20 pl-2.5">Auto-advance 5s</span>
             </div>
         </div>
     </div>
@@ -270,7 +277,7 @@ if (empty($bannerSlides)) {
                             <!-- Price & CTA Bar -->
                             <div class="flex items-center justify-between pt-1.5 border-t border-[#D9DBDA]/60 mt-1">
                                 <div>
-                                    <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Base Rate</div>
+                                    <div class="text-[8px] uppercase tracking-wider font-bold text-slate-500">Base Rate</div>
                                     <div class="text-sm font-extrabold text-slate-900 font-heading -mt-0.5">
                                         &#8377;<?= number_format($basePrice, 2) ?>
                                     </div>
@@ -332,7 +339,7 @@ if (empty($bannerSlides)) {
                         <!-- Price & CTA Bar -->
                         <div class="px-5 pb-5 sm:px-6 sm:pb-6 pt-3 border-t border-[#D9DBDA]/80 flex items-center justify-between">
                             <div>
-                                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Base Rate / Session</div>
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Base Rate / Session</div>
                                 <div class="text-xl font-extrabold text-slate-900 font-heading">
                                     &#8377;<?= number_format($basePrice, 2) ?>
                                 </div>
@@ -380,7 +387,7 @@ if (empty($bannerSlides)) {
 
             <!-- Step 2: 10-Min Hold (#D6981E) -->
             <div class="bg-white border border-[#D9DBDA] rounded-3xl p-7 shadow-xs hover:shadow-md transition-shadow relative">
-                <div class="w-12 h-12 rounded-2xl bg-[#D6981E]/15 text-[#D6981E] font-heading font-extrabold text-xl flex items-center justify-center mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-[#D6981E]/15 text-gold-aa font-heading font-extrabold text-xl flex items-center justify-center mb-5">
                     02
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 font-heading">Guaranteed 10-Min Hold</h3>
@@ -460,9 +467,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (idx === currentIndex) {
                 slide.classList.remove('opacity-0', 'z-0', 'pointer-events-none');
                 slide.classList.add('opacity-100', 'z-10', 'pointer-events-auto', 'active');
+                slide.removeAttribute('aria-hidden');
             } else {
                 slide.classList.remove('opacity-100', 'z-10', 'pointer-events-auto', 'active');
                 slide.classList.add('opacity-0', 'z-0', 'pointer-events-none');
+                slide.setAttribute('aria-hidden', 'true');
             }
         });
 

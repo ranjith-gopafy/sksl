@@ -27,8 +27,10 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
         <p class="text-xs sm:text-sm text-slate-600 mt-0.5">Pick a date on the calendar, choose your time slot, and reserve your session instantly.</p>
     </div>
 
-    <!-- Hidden compatibility select & inputs for tests / form posting -->
-    <select id="service_selector" class="sr-only" aria-hidden="true" tabindex="-1">
+    <!-- Hidden compatibility select & inputs for tests / form posting.
+         The visible, accessible modality choice is the "Selected modality" card below
+         (change it from the Services page); this select is kept out of the a11y tree. -->
+    <select id="service_selector" class="sr-only" aria-hidden="true" tabindex="-1" aria-label="Selected modality">
         <?php foreach ($services as $srv): ?>
             <option 
                 value="<?= (int) $srv['id'] ?>" 
@@ -83,7 +85,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
         <div class="lg:col-span-2 space-y-4">
             
             <!-- 1. Selected Modality Showcase Card (Locked & Compact) -->
-            <div id="selected-service-card" class="bg-white border border-[#D9DBDA] rounded-2xl p-4 sm:p-5 shadow-xs relative overflow-hidden transition-all hover:border-[#075183]/40">
+            <section id="selected-service-card" aria-labelledby="selected-service-name" class="bg-white border border-[#D9DBDA] rounded-2xl p-4 sm:p-5 shadow-xs relative overflow-hidden transition-all hover:border-[#075183]/40">
                 <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden shrink-0 shadow-xs border border-slate-200/80 bg-slate-100">
                         <img 
@@ -101,13 +103,13 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                             <span class="text-[11px] font-semibold text-slate-500">
                                 <?= $duration ?> Min Session
                             </span>
-                            <span class="text-[11px] font-semibold text-slate-400">&bull;</span>
+                            <span class="text-[11px] font-semibold text-slate-500">&bull;</span>
                             <span class="text-[11px] font-semibold text-slate-500">
                                 Max <?= $capacity ?> Athletes
                             </span>
                         </div>
-                        <h2 class="text-lg sm:text-xl font-extrabold text-slate-900 font-heading leading-tight">
-                            <?= h($selectedService['name']) ?>
+                        <h2 id="selected-service-name" class="text-lg sm:text-xl font-extrabold text-slate-900 font-heading leading-tight">
+                            <span class="sr-only">Selected modality: </span><?= h($selectedService['name']) ?>
                         </h2>
                         <p class="text-xs text-slate-500 mt-0.5 line-clamp-1">
                             <?= h($selectedService['description'] ?? 'Science-backed athletic recovery modality designed to accelerate muscle repair and elevate performance.') ?>
@@ -115,7 +117,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                     </div>
                     <div class="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 gap-2 shrink-0">
                         <div class="text-left sm:text-right">
-                            <div class="text-[10px] uppercase tracking-wider font-bold text-slate-400">Total with 18% GST</div>
+                            <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500">Total with 18% GST</div>
                             <div class="text-base font-extrabold text-[#075183] font-heading leading-none mt-0.5">
                                 &#8377;<?= number_format($totalAmount, 2) ?>
                             </div>
@@ -131,7 +133,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                         </a>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- 2. Integrated Interactive Tailwind Calendar & Live Slot Grid Card -->
             <div class="bg-white border border-[#D9DBDA] rounded-2xl p-4 sm:p-5 shadow-xs">
@@ -182,7 +184,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                                 </div>
 
                                 <!-- Day Headers -->
-                                <div class="grid grid-cols-7 gap-1 text-center mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                <div class="grid grid-cols-7 gap-1 text-center mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                                     <div>Mo</div>
                                     <div>Tu</div>
                                     <div>We</div>
@@ -193,7 +195,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                                 </div>
 
                                 <!-- Calendar Days Grid -->
-                                <div id="cal-days-grid" class="grid grid-cols-7 gap-1 text-center text-xs">
+                                <div id="cal-days-grid" role="group" aria-label="Choose a date" class="grid grid-cols-7 gap-1 text-center text-xs">
                                     <!-- Populated via JavaScript -->
                                 </div>
                             </div>
@@ -226,7 +228,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
 
                             <!-- Empty / Closed Message -->
                             <div id="slots-empty" class="hidden py-10 text-center">
-                                <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                                <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-2">
                                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
@@ -238,13 +240,13 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                             </div>
 
                             <!-- Slots Container -->
-                            <div id="slots-grid" class="hidden grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                            <div id="slots-grid" role="group" aria-label="Available time slots" class="hidden grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
                                 <!-- Populated via JavaScript -->
                             </div>
                         </div>
 
                         <!-- Facility Operational Footer -->
-                        <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-400">
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
                             <div>Facility: <strong class="text-slate-600 font-semibold">06:00 – 22:00 IST</strong></div>
                             <div>Session: <strong class="text-[#075183] font-semibold"><?= $duration ?> Min</strong></div>
                             <div>Check-in: <strong class="text-slate-600 font-semibold">10 min prior</strong></div>
@@ -318,11 +320,11 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                         type="button" 
                         id="proceed-hold-btn" 
                         disabled 
-                        class="app-touch-target w-full py-3.5 px-4 rounded-xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200"
+                        class="app-touch-target w-full py-3.5 px-4 rounded-xl bg-slate-100 text-slate-500 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200"
                     >
                         Select Time Slot
                     </button>
-                    <p class="text-[10px] text-slate-400 text-center mt-2">
+                    <p class="text-[10px] text-slate-500 text-center mt-2">
                         10-min slot hold auto-assigned on gateway launch.
                     </p>
                 </div>
@@ -556,6 +558,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.setAttribute('data-date', cellIso);
+            // Screen readers get the full date, not just the day number
+            btn.setAttribute('aria-label', cellDate.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                + (isToday ? ', today' : '') + (isPast ? ', unavailable' : '') + (isBeyond ? ', beyond the booking window' : ''));
+            btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
 
             if (isPast || isBeyond) {
                 btn.disabled = true;
@@ -668,27 +674,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.className = `slot-btn app-touch-target p-2 sm:p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
                     slot.available
                         ? 'bg-white border-[#D9DBDA] hover:border-[#075183] hover:bg-[#075183]/5 text-slate-900 cursor-pointer shadow-xs'
-                        : 'bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed opacity-70'
+                        : 'bg-slate-50 border-slate-100 text-slate-500 cursor-not-allowed opacity-70'
                 }`;
 
-                let capLabel = '';
+                // Build with DOM APIs (text nodes, never innerHTML) — availability data
+                // comes from the API and must be rendered as text.
+                const remaining = parseInt(slot.remaining_capacity, 10) || 0;
+                let capText = '';
+                let capClass = '';
+                let stateText = '';
                 if (slot.available) {
-                    capLabel = `<span class="text-[9px] sm:text-[10px] text-[#075183] font-bold bg-[#075183]/10 px-1.5 py-0.5 rounded">${slot.remaining_capacity} left</span>`;
+                    capText = `${remaining} left`;
+                    capClass = 'text-[9px] sm:text-[10px] text-[#075183] font-bold bg-[#075183]/10 px-1.5 py-0.5 rounded';
+                    stateText = `${remaining} place${remaining === 1 ? '' : 's'} left`;
                 } else if (slot.unavailable_reason === 'past') {
-                    capLabel = '<span class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">Passed</span>';
+                    capText = 'Passed';
+                    capClass = 'text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold';
+                    stateText = 'already passed';
                 } else if (slot.unavailable_reason === 'user_conflict') {
-                    capLabel = '<span class="text-[9px] sm:text-[10px] text-[#D6981E] font-semibold">Conflict</span>';
+                    capText = 'Conflict';
+                    capClass = 'text-[9px] sm:text-[10px] text-gold-aa font-semibold';
+                    stateText = 'overlaps one of your bookings';
                 } else {
-                    capLabel = '<span class="text-[9px] sm:text-[10px] text-rose-500 font-semibold">Full</span>';
+                    capText = 'Full';
+                    capClass = 'text-[9px] sm:text-[10px] text-rose-600 font-semibold';
+                    stateText = 'fully booked';
                 }
 
-                btn.innerHTML = `
-                    <div class="text-xs sm:text-sm font-extrabold font-heading text-slate-900 leading-tight">${slot.display_start}</div>
-                    <div class="flex items-center justify-between mt-1 text-[10px] sm:text-[11px] text-slate-500">
-                        <span>${slot.duration_minutes}m</span>
-                        ${capLabel}
-                    </div>
-                `;
+                const timeEl = document.createElement('div');
+                timeEl.className = 'text-xs sm:text-sm font-extrabold font-heading text-slate-900 leading-tight';
+                timeEl.textContent = String(slot.display_start);
+                const metaEl = document.createElement('div');
+                metaEl.className = 'flex items-center justify-between mt-1 text-[10px] sm:text-[11px] text-slate-500';
+                const durEl = document.createElement('span');
+                durEl.textContent = `${parseInt(slot.duration_minutes, 10) || 0}m`;
+                const capEl = document.createElement('span');
+                capEl.className = capClass;
+                capEl.textContent = capText;
+                metaEl.append(durEl, capEl);
+                btn.append(timeEl, metaEl);
+
+                // Accessible name/state for screen readers
+                btn.setAttribute('aria-label', `${slot.display_start}, ${parseInt(slot.duration_minutes, 10) || 0} minutes, ${stateText}`);
+                btn.setAttribute('aria-pressed', 'false');
+                if (!slot.available) {
+                    btn.disabled = true;
+                    btn.setAttribute('aria-disabled', 'true');
+                }
 
                 if (slot.available) {
                     btn.addEventListener('click', () => {
@@ -696,17 +728,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         slotsGrid.querySelectorAll('button').forEach(b => {
                             b.classList.remove('border-[#075183]', 'bg-[#075183]/10', 'ring-2', 'ring-[#075183]/20', 'slot-selected');
                             b.classList.add('border-[#D9DBDA]', 'bg-white');
+                            b.setAttribute('aria-pressed', 'false');
                         });
                         // Highlight this button
                         btn.classList.remove('border-[#D9DBDA]', 'bg-white');
                         btn.classList.add('border-[#075183]', 'bg-[#075183]/10', 'ring-2', 'ring-[#075183]/20', 'slot-selected');
+                        btn.setAttribute('aria-pressed', 'true');
 
                         selectedSlot = slot;
                         updateSummary();
                         updateProceedButton();
                     });
-                } else {
-                    btn.disabled = true;
                 }
 
                 slotsGrid.appendChild(btn);
@@ -758,7 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
             proceedBtn.textContent = `Proceed to Payment • ₹${total.toFixed(2)}`;
         } else {
             proceedBtn.disabled = true;
-            proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-400 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200';
+            proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-500 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200';
             proceedBtn.textContent = selectedSlot ? 'Agree to Terms to Continue' : 'Select Time Slot';
         }
     }

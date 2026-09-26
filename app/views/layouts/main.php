@@ -49,9 +49,21 @@
         .app-touch-target:active {
             transform: scale(0.94);
         }
+        /* Accessibility: skip link (off-screen until focused), gold text that meets AA on light surfaces */
+        .skip-link {
+            position: absolute; left: 0; top: -100px; z-index: 10000;
+            padding: 0.75rem 1.25rem; background: #053d63; color: #fff; font-weight: 700; font-size: 0.875rem;
+            border-radius: 0 0 0.75rem 0; text-decoration: none;
+        }
+        .skip-link:focus { top: 0; outline: 3px solid #D6981E; outline-offset: 0; }
+        .text-gold-aa { color: #8F5E0A !important; }
+        main:focus { outline: none; }
     </style>
 </head>
 <body class="min-h-full flex flex-col bg-[#F8FAFC] text-slate-800 selection:bg-[#075183] selection:text-white pb-20 md:pb-0">
+
+    <!-- Skip link: first focusable element, visible only while focused -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
 
     <!-- Top Facility Info Bar (Desktop & Tablet) -->
     <div class="bg-slate-900 text-slate-200 text-xs py-2 px-4 border-b border-slate-800">
@@ -144,7 +156,7 @@
     </header>
 
     <!-- Main Container -->
-    <main class="flex-1">
+    <main id="main-content" class="flex-1" tabindex="-1">
         <!-- Floating Toast Notification Container -->
         <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm sm:max-w-md w-full px-4 sm:px-0" aria-live="polite">
         </div>
@@ -213,7 +225,7 @@
                         <li><a href="<?= app_url('privacy-policy') ?>" class="hover:text-[#075183] transition-colors">Privacy Policy</a></li>
                         <li><a href="<?= app_url('terms') ?>" class="hover:text-[#075183] transition-colors">Terms of Service</a></li>
                         <li><a href="<?= app_url('cancellation-refund') ?>" class="hover:text-[#075183] transition-colors">Cancellation &amp; Refund</a></li>
-                        <li><a href="<?= app_url('admin/login') ?>" class="text-slate-400 hover:text-[#075183] transition-colors text-xs inline-flex items-center gap-1 mt-2">
+                        <li><a href="<?= app_url('admin/login') ?>" class="text-slate-500 hover:text-[#075183] transition-colors text-xs inline-flex items-center gap-1 mt-2">
                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                             Admin Portal
                         </a></li>
@@ -240,7 +252,7 @@
     <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-3 py-1.5 flex items-center justify-around">
         
         <!-- Tab 1: Home -->
-        <a href="<?= app_url('') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isHome ? 'text-[#075183]' : 'text-slate-400 hover:text-slate-600' ?>">
+        <a href="<?= app_url('') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isHome ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>">
             <svg class="w-5 h-5 <?= $isHome ? 'stroke-[2.5]' : 'stroke-2' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
             </svg>
@@ -248,7 +260,7 @@
         </a>
 
         <!-- Tab 2: Modalities Catalog -->
-        <a href="<?= app_url('services') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isServices ? 'text-[#075183]' : 'text-slate-400 hover:text-slate-600' ?>">
+        <a href="<?= app_url('services') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isServices ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>">
             <svg class="w-5 h-5 <?= $isServices ? 'stroke-[2.5]' : 'stroke-2' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
             </svg>
@@ -266,7 +278,7 @@
         </a>
 
         <!-- Tab 4: My Bookings -->
-        <a href="<?= app_url('my-bookings') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isMyBookings ? 'text-[#075183]' : 'text-slate-400 hover:text-slate-600' ?>">
+        <a href="<?= app_url('my-bookings') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isMyBookings ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>">
             <svg class="w-5 h-5 <?= $isMyBookings ? 'stroke-[2.5]' : 'stroke-2' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
             </svg>
@@ -274,7 +286,7 @@
         </a>
 
         <!-- Tab 5: Account / Profile -->
-        <a href="<?= !empty($_SESSION['user_id']) ? app_url('profile') : app_url('login') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isProfile ? 'text-[#075183]' : 'text-slate-400 hover:text-slate-600' ?>">
+        <a href="<?= !empty($_SESSION['user_id']) ? app_url('profile') : app_url('login') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isProfile ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>">
             <svg class="w-5 h-5 <?= $isProfile ? 'stroke-[2.5]' : 'stroke-2' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
@@ -328,7 +340,7 @@
                         <div class="text-xs font-bold font-heading uppercase tracking-wider text-slate-800">${titleText}</div>
                         <div class="toast-message text-xs text-slate-600 mt-0.5 break-words font-medium"></div>
                     </div>
-                    <button type="button" class="text-slate-400 hover:text-slate-700 p-1 -mr-1 rounded-lg transition-colors cursor-pointer" aria-label="Close">
+                    <button type="button" class="text-slate-500 hover:text-slate-700 p-1 -mr-1 rounded-lg transition-colors cursor-pointer" aria-label="Close">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>

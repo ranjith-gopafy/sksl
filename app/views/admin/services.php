@@ -56,7 +56,7 @@
                     placeholder="Search modality..." 
                     class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-2xs"
                 >
-                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
             </div>
@@ -107,7 +107,7 @@
                         <!-- Price + Actions -->
                         <div class="flex items-center justify-between pt-1.5 border-t border-slate-100 mt-1">
                             <div>
-                                <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Base Rate</div>
+                                <div class="text-[8px] uppercase tracking-wider font-bold text-slate-500">Base Rate</div>
                                 <div class="text-sm font-extrabold text-slate-900 font-heading -mt-0.5">&#8377;<?= number_format((float) $s['price'], 2) ?></div>
                             </div>
                             <div class="flex items-center gap-1.5">
@@ -229,7 +229,7 @@
                 <h3 class="text-base font-extrabold text-slate-900 font-heading" id="modal-service-title">Edit Modality</h3>
                 <p class="text-[11px] text-slate-500">Modify price, capacity, image, and status</p>
             </div>
-            <button type="button" data-action="closeEditModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+            <button type="button" data-action="closeEditModal" class="text-slate-500 hover:text-slate-600 p-1 rounded-lg">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -250,7 +250,7 @@
                         class="w-full h-full object-cover"
                     >
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent"></div>
-                    <span id="modal-no-image" class="hidden absolute inset-0 flex items-center justify-center text-slate-400 text-xs">No image set</span>
+                    <span id="modal-no-image" class="hidden absolute inset-0 flex items-center justify-center text-slate-500 text-xs">No image set</span>
                 </div>
             </div>
 
@@ -266,7 +266,7 @@
                         class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 focus:bg-white focus:outline-none focus:border-sky-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#053d63] file:text-white file:cursor-pointer cursor-pointer"
                     >
                 </div>
-                <p class="text-[10px] text-slate-400 mt-1">JPG, PNG or WebP. Max 5MB. Leave blank to keep current image.</p>
+                <p class="text-[10px] text-slate-500 mt-1">JPG, PNG or WebP. Max 5MB. Leave blank to keep current image.</p>
                 <!-- Live preview of selected new image -->
                 <div id="new-image-preview-container" class="hidden mt-2 rounded-xl overflow-hidden h-28">
                     <img id="new-image-preview" src="" alt="New image preview" class="w-full h-full object-cover">

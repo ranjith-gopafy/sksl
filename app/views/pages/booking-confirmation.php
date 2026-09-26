@@ -177,21 +177,21 @@
                 <!-- Transaction Audit Info -->
                 <div class="mt-6 pt-5 border-t border-slate-100 space-y-2.5 text-[11px] text-slate-500">
                     <div>
-                        <span class="block text-[10px] uppercase font-bold text-slate-400">Razorpay Payment ID</span>
+                        <span class="block text-[10px] uppercase font-bold text-slate-500">Razorpay Payment ID</span>
                         <span class="font-mono text-slate-800 break-all font-semibold">
                             <?= h($payment['razorpay_payment_id'] ?? 'PAID-ON-FILE') ?>
                         </span>
                     </div>
 
                     <div>
-                        <span class="block text-[10px] uppercase font-bold text-slate-400">Razorpay Order ID</span>
+                        <span class="block text-[10px] uppercase font-bold text-slate-500">Razorpay Order ID</span>
                         <span class="font-mono text-slate-800 break-all font-semibold">
                             <?= h($payment['razorpay_order_id'] ?? 'N/A') ?>
                         </span>
                     </div>
 
                     <div>
-                        <span class="block text-[10px] uppercase font-bold text-slate-400">Billed Athlete</span>
+                        <span class="block text-[10px] uppercase font-bold text-slate-500">Billed Athlete</span>
                         <span class="text-slate-800 font-semibold">
                             <?= h($booking['user_name']) ?> (<?= h($booking['user_email']) ?>)
                         </span>
