@@ -59,8 +59,8 @@ class CsrfMiddleware
             }
 
             Flash::set('error', 'Your session or security token expired. Please try again.');
-            $referer = $_SERVER['HTTP_REFERER'] ?? app_url('');
-            header('Location: ' . $referer);
+            // Only bounce back to a page on this site — never to an arbitrary Referer.
+            header('Location: ' . safe_return_url($_SERVER['HTTP_REFERER'] ?? null, ''));
             exit;
         }
     }

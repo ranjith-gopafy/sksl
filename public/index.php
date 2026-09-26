@@ -65,8 +65,7 @@ $router->get('/admin/login', [\App\Controllers\AdminAuthController::class, 'show
 $router->post('/admin/login', [\App\Controllers\AdminAuthController::class, 'sendOtp']);
 $router->get('/admin/verify-otp', [\App\Controllers\AdminAuthController::class, 'showVerifyOtp']);
 $router->post('/admin/verify-otp', [\App\Controllers\AdminAuthController::class, 'verifyOtp']);
-$router->get('/admin/logout', [\App\Controllers\AdminAuthController::class, 'logout']);
-$router->post('/admin/logout', [\App\Controllers\AdminAuthController::class, 'logout']);
+$router->post('/admin/logout', [\App\Controllers\AdminAuthController::class, 'logout']); // POST only (CSRF-protected)
 
 // ─── Admin Management Operations ──────────────────────────────────────────
 $router->get('/admin/bookings', [\App\Controllers\AdminBookingController::class, 'index']);
@@ -84,24 +83,38 @@ $router->get('/admin/banner', [\App\Controllers\AdminBannerController::class, 'i
 $router->post('/admin/banner', [\App\Controllers\AdminBannerController::class, 'update']);
 
 
-$router->get('/health', function() {
+// Liveness probe. Public response is a bare status (no environment or
+// infrastructure details); pass HEALTH_CHECK_TOKEN to receive the details.
+$router->get('/health', function () {
     header('Content-Type: application/json');
+    header('Cache-Control: no-store');
+    $configured = (string) ($_ENV['HEALTH_CHECK_TOKEN'] ?? '');
+    $presented  = (string) ($_SERVER['HTTP_X_HEALTH_TOKEN'] ?? ($_GET['token'] ?? ''));
+    $detailed   = $configured !== '' && $presented !== '' && hash_equals($configured, $presented);
+
+    $dbOk = false;
     try {
-        $db = getDb();
-        $db->query('SELECT 1');
-        echo json_encode([
-            'success' => true,
-            'message' => 'Application is healthy.',
-            'env'     => config('app.env'),
-            'db'      => 'connected',
-        ]);
+        $config = require dirname(__DIR__) . '/config/database.php';
+        $pdo = new PDO(
+            sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $config['host'], $config['port'], $config['database'], $config['charset']),
+            $config['username'],
+            $config['password'],
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 3]
+        );
+        $pdo->query('SELECT 1');
+        $dbOk = true;
     } catch (Throwable $e) {
-        http_response_code(503);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Database connection failed.',
-        ]);
+        error_log('Health check: database unreachable: ' . $e->getMessage());
     }
+
+    if (!$dbOk) {
+        http_response_code(503);
+    }
+    $body = ['success' => $dbOk, 'status' => $dbOk ? 'ok' : 'degraded'];
+    if ($detailed) {
+        $body += ['env' => config('app.env'), 'db' => $dbOk ? 'connected' : 'unreachable', 'time' => date('c')];
+    }
+    echo json_encode($body);
 });
 
 // ─── Customer Authentication Routes ───────────────────────────────────────
@@ -113,8 +126,7 @@ $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
 $router->post('/api/login', [AuthController::class, 'login']);
 
-$router->get('/logout', [AuthController::class, 'logout']);
-$router->post('/logout', [AuthController::class, 'logout']);
+$router->post('/logout', [AuthController::class, 'logout']); // POST only (CSRF-protected)
 $router->post('/api/logout', [AuthController::class, 'logout']);
 
 $router->get('/forgot-password', [AuthController::class, 'showForgotPassword']);

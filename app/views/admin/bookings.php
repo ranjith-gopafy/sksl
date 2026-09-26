@@ -24,9 +24,10 @@
             <a href="<?= app_url('admin/closed-dates') ?>" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
                 Closed Dates
             </a>
-            <a href="<?= app_url('admin/logout') ?>" class="px-3.5 py-2 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold uppercase tracking-wider transition-colors">
-                Sign Out
-            </a>
+            <form method="POST" action="<?= app_url('admin/logout') ?>" class="inline">
+                <?= \App\Helpers\Csrf::field() ?>
+                <button type="submit" class="px-3.5 py-2 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer bg-transparent border-0">Sign Out</button>
+            </form>
         </nav>
     </div>
 

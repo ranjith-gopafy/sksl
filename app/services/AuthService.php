@@ -6,6 +6,8 @@ namespace App\Services;
 
 use App\Models\UserModel;
 use App\Models\PasswordResetModel;
+use App\Helpers\Csrf;
+use App\Helpers\PasswordPolicy;
 use App\Helpers\RateLimit;
 
 /**
@@ -67,10 +69,16 @@ class AuthService
             $errors['mobile'] = 'Please enter a valid 10-digit mobile number.';
         }
 
-        if (strlen($password) < 8) {
-            $errors['password'] = 'Password must be at least 8 characters long.';
+        if (($policyError = PasswordPolicy::validate($password, $email, $name)) !== null) {
+            $errors['password'] = $policyError;
         } elseif ($password !== $passwordConfirmation) {
             $errors['password_confirmation'] = 'Passwords do not match.';
+        }
+
+        // Terms of Service + Privacy Policy must be accepted explicitly
+        $termsAccepted = filter_var($input['terms'] ?? $input['accept_terms'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if (!$termsAccepted) {
+            $errors['terms'] = 'Please accept the Terms of Service and Privacy Policy to create an account.';
         }
 
         if (!empty($errors)) {
@@ -81,26 +89,36 @@ class AuthService
             ];
         }
 
-        // Check for duplicate email
+        // Duplicate email: do NOT tell the requester (account enumeration).
+        // The real owner gets an email explaining someone tried to register and
+        // how to reset their password; the response is identical to a success.
         $existing = $this->userModel->findByEmail($email);
         if ($existing !== null) {
+            try {
+                $this->emailService->sendExistingAccountNotice((string) $existing['email'], (string) $existing['name']);
+            } catch (\Throwable $e) {
+                error_log('Existing-account notice failed: ' . $e->getMessage());
+            }
             return [
-                'success' => false,
-                'message' => 'An account with this email address already exists. Please log in.',
-                'errors'  => ['email' => 'An account with this email address already exists.'],
+                'success'  => true,
+                'message'  => self::REGISTER_SUCCESS_MESSAGE,
+                'existing' => true, // internal flag — never sent to the browser (see AuthController)
             ];
         }
 
         // Hash password and store
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-        $userId = $this->userModel->create($name, $email, $mobile, $passwordHash);
+        $userId = $this->userModel->create($name, $email, $mobile, $passwordHash, date('Y-m-d H:i:s'));
 
         return [
             'success' => true,
-            'message' => 'Registration successful! You can now log in.',
+            'message' => self::REGISTER_SUCCESS_MESSAGE,
             'user_id' => $userId,
         ];
     }
+
+    /** Shown for both a new account and a duplicate email, so the two are indistinguishable. */
+    public const REGISTER_SUCCESS_MESSAGE = 'Thanks! If this email was not already registered, your account is ready — sign in below. If it was, we have sent that address a note on how to access the existing account.';
 
     /**
      * Authenticate customer with email and password.
@@ -143,16 +161,21 @@ class AuthService
         // Clear rate limit on successful authentication
         RateLimit::clear($rateLimitKey);
 
-        // Session fixation protection
-        if (!headers_sent()) {
+        // Session fixation protection + fresh CSRF token for the new privilege level
+        if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
+        Csrf::rotate();
+
+        // Role separation: a browser is either a customer or an administrator.
+        unset($_SESSION['admin_id'], $_SESSION['admin_name'], $_SESSION['admin_email']);
 
         // Populate customer session
         $_SESSION['user_id']     = (int) $user['id'];
         $_SESSION['user_name']   = $user['name'];
         $_SESSION['user_email']  = $user['email'];
         $_SESSION['user_mobile'] = $user['mobile'];
+        $_SESSION['auth_at']     = time(); // compared with users.password_changed_at by CustomerAuth
 
         // Remove sensitive fields before returning
         unset($user['password_hash']);
@@ -174,11 +197,13 @@ class AuthService
             $_SESSION['user_name'],
             $_SESSION['user_email'],
             $_SESSION['user_mobile'],
+            $_SESSION['auth_at'],
             $_SESSION['intended_url']
         );
-        if (!headers_sent()) {
+        if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
+        Csrf::rotate();
     }
 
     /**
@@ -240,11 +265,8 @@ class AuthService
      */
     public function resetPassword(string $plainToken, string $password, string $passwordConfirmation): array
     {
-        if (strlen($password) < 8) {
-            return [
-                'success' => false,
-                'message' => 'Password must be at least 8 characters long.',
-            ];
+        if (($policyError = PasswordPolicy::validate($password)) !== null) {
+            return ['success' => false, 'message' => $policyError];
         }
 
         if ($password !== $passwordConfirmation) {
@@ -270,16 +292,24 @@ class AuthService
             ];
         }
 
-        // Update password
+        // Re-check the policy against the account's own email/name
+        $owner = $this->userModel->findById((int) $reset['user_id']);
+        if (($policyError = PasswordPolicy::validate($password, (string) ($owner['email'] ?? ''), (string) ($owner['name'] ?? ''))) !== null) {
+            return ['success' => false, 'message' => $policyError];
+        }
+
+        // Update password — updatePassword() also stamps password_changed_at,
+        // which invalidates every other session for this account.
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         $this->userModel->updatePassword((int) $reset['user_id'], $passwordHash);
 
-        // Mark token as used (one-time use enforcement)
+        // Mark token as used (one-time use enforcement) and burn any siblings
         $this->resetModel->markUsed((int) $reset['id']);
+        $this->resetModel->deleteOldForUser((int) $reset['user_id']);
 
         return [
             'success' => true,
-            'message' => 'Your password has been reset successfully. You can now log in with your new password.',
+            'message' => 'Your password has been reset successfully. Any other devices have been signed out. You can now log in with your new password.',
         ];
     }
 
@@ -318,16 +348,12 @@ class AuthService
      */
     public function changePassword(int $userId, string $currentPassword, string $newPassword, string $newPasswordConfirmation): array
     {
-        if (strlen($newPassword) < 8) {
-            return ['success' => false, 'message' => 'New password must be at least 8 characters long.'];
-        }
-
         if ($newPassword !== $newPasswordConfirmation) {
             return ['success' => false, 'message' => 'New passwords do not match.'];
         }
 
         // Fetch user from DB including password hash
-        $stmt = getDb()->prepare('SELECT id, password_hash FROM users WHERE id = ? LIMIT 1');
+        $stmt = getDb()->prepare('SELECT id, name, email, password_hash FROM users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
@@ -335,9 +361,23 @@ class AuthService
             return ['success' => false, 'message' => 'Current password is incorrect.'];
         }
 
+        if (($policyError = PasswordPolicy::validate($newPassword, (string) $user['email'], (string) $user['name'])) !== null) {
+            return ['success' => false, 'message' => 'New password: ' . lcfirst($policyError)];
+        }
+        if (password_verify($newPassword, $user['password_hash'])) {
+            return ['success' => false, 'message' => 'New password must be different from the current password.'];
+        }
+
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
         $this->userModel->updatePassword($userId, $newHash);
 
-        return ['success' => true, 'message' => 'Password changed successfully.'];
+        // Other sessions are now invalid (auth_at < password_changed_at); keep this one.
+        $_SESSION['auth_at'] = time() + 1;
+        if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
+        Csrf::rotate();
+
+        return ['success' => true, 'message' => 'Password changed successfully. Any other devices have been signed out.'];
     }
 }

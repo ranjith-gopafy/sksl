@@ -22,8 +22,11 @@
                         required 
                         minlength="8"
                         placeholder="Minimum 8 characters"
+                        autocomplete="new-password"
+                        aria-describedby="password-hint"
                         class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all text-sm"
                     >
+                    <p id="password-hint" class="text-[11px] text-slate-500 mt-1"><?= h(\App\Helpers\PasswordPolicy::HINT) ?></p>
                 </div>
 
                 <div>

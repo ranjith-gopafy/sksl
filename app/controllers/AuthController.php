@@ -43,10 +43,12 @@ class AuthController
 
         if ($result['success']) {
             if ($isApi) {
-                Response::json($result, 201);
+                // Identical body whether the account was created or already existed
+                Response::json(['success' => true, 'message' => $result['message']], 201);
             }
 
-            Flash::set('success', 'Account created successfully! Please sign in.');
+            Flash::set('success', $result['message']);
+            $_SESSION['_old_input'] = ['email' => $_POST['email'] ?? ''];
             header('Location: ' . app_url('login'));
             exit;
         }
@@ -55,7 +57,8 @@ class AuthController
             Response::json($result, 422);
         }
 
-        Flash::set('error', $result['message']);
+        $firstError = is_array($result['errors'] ?? null) ? (string) reset($result['errors']) : '';
+        Flash::set('error', $firstError !== '' ? $firstError : $result['message']);
         $_SESSION['_old_input'] = [
             'name'   => $_POST['name'] ?? '',
             'email'  => $_POST['email'] ?? '',
@@ -96,7 +99,8 @@ class AuthController
                 Response::json($result, 200);
             }
 
-            $redirectUrl = $_SESSION['intended_url'] ?? app_url('services');
+            // Only same-site relative paths survive; anything else goes to /services
+            $redirectUrl = safe_return_url($_SESSION['intended_url'] ?? null, 'services');
             unset($_SESSION['intended_url']);
 
             Flash::set('success', 'Welcome back, ' . htmlspecialchars($result['user']['name'] ?? ''));
@@ -115,7 +119,8 @@ class AuthController
     }
 
     /**
-     * Handle logout (GET or POST).
+     * Handle logout. POST only (routes) — a GET link could be triggered by an
+     * <img src> on any page and log the visitor out.
      */
     public function logout(): void
     {

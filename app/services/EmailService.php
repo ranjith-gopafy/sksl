@@ -70,6 +70,56 @@ HTML;
     }
 
     /**
+     * Sent to the OWNER of an existing account when someone tries to register
+     * with their email again. The registrant sees a generic response, so this
+     * is the only place the duplicate is disclosed — to the rightful owner.
+     */
+    public function sendExistingAccountNotice(string $toEmail, string $toName): bool
+    {
+        $subject   = 'You already have an SKSL account — Sara Kinetic Sports Lab';
+        $safeName  = htmlspecialchars($toName, ENT_QUOTES, 'UTF-8');
+        $loginUrl  = app_url('login');
+        $forgotUrl = app_url('forgot-password');
+
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 20px; }
+        .card { max-width: 540px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .brand { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+        .tagline { font-size: 12px; color: #0284c7; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; }
+        .btn { display: inline-block; background-color: #0284c7; color: #ffffff !important; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 8px 16px 0; }
+        .footer { margin-top: 32px; font-size: 12px; color: #64748b; line-height: 1.5; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="brand">SARA KINETIC SPORTS LAB</div>
+        <div class="tagline">Recover. Recharge. Perform.</div>
+        <h2>You already have an account</h2>
+        <p>Hello {$safeName},</p>
+        <p>Someone (probably you) just tried to create a new SKSL account with this email address. An account already exists, so nothing was changed.</p>
+        <p>
+            <a href="{$loginUrl}" class="btn">Sign In</a>
+            <a href="{$forgotUrl}" class="btn" style="background-color:#475569;">Reset Password</a>
+        </p>
+        <p class="footer">
+            If this wasn't you, no action is needed — your account and password are unchanged.
+        </p>
+    </div>
+</body>
+</html>
+HTML;
+
+        $altBody = "Hello {$toName},\n\nSomeone (probably you) tried to create a new SKSL account with this email address. An account already exists, so nothing was changed.\n\nSign in: {$loginUrl}\nForgot your password? {$forgotUrl}\n\nIf this wasn't you, no action is needed.";
+
+        return $this->send($toEmail, $toName, $subject, $htmlBody, $altBody);
+    }
+
+    /**
      * Send Admin Login OTP Email.
      */
     public function sendAdminOtp(string $toEmail, string $otp): bool

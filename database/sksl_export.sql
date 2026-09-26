@@ -1,7 +1,7 @@
 -- ============================================================
 -- SKSL — Database Export (GENERATED — do not edit by hand)
 -- Sara Kinetic Sports Lab — Online Booking Platform
--- Generated: 2026-09-26 12:49 by database/build-export.php
+-- Generated: 2026-09-26 14:16 by database/build-export.php
 --
 -- Contains every file in database/migrations/ and database/seeds/, in order,
 -- plus the `migrations` ledger so `php database/migrate.php` knows they ran.
@@ -424,6 +424,16 @@ CREATE TABLE IF NOT EXISTS `rate_limits` (
     KEY `idx_rate_limits_updated` (`updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ── 20260926_013_auth_hardening.sql ───────────────────────────────────────
+-- Migration: 20260926_013_auth_hardening
+-- Purpose: Record explicit acceptance of the Terms of Service / Privacy Policy at registration
+-- Tables: users
+-- Data impact: none (existing rows keep NULL = accepted before this field existed)
+-- Rollback:
+--   ALTER TABLE users DROP COLUMN terms_accepted_at;
+
+ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL DEFAULT NULL AFTER password_changed_at;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ── Seed: admin_seed.sql ──────────────────────────────────────────────────
@@ -473,3 +483,4 @@ INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260907_009_create_passwo
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260907_010_create_email_logs.sql');
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260907_011_create_hero_banners_and_update_service_images.sql');
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_012_audit_fixes.sql');
+INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_013_auth_hardening.sql');

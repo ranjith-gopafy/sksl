@@ -99,7 +99,8 @@ test.describe('Customer Authentication Flow', () => {
  */
 test.describe('Full Register → Login → Logout Flow', () => {
   const uniqueEmail = `e2e_flow_${Date.now()}@sksltest.local`;
-  const password = 'FlowTest@2024!';
+  // Password policy rejects passwords containing the user's name/email parts ("flow", "test", "user")
+  const password = 'Sprint-Recovery-2024!';
 
   test('register a new account successfully', async ({ page }) => {
     await page.goto('/register', { waitUntil: 'domcontentloaded' });

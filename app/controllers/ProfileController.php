@@ -31,8 +31,10 @@ class ProfileController
         $user = $this->userModel->findById($userId);
 
         if (!$user) {
+            // Logout is POST-only now; end the session directly instead of redirecting to it.
+            \App\Middleware\CustomerAuth::clearCustomerSession();
             Flash::set('error', 'User account not found.');
-            header('Location: ' . app_url('logout'));
+            header('Location: ' . app_url('login'));
             exit;
         }
 

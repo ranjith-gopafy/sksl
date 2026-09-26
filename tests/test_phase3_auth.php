@@ -81,6 +81,7 @@ assertTest(isset($res['errors']['name']), 'Reports name error');
 assertTest(isset($res['errors']['email']), 'Reports email error');
 assertTest(isset($res['errors']['mobile']), 'Reports mobile error');
 assertTest(isset($res['errors']['password']), 'Reports password error');
+assertTest(isset($res['errors']['terms']), 'Reports missing terms acceptance');
 
 // ── Test 2: Valid Registration ───────────────────────────────────────────────
 echo "\n2. Testing Valid Registration...\n";
@@ -91,6 +92,7 @@ $res = $authService->register([
     'mobile'                => '9876543210',
     'password'              => 'StrongPassword123!',
     'password_confirmation' => 'StrongPassword123!',
+    'terms'                 => '1',
 ]);
 assertTest($res['success'], 'Successfully registers valid user');
 $testUserId = (int) ($res['user_id'] ?? 0);
@@ -102,19 +104,28 @@ assertTest($dbUser !== null, 'User found in database via findById');
 assertTest($dbUser['name'] === 'Arjun Kinetic', 'User name matches');
 assertTest($dbUser['email'] === strtolower($testEmail), 'Email is stored lowercase');
 assertTest(!isset($dbUser['password_hash']), 'findById does not leak password_hash');
+$termsRow = $db->prepare('SELECT terms_accepted_at FROM users WHERE id = ?');
+$termsRow->execute([$testUserId]);
+assertTest(!empty($termsRow->fetchColumn()), 'Terms acceptance timestamp stored on the account');
 
-// ── Test 3: Duplicate Email Prevention ───────────────────────────────────────
-echo "\n3. Testing Duplicate Email Rejection...\n";
+// ── Test 3: Duplicate Email (no account enumeration) ─────────────────────────
+echo "\n3. Testing Duplicate Email Handling...\n";
 
+$usersBefore = (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn();
 $dupRes = $authService->register([
     'name'                  => 'Duplicate Tester',
     'email'                 => $testEmail,
     'mobile'                => '9876543210',
     'password'              => 'StrongPassword123!',
     'password_confirmation' => 'StrongPassword123!',
+    'terms'                 => '1',
 ]);
-assertTest(!$dupRes['success'], 'Duplicate email registration is rejected');
-assertTest(isset($dupRes['errors']['email']), 'Duplicate error specifies email field');
+$usersAfter = (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn();
+assertTest($dupRes['success'] === true, 'Duplicate email gets the same generic success response (no enumeration)');
+assertTest(!isset($dupRes['user_id']) && !isset($dupRes['errors']['email']), 'Response does not reveal that the email exists');
+assertTest($usersAfter === $usersBefore, 'No second account is created');
+$dbUser = $userModel->findById($testUserId);
+assertTest($dbUser['name'] === 'Arjun Kinetic', 'Existing account left untouched by the duplicate attempt');
 
 // ── Test 4: Customer Login ───────────────────────────────────────────────────
 echo "\n4. Testing Login...\n";

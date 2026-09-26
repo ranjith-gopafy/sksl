@@ -32,12 +32,13 @@ $appConfig = require __DIR__ . '/config/app.php';
 $dbConfig  = require __DIR__ . '/config/database.php';
 
 // ─── Environment-based error reporting ────────────────────────────────────
-if ($appConfig['debug'] === true) {
-    ini_set('display_errors', '1');
-    error_reporting(E_ALL);
-} else {
-    ini_set('display_errors', '0');
-    error_reporting(0);
+// Always report everything; only the *display* differs. error_reporting(0) in
+// production used to hide errors from the log as well (audit).
+error_reporting(E_ALL);
+ini_set('log_errors', '1');
+ini_set('display_errors', $appConfig['debug'] === true ? '1' : '0');
+if (is_dir(__DIR__ . '/storage/logs') && is_writable(__DIR__ . '/storage/logs')) {
+    ini_set('error_log', __DIR__ . '/storage/logs/php-error.log');
 }
 
 // ─── Timezone ─────────────────────────────────────────────────────────────
@@ -143,12 +144,26 @@ function getDb(): PDO
         } catch (PDOException $e) {
             // Never expose connection details in the response
             error_log('Database connection failed: ' . $e->getMessage());
+            if (PHP_SAPI === 'cli') {
+                fwrite(STDERR, "Database connection failed (see error log).\n");
+                exit(1);
+            }
             http_response_code(503);
-            // In production this would render a safe error page; for now, die safely
-            die(json_encode([
-                'success' => false,
-                'message' => 'Service temporarily unavailable. Please try again shortly.',
-            ]));
+            header('Retry-After: 120');
+            $uri    = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+            $isJson = str_contains($uri, '/api/')
+                || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
+            if ($isJson) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Service temporarily unavailable. Please try again shortly.',
+                ]);
+            } else {
+                header('Content-Type: text/html; charset=UTF-8');
+                require __DIR__ . '/app/views/errors/service-unavailable.php';
+            }
+            exit;
         }
     }
 
@@ -237,6 +252,55 @@ function app_url(string $path = ''): string
 {
     $base = app_base_url();
     return $path === '' ? $base : $base . '/' . ltrim($path, '/');
+}
+
+/**
+ * Turn a user-influenced "return to" value (intended_url, Referer) into a safe
+ * same-site URL. Only a relative path on this application is accepted; anything
+ * with a scheme, host, protocol-relative prefix or control characters falls
+ * back to $fallbackPath. Prevents open redirects after login / CSRF failures.
+ */
+function safe_return_url(?string $candidate, string $fallbackPath = ''): string
+{
+    $fallback  = app_url($fallbackPath);
+    $candidate = trim((string) $candidate);
+    if ($candidate === '' || preg_match('/[\x00-\x1F\x7F\s]/', $candidate)) {
+        return $fallback;
+    }
+
+    // Absolute URL: accept only when it points at this application's own base.
+    $base = app_base_url();
+    if (preg_match('~^[a-z][a-z0-9+.\-]*:~i', $candidate) || str_starts_with($candidate, '//')) {
+        if ($base !== '' && str_starts_with($candidate, $base . '/')) {
+            $candidate = substr($candidate, strlen($base));
+        } elseif ($candidate === $base) {
+            return $fallback;
+        } else {
+            return $fallback;
+        }
+    }
+
+    if (!str_starts_with($candidate, '/') || str_starts_with($candidate, '//') || str_starts_with($candidate, '/\\')) {
+        return $fallback;
+    }
+
+    // Drop the deployment base path (e.g. /sksl/public) so app_url() can re-add it once.
+    $basePath = (string) parse_url($base, PHP_URL_PATH);
+    $basePath = rtrim($basePath, '/');
+    if ($basePath !== '' && ($candidate === $basePath || str_starts_with($candidate, $basePath . '/'))) {
+        $candidate = substr($candidate, strlen($basePath));
+    }
+    $candidate = '/' . ltrim($candidate, '/');
+
+    // Never bounce back into auth endpoints (login → login loops)
+    $path = (string) parse_url($candidate, PHP_URL_PATH);
+    foreach (['/login', '/logout', '/register', '/forgot-password', '/reset-password', '/admin/login', '/admin/logout', '/admin/verify-otp'] as $blocked) {
+        if ($path === $blocked) {
+            return $fallback;
+        }
+    }
+
+    return app_url(ltrim($candidate, '/'));
 }
 
 /**

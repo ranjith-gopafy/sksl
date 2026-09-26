@@ -145,7 +145,7 @@
 
                     <div>
                         <label for="new_password" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            New Password (min 8 characters)
+                            New Password
                         </label>
                         <input 
                             type="password" 
@@ -153,8 +153,11 @@
                             name="new_password" 
                             required 
                             minlength="8"
+                            autocomplete="new-password"
+                            aria-describedby="new-password-hint"
                             class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm"
                         >
+                        <p id="new-password-hint" class="text-[11px] text-slate-500 mt-1"><?= h(\App\Helpers\PasswordPolicy::HINT) ?> Changing it signs out your other devices.</p>
                     </div>
 
                     <div>

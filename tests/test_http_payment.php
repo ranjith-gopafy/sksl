@@ -65,6 +65,22 @@ curl_setopt_array($ch, [
 $loginResp = curl_exec($ch);
 curl_close($ch);
 
+// The CSRF token is rotated on login; pick up the fresh one from the booking page
+$ch = curl_init("$baseUrl/booking");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => true,
+]);
+$bookingHtml = (string) curl_exec($ch);
+curl_close($ch);
+preg_match("/'_csrf_token',\s*'([a-f0-9]+)'/i", $bookingHtml, $m);
+$freshToken = $m[1] ?? '';
+assert($freshToken !== '', 'Booking page exposes the post-login CSRF token');
+assert($freshToken !== $csrfToken, 'CSRF token is rotated after login');
+$csrfToken = $freshToken;
+
 // 3. Create a hold via HTTP
 $serviceModel = new ServiceModel();
 $spa = $serviceModel->findBySlug('spa');

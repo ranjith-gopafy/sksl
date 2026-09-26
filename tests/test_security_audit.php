@@ -524,11 +524,17 @@ for ($i = 0; $i < 5; $i++) {
     $adminModel->createOtp($throttleAdminId, password_hash('123456', PASSWORD_BCRYPT), date('Y-m-d H:i:s', time() + 300));
 }
 
-// 6th request attempt must be blocked by DB recent OTP count
+// 6th request attempt must be silently dropped: the response stays generic
+// (no account enumeration) but no new OTP row is issued.
+$otpCount = $db->prepare('SELECT COUNT(*) FROM admin_otps WHERE admin_id = ?');
+$otpCount->execute([$throttleAdminId]);
+$otpsBefore = (int) $otpCount->fetchColumn();
 $throttleRes = $adminAuthService->requestOtp("throttle_{$testRunId}@sk-sports-lab.test");
-assert($throttleRes['success'] === false, '6th OTP request within 15 min throttled');
-assert(str_contains(strtolower($throttleRes['message']), 'too many login attempts'), 'Throttle message returned');
-echo "[PASS] 7.2 Database-backed OTP request throttling blocks rate-limit evasion\n";
+assert($throttleRes['success'] === true, '6th OTP request gets the same generic response as any other');
+assert(!str_contains(strtolower($throttleRes['message']), 'too many'), 'Throttle is not announced to the caller');
+$otpCount->execute([$throttleAdminId]);
+assert((int) $otpCount->fetchColumn() === $otpsBefore, 'No additional OTP is issued while the per-account cap is active');
+echo "[PASS] 7.2 Database-backed OTP request throttling blocks rate-limit evasion without revealing the account\n";
 
 // 7.3 Customer login lockout cannot be evaded by discarding the session cookie (H4)
 $authService = new AuthService();

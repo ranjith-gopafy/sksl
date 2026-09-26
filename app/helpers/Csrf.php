@@ -28,6 +28,17 @@ class Csrf
     }
 
     /**
+     * Issue a fresh token. Called on every privilege change (login, logout,
+     * admin OTP success) so a token captured before authentication cannot be
+     * replayed inside the authenticated session.
+     */
+    public static function rotate(): string
+    {
+        $_SESSION[self::SESSION_KEY] = bin2hex(random_bytes(32));
+        return $_SESSION[self::SESSION_KEY];
+    }
+
+    /**
      * Verify that the given token matches the session token.
      * Constant-time comparison prevents timing attacks.
      */

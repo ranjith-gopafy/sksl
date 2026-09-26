@@ -70,8 +70,11 @@
                     required 
                     minlength="8"
                     placeholder="Minimum 8 characters"
+                    autocomplete="new-password"
+                    aria-describedby="password-hint"
                     class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all text-sm"
                 >
+                <p id="password-hint" class="text-[11px] text-slate-500 mt-1"><?= h(\App\Helpers\PasswordPolicy::HINT) ?></p>
             </div>
 
             <div>
@@ -85,8 +88,27 @@
                     required 
                     minlength="8"
                     placeholder="Repeat your password"
+                    autocomplete="new-password"
                     class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all text-sm"
                 >
+            </div>
+
+            <div class="flex items-start gap-3 pt-1">
+                <input
+                    type="checkbox"
+                    id="terms"
+                    name="terms"
+                    value="1"
+                    required
+                    class="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#075183] focus:ring-sky-500 cursor-pointer"
+                >
+                <label for="terms" class="text-xs text-slate-600 leading-relaxed cursor-pointer">
+                    I agree to the
+                    <a href="<?= app_url('terms') ?>" class="font-semibold text-[#075183] hover:underline" target="_blank" rel="noopener">Terms of Service</a>
+                    and the
+                    <a href="<?= app_url('privacy-policy') ?>" class="font-semibold text-[#075183] hover:underline" target="_blank" rel="noopener">Privacy Policy</a>,
+                    and I understand that my booking and contact details are processed as described there.
+                </label>
             </div>
 
             <button 

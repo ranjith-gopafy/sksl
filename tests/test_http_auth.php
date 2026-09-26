@@ -61,6 +61,7 @@ $regData = [
     'mobile'                => '9876543210',
     'password'              => 'E2eStrongPass123!',
     'password_confirmation' => 'E2eStrongPass123!',
+    'terms'                 => '1',
 ];
 $res2 = makeRequest("{$baseUrl}/register", 'POST', $regData, $cookieJar);
 echo "   Response URL: {$res2['url']} (Code: {$res2['code']})\n";

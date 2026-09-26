@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\AdminModel;
+use App\Helpers\Csrf;
 use App\Helpers\RateLimit;
 
 /**
@@ -50,11 +51,13 @@ class AdminAuthService
         $admin = $this->adminModel->findByEmail($cleanEmail);
 
         if ($admin) {
-            // Database-backed rate limit check (5 OTPs per 15 minutes)
+            // Per-account OTP cap (5 per 15 minutes). Respond exactly like an
+            // unknown address so the cap cannot be used to confirm admin emails.
             if ($this->adminModel->countRecentOtps((int) $admin['id'], 15) >= 5) {
+                error_log('Admin OTP cap reached for admin #' . (int) $admin['id']);
                 return [
-                    'success' => false,
-                    'message' => 'Too many login attempts. Please wait 15 minutes before requesting another code.',
+                    'success' => true,
+                    'message' => 'If your email is registered as an administrator, a 6-digit verification code has been dispatched.',
                 ];
             }
 
@@ -121,10 +124,13 @@ class AdminAuthService
         $this->adminModel->markOtpUsed((int) $otpRecord['id']);
         RateLimit::clear(RateLimit::key('admin_otp_verify', $cleanEmail));
 
-        // Establish admin session
-        if (!headers_sent()) {
+        // Establish admin session (fresh id + CSRF token; drop any customer identity —
+        // a browser is either an administrator or a customer, never both)
+        if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
+        Csrf::rotate();
+        unset($_SESSION['user_id'], $_SESSION['user_name'], $_SESSION['user_email'], $_SESSION['user_mobile'], $_SESSION['auth_at'], $_SESSION['intended_url']);
 
         $_SESSION['admin_id']    = (int) $admin['id'];
         $_SESSION['admin_name']  = (string) $admin['name'];
@@ -142,8 +148,9 @@ class AdminAuthService
     public function logout(): void
     {
         unset($_SESSION['admin_id'], $_SESSION['admin_name'], $_SESSION['admin_email']);
-        if (!headers_sent()) {
+        if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
+        Csrf::rotate();
     }
 }

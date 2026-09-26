@@ -147,7 +147,7 @@ curl_close($ch);
 assert($httpCode === 302, "Expected 302 redirect after successful OTP verification, got $httpCode");
 echo "[PASS] 11. HTTP POST /admin/verify-otp authenticates and redirects to admin area\n";
 
-// Step E: Logout
+// Step E: Logout (POST-only, CSRF protected)
 $ch = curl_init("$baseUrl/admin/logout");
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
@@ -156,11 +156,53 @@ curl_setopt_array($ch, [
     CURLOPT_FOLLOWLOCATION => false,
 ]);
 curl_exec($ch);
+$getLogoutCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert(in_array($getLogoutCode, [404, 405], true), "GET /admin/logout must not be routable, got $getLogoutCode");
+
+// The admin page carries a fresh CSRF token (rotated on login)
+$ch = curl_init("$baseUrl/admin/bookings");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+$adminHtml = (string) curl_exec($ch);
+$adminPageCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert($adminPageCode === 200, "Expected admin dashboard to load for the signed-in admin, got $adminPageCode");
+preg_match('/name="_csrf_token"\s+value="([a-f0-9]+)"/i', $adminHtml, $m3);
+$csrfToken3 = $m3[1] ?? '';
+assert($csrfToken3 !== '', 'Admin page exposes a CSRF token for the logout form');
+assert($csrfToken3 !== $csrfToken2, 'CSRF token is rotated after admin login');
+
+$ch = curl_init("$baseUrl/admin/logout");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => http_build_query(['_csrf_token' => $csrfToken3]),
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
-
 assert($httpCode === 302, "Expected 302 redirect after logout, got $httpCode");
-echo "[PASS] 12. HTTP admin logout terminates session\n";
+
+$ch = curl_init("$baseUrl/admin/bookings");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+curl_exec($ch);
+$afterLogoutCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert($afterLogoutCode === 302, "Admin area must redirect to login after logout, got $afterLogoutCode");
+echo "[PASS] 12. HTTP admin logout is POST-only and terminates the session\n";
 
 // Cleanup
 @unlink($cookieFile);
