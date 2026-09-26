@@ -1,11 +1,51 @@
+<?php
+// ── SEO / social metadata ─────────────────────────────────────────────────
+// Controllers may set $title, $metaDescription and $noIndex before including
+// this layout; everything else derives from the current route.
+$seoPath         = request_path();
+$seoIndexable    = empty($noIndex) && \App\Helpers\Seo::isIndexable($seoPath);
+$seoTitle        = $title ?? 'Sara Kinetic Sports Lab — Recover. Recharge. Perform.';
+$seoDescription  = $metaDescription ?? \App\Helpers\Seo::descriptionFor($seoPath);
+$seoCanonical    = \App\Helpers\Seo::canonicalUrl($seoPath);
+$seoImage        = asset('images/hero-banner.jpg');
+$seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Sports Lab');
+?>
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-slate-50 text-slate-900 antialiased">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title><?= h($title ?? 'Sara Kinetic Sports Lab — Recover. Recharge. Perform.') ?></title>
-    <meta name="description" content="Sara Kinetic Sports Lab (SKSL) — Premier athletic recovery and sports performance lab in Bengaluru. Science-backed ice baths, infrared sauna, hydrotherapy, and endless pools.">
-    
+    <title><?= h($seoTitle) ?></title>
+    <meta name="description" content="<?= h($seoDescription) ?>">
+    <?php if ($seoIndexable): ?>
+        <link rel="canonical" href="<?= h($seoCanonical) ?>">
+        <meta name="robots" content="index, follow">
+    <?php else: ?>
+        <meta name="robots" content="noindex, nofollow">
+    <?php endif; ?>
+
+    <!-- Open Graph / Twitter cards -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="<?= h($seoSiteName) ?>">
+    <meta property="og:title" content="<?= h($seoTitle) ?>">
+    <meta property="og:description" content="<?= h($seoDescription) ?>">
+    <meta property="og:url" content="<?= h($seoCanonical) ?>">
+    <meta property="og:image" content="<?= h($seoImage) ?>">
+    <meta property="og:locale" content="en_IN">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?= h($seoTitle) ?>">
+    <meta name="twitter:description" content="<?= h($seoDescription) ?>">
+    <meta name="twitter:image" content="<?= h($seoImage) ?>">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="<?= h(asset('images/sksl-logo.png')) ?>">
+    <link rel="apple-touch-icon" href="<?= h(asset('images/sksl-logo.png')) ?>">
+
+    <?php if ($seoIndexable && \App\Helpers\Seo::emitsStructuredData($seoPath)): ?>
+        <!-- Structured data: facility identity from .env (BUSINESS_*) -->
+        <script type="application/ld+json" nonce="<?= h(csp_nonce()) ?>"><?= \App\Helpers\Seo::localBusinessJsonLd() ?></script>
+    <?php endif; ?>
+
     <!-- Mobile App Capabilities & Theme Colors -->
     <meta name="theme-color" content="#075183">
     <meta name="mobile-web-app-capable" content="yes">
@@ -106,10 +146,10 @@
                 </a>
 
                 <!-- Desktop Navigation Links -->
-                <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-                    <a href="<?= app_url('') ?>" class="hover:text-[#075183] transition-colors <?= (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) === '/sksl/public/' || parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) === '/') ? 'text-[#075183] font-bold' : '' ?>">Home</a>
-                    <a href="<?= app_url('services') ?>" class="hover:text-[#075183] transition-colors <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'services') ? 'text-[#075183] font-bold' : '' ?>">Services &amp; Pricing</a>
-                    <a href="<?= app_url('contact') ?>" class="hover:text-[#075183] transition-colors <?= str_contains($_SERVER['REQUEST_URI'] ?? '', 'contact') ? 'text-[#075183] font-bold' : '' ?>">Contact</a>
+                <nav aria-label="Primary" class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
+                    <a href="<?= app_url('') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/' ? ' aria-current="page"' : '' ?>>Home</a>
+                    <a href="<?= app_url('services') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/services' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/services' ? ' aria-current="page"' : '' ?>>Services &amp; Pricing</a>
+                    <a href="<?= app_url('contact') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/contact' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/contact' ? ' aria-current="page"' : '' ?>>Contact</a>
                     <?php if (!empty($_SESSION['admin_id'])): ?>
                         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
                             <a href="<?= app_url('admin/bookings') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Bookings</a>
@@ -242,17 +282,17 @@
 
     <!-- Native-like Mobile Bottom Navigation Bar (App Experience) -->
     <?php
-    $currentUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '/';
-    $isHome = ($currentUri === '/sksl/public/' || $currentUri === '/sksl/public' || $currentUri === '/' || $currentUri === '');
-    $isServices = str_contains($currentUri, '/services');
-    $isBooking = str_contains($currentUri, '/booking') && !str_contains($currentUri, 'my-bookings');
-    $isMyBookings = str_contains($currentUri, 'my-bookings');
-    $isProfile = str_contains($currentUri, 'profile') || str_contains($currentUri, 'login') || str_contains($currentUri, 'register');
+    // Exact route comparison (request_path() strips the deployment base directory)
+    $isHome       = $seoPath === '/';
+    $isServices   = $seoPath === '/services';
+    $isBooking    = $seoPath === '/booking' || $seoPath === '/booking-confirmation';
+    $isMyBookings = $seoPath === '/my-bookings' || str_starts_with($seoPath, '/bookings/');
+    $isProfile    = in_array($seoPath, ['/profile', '/login', '/register', '/forgot-password', '/reset-password'], true);
     ?>
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-3 py-1.5 flex items-center justify-around">
+    <nav aria-label="Mobile" class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-3 py-1.5 flex items-center justify-around">
         
         <!-- Tab 1: Home -->
-        <a href="<?= app_url('') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isHome ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>">
+        <a href="<?= app_url('') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isHome ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>"<?= $isHome ? ' aria-current="page"' : '' ?>>
             <svg class="w-5 h-5 <?= $isHome ? 'stroke-[2.5]' : 'stroke-2' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
             </svg>
@@ -260,7 +300,7 @@
         </a>
 
         <!-- Tab 2: Modalities Catalog -->
-        <a href="<?= app_url('services') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isServices ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>">
+        <a href="<?= app_url('services') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isServices ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>"<?= $isServices ? ' aria-current="page"' : '' ?>>
             <svg class="w-5 h-5 <?= $isServices ? 'stroke-[2.5]' : 'stroke-2' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
             </svg>
@@ -278,7 +318,7 @@
         </a>
 
         <!-- Tab 4: My Bookings -->
-        <a href="<?= app_url('my-bookings') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isMyBookings ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>">
+        <a href="<?= app_url('my-bookings') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isMyBookings ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>"<?= $isMyBookings ? ' aria-current="page"' : '' ?>>
             <svg class="w-5 h-5 <?= $isMyBookings ? 'stroke-[2.5]' : 'stroke-2' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
             </svg>
@@ -286,7 +326,7 @@
         </a>
 
         <!-- Tab 5: Account / Profile -->
-        <a href="<?= !empty($_SESSION['user_id']) ? app_url('profile') : app_url('login') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isProfile ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>">
+        <a href="<?= !empty($_SESSION['user_id']) ? app_url('profile') : app_url('login') ?>" class="app-touch-target flex flex-col items-center justify-center py-1 px-2.5 transition-colors <?= $isProfile ? 'text-[#075183]' : 'text-slate-500 hover:text-slate-600' ?>"<?= $isProfile ? ' aria-current="page"' : '' ?>>
             <svg class="w-5 h-5 <?= $isProfile ? 'stroke-[2.5]' : 'stroke-2' ?>" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>

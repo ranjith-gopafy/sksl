@@ -93,6 +93,11 @@ class Router
      */
     private function getUri(): string
     {
+        // Shared with the layout (canonical URL, active nav) when bootstrap is loaded.
+        if (function_exists('request_path')) {
+            return request_path();
+        }
+
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
         $uri = rawurldecode($uri ?? '/');
 

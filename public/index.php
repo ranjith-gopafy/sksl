@@ -41,6 +41,36 @@ $router->get('/terms', [HomeController::class, 'terms']);
 $router->get('/cancellation-refund', [HomeController::class, 'cancellation']);
 $router->get('/contact', [HomeController::class, 'contact']);
 
+// ─── Crawler files (generated so URLs follow APP_URL / deployment path) ────
+$router->get('/robots.txt', function () {
+    header('Content-Type: text/plain; charset=UTF-8');
+    header('Cache-Control: public, max-age=86400');
+    // Paths are root-relative, so prefix the deployment directory when the app
+    // is not served from the domain root (e.g. http://host/sksl -> /sksl/admin).
+    $basePath = rtrim((string) (parse_url(app_base_url(), PHP_URL_PATH) ?: ''), '/');
+    echo "User-agent: *\n";
+    foreach (\App\Helpers\Seo::disallowedPaths() as $path) {
+        echo 'Disallow: ' . $basePath . $path . "\n";
+    }
+    echo 'Allow: ' . ($basePath !== '' ? $basePath . '/' : '/') . "\n\n";
+    echo 'Sitemap: ' . app_url('sitemap.xml') . "\n";
+});
+
+$router->get('/sitemap.xml', function () {
+    header('Content-Type: application/xml; charset=UTF-8');
+    header('Cache-Control: public, max-age=86400');
+    echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+    echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+    foreach (\App\Helpers\Seo::sitemapEntries() as $entry) {
+        echo "  <url>\n";
+        echo '    <loc>' . htmlspecialchars($entry['loc'], ENT_XML1 | ENT_QUOTES, 'UTF-8') . "</loc>\n";
+        echo '    <changefreq>' . $entry['changefreq'] . "</changefreq>\n";
+        echo '    <priority>' . $entry['priority'] . "</priority>\n";
+        echo "  </url>\n";
+    }
+    echo '</urlset>' . "\n";
+});
+
 // ─── Public API Routes ────────────────────────────────────────────────────
 $router->get('/api/services', [ServiceController::class, 'apiIndex']);
 $router->get('/api/services/{id}', [ServiceController::class, 'apiShow']);

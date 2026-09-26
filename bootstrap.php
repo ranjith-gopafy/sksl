@@ -236,6 +236,33 @@ function app_base_url(): string
 }
 
 /**
+ * Application-relative request path, e.g. "/", "/services", "/admin/bookings".
+ * Strips the deployment base directory (both "/sksl/public/..." and the
+ * root-.htaccess form "/sksl/...") and any trailing slash. Used by the Router
+ * and by the layout for canonical URLs and active-navigation state.
+ */
+function request_path(): string
+{
+    $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+    $uri = rawurldecode($uri ?? '/');
+
+    $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+    $candidates = [$base];
+    if (str_ends_with($base, '/public')) {
+        $candidates[] = rtrim(substr($base, 0, -strlen('/public')), '/');
+    }
+    foreach ($candidates as $candidate) {
+        if ($candidate !== '' && ($uri === $candidate || str_starts_with($uri, $candidate . '/'))) {
+            $uri = substr($uri, strlen($candidate));
+            break;
+        }
+    }
+
+    $uri = '/' . ltrim($uri, '/');
+    return $uri !== '/' ? rtrim($uri, '/') : '/';
+}
+
+/**
  * Return the full public URL for a static asset.
  * Example: asset('css/app.css') → http://localhost/sksl/public/css/app.css
  */

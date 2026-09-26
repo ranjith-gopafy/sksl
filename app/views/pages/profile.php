@@ -33,6 +33,13 @@
                     <a href="<?= app_url('my-bookings') ?>" class="block w-full py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold text-center border border-slate-200 transition-colors">
                         View My Bookings &rarr;
                     </a>
+                    <!-- Only sign-out control reachable on phones (the header one is desktop-only) -->
+                    <form method="POST" action="<?= app_url('logout') ?>" class="mt-3">
+                        <?= \App\Helpers\Csrf::field() ?>
+                        <button type="submit" class="block w-full py-3 px-4 rounded-xl bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold text-center border border-rose-200 transition-colors cursor-pointer">
+                            Sign Out
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
