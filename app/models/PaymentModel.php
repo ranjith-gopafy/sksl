@@ -69,6 +69,18 @@ class PaymentModel
     }
 
     /**
+     * Find the settled (paid) payment for a booking, if any.
+     */
+    public function findPaidByBookingId(int $bookingId): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM payments WHERE booking_id = ? AND status = 'paid' ORDER BY paid_at DESC, id DESC LIMIT 1"
+        );
+        $stmt->execute([$bookingId]);
+        return $stmt->fetch() ?: null;
+    }
+
+    /**
      * Mark payment as paid. Idempotent: a row that is already paid is never
      * overwritten, so a late duplicate callback cannot replace the payment id.
      */

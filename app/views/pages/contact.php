@@ -1,3 +1,18 @@
+<?php
+$biz = (array) config('business', []);
+$bizName    = $biz['trade_name'] ?: 'Sara Kinetic Sports Lab';
+$bizAddress = array_filter([
+    $biz['address_line1'] ?? '',
+    $biz['address_line2'] ?? '',
+    trim(($biz['city'] ?? 'Bengaluru') . (!empty($biz['pincode']) ? ' – ' . $biz['pincode'] : '')),
+    trim(($biz['state_name'] ?? 'Karnataka') . ', India'),
+]);
+$bizPhone   = (string) ($biz['phone'] ?? '');
+$bizEmail   = (string) ($biz['support_email'] ?? '');
+$facility   = (array) config('app.facility', []);
+$openLabel  = date('g:i A', strtotime($facility['open'] ?? '06:00'));
+$closeLabel = date('g:i A', strtotime($facility['close'] ?? '22:00'));
+?>
 <div class="max-w-4xl mx-auto px-4 py-12">
     <div class="text-center max-w-2xl mx-auto mb-12">
         <span class="text-xs font-bold uppercase tracking-widest text-sky-600">Visit Our Facility</span>
@@ -8,7 +23,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- Facility Info Card -->
         <div class="bg-white border border-slate-200/90 rounded-3xl p-8 shadow-xs space-y-6">
-            <h2 class="text-xl font-bold text-slate-900 font-heading">Sara Kinetic Sports Lab</h2>
+            <h2 class="text-xl font-bold text-slate-900 font-heading"><?= h($bizName) ?></h2>
             
             <div class="flex items-start gap-4">
                 <div class="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-200 text-sky-700 flex items-center justify-center shrink-0 mt-1">
@@ -19,11 +34,12 @@
                 </div>
                 <div>
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Facility Location</h3>
-                    <p class="text-sm text-slate-800 mt-1 leading-relaxed">
-                        Sara Kinetic Sports Lab<br>
-                        Sports City Complex, OMR Corridor<br>
-                        Bengaluru, Karnataka, India
-                    </p>
+                    <address class="text-sm text-slate-800 mt-1 leading-relaxed" style="font-style: normal;">
+                        <?= h($bizName) ?><br>
+                        <?php foreach ($bizAddress as $line): ?>
+                            <?= h($line) ?><br>
+                        <?php endforeach; ?>
+                    </address>
                 </div>
             </div>
 
@@ -36,7 +52,7 @@
                 <div>
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Operating Hours</h3>
                     <p class="text-sm text-slate-800 mt-1">
-                        <strong>Daily:</strong> 6:00 AM – 10:00 PM IST<br>
+                        <strong>Daily:</strong> <?= h($openLabel) ?> – <?= h($closeLabel) ?> IST<br>
                         <span class="text-xs text-slate-500">Open all 7 days for athlete appointments.</span>
                     </p>
                 </div>
@@ -49,10 +65,21 @@
                     </svg>
                 </div>
                 <div>
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Email &amp; Support</h3>
-                    <p class="text-sm text-slate-800 mt-1">
-                        support@sksl.in<br>
-                        operations@sksl.in
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Phone, Email &amp; Support</h3>
+                    <p class="text-sm text-slate-800 mt-1 space-y-0.5">
+                        <?php if ($bizPhone !== ''): ?>
+                            <a href="tel:<?= h(preg_replace('/[^0-9+]/', '', $bizPhone)) ?>" class="block text-sky-700 font-semibold hover:underline"><?= h($bizPhone) ?></a>
+                        <?php endif; ?>
+                        <?php if ($bizEmail !== ''): ?>
+                            <a href="mailto:<?= h($bizEmail) ?>" class="block text-sky-700 font-semibold hover:underline"><?= h($bizEmail) ?></a>
+                        <?php endif; ?>
+                        <?php if ($bizPhone === '' && $bizEmail === ''): ?>
+                            <span class="text-slate-500">Contact details will be published shortly. Please speak to reception.</span>
+                        <?php endif; ?>
+                    </p>
+                    <p class="text-xs text-slate-500 mt-2">
+                        For cancellations or refunds, contact us with your booking reference. See the
+                        <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-600 font-semibold hover:underline">Cancellation &amp; Refund Policy</a>.
                     </p>
                 </div>
             </div>

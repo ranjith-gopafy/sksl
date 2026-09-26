@@ -76,7 +76,8 @@ echo "\n4. Testing Legal & Informational Pages...\n";
 $allPassed = checkUrl("{$baseUrl}/privacy-policy", 'Privacy Policy') && $allPassed;
 $allPassed = checkUrl("{$baseUrl}/terms", 'Facility Terms &amp; Conditions') && $allPassed;
 $allPassed = checkUrl("{$baseUrl}/cancellation-refund", 'Cancellation &amp; Refund Policy') && $allPassed;
-$allPassed = checkUrl("{$baseUrl}/contact", 'Sports City Complex') && $allPassed;
+$allPassed = checkUrl("{$baseUrl}/contact", 'Phone, Email &amp; Support') && $allPassed;
+$allPassed = checkUrl("{$baseUrl}/contact", 'Cancellation &amp; Refund Policy') && $allPassed;
 
 echo "\n============================================\n";
 if ($allPassed) {

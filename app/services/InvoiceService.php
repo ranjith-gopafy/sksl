@@ -55,45 +55,171 @@ class InvoiceService
             return null;
         }
 
-        $payment = $this->paymentModel->findByBookingId((int) $booking['id']);
+        // A tax invoice documents a completed sale. No paid payment => no invoice.
+        if (!in_array($booking['booking_status'], ['confirmed', 'completed'], true)
+            || ($booking['payment_status'] ?? '') !== 'paid') {
+            throw new InvoiceNotAvailableException(
+                'Tax invoice is only issued for paid, confirmed bookings (booking is ' . $booking['booking_status'] . ').'
+            );
+        }
+
+        $payment = $this->paymentModel->findPaidByBookingId((int) $booking['id']);
+        if (!$payment || empty($payment['razorpay_payment_id'])) {
+            throw new InvoiceNotAvailableException('No settled payment record exists for this booking.');
+        }
+
+        $business = self::businessIdentity();
 
         $baseAmount = (float) $booking['base_amount'];
         $gstAmount  = (float) $booking['gst_amount'];
+        $gstPercent = (float) ($booking['gst_percent'] ?? 18.0);
+        $halfRate   = round($gstPercent / 2, 2);
         $cgstAmount = round($gstAmount / 2, 2);
         $sgstAmount = round($gstAmount - $cgstAmount, 2); // Avoid rounding split discrepancy
         $totalAmount= (float) $booking['total_amount'];
 
-        $createdTs  = strtotime($booking['created_at'] ?? 'now');
-        $invoiceNo  = 'INV-' . date('Ymd', $createdTs) . '-' . strtoupper(substr(hash('crc32b', $bookingReference), 0, 6));
+        $invoiceNo  = $this->assignInvoiceNumber($booking);
+        $paidTs     = strtotime($payment['paid_at'] ?? $booking['updated_at'] ?? 'now') ?: time();
 
         return [
             'invoice_number'       => $invoiceNo,
-            'invoice_date'         => date('d-m-Y', $createdTs),
+            'invoice_date'         => date('d-m-Y', $paidTs),
             'booking_reference'    => $booking['booking_reference'],
             'booking_date'         => date('d-m-Y', strtotime($booking['booking_date'])),
             'slot_window'          => date('h:i A', strtotime($booking['start_time'])) . ' – ' . date('h:i A', strtotime($booking['end_time'])) . ' IST',
-            'service_name'         => $booking['service_name'],
+            'service_name'         => $booking['service_name_snapshot'] ?: $booking['service_name'],
             'duration_minutes'     => (int) $booking['service_duration_minutes'],
             'customer_name'        => $booking['user_name'],
             'customer_email'       => $booking['user_email'],
             'customer_mobile'      => $booking['user_mobile'],
-            'sac_code'             => '999723',
+            'sac_code'             => $business['sac_code'],
             'base_amount'          => $baseAmount,
-            'cgst_percent'         => 9.0,
+            'gst_percent'          => $gstPercent,
+            'cgst_percent'         => $halfRate,
             'cgst_amount'          => $cgstAmount,
-            'sgst_percent'         => 9.0,
+            'sgst_percent'         => $halfRate,
             'sgst_amount'          => $sgstAmount,
             'total_amount'         => $totalAmount,
-            'payment_status'       => $booking['payment_status'] ?? 'paid',
+            'payment_status'       => 'paid',
             'payment_method'       => 'Razorpay Online Gateway',
-            'razorpay_payment_id'  => $payment['razorpay_payment_id'] ?? 'ONLINE-GATEWAY',
-            'razorpay_order_id'    => $payment['razorpay_order_id'] ?? 'N/A',
-            'business_name'        => 'Sara Kinetic Sports Lab',
-            'business_tagline'     => 'Recover. Recharge. Perform.',
-            'business_address'     => 'Athletic Recovery & Thermal Therapy Center, Bengaluru, Karnataka, India',
-            'business_gstin'       => '33AATCS1234F1Z9',
-            'business_contact'     => 'support@sk-sports-lab.com | +91 98765 43210',
+            'razorpay_payment_id'  => $payment['razorpay_payment_id'],
+            'razorpay_order_id'    => $payment['razorpay_order_id'],
+            'business_name'        => $business['legal_name'],
+            'business_tagline'     => $business['tagline'],
+            'business_address'     => $business['address'],
+            'business_gstin'       => $business['gstin'],
+            'business_state'       => $business['state_name'],
+            'business_state_code'  => $business['state_code'],
+            'business_contact'     => $business['contact'],
+            'is_specimen'          => $business['is_specimen'],
         ];
+    }
+
+    /**
+     * Validated business identity for invoices.
+     *
+     * Production: refuses to proceed unless a well-formed GSTIN and an address are set.
+     * Local/testing: substitutes clearly-labelled placeholders and flags the PDF as SPECIMEN.
+     *
+     * @return array<string, mixed>
+     */
+    public static function businessIdentity(): array
+    {
+        $cfg = (array) config('business', []);
+        $env = (string) config('app.env', 'production');
+        $nonProd = in_array($env, ['local', 'testing'], true);
+
+        $gstin = strtoupper(trim((string) ($cfg['gstin'] ?? '')));
+        $gstinValid = (bool) preg_match('/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/', $gstin);
+        $addressParts = array_filter([
+            trim((string) ($cfg['address_line1'] ?? '')),
+            trim((string) ($cfg['address_line2'] ?? '')),
+            trim(((string) ($cfg['city'] ?? '')) . (($cfg['pincode'] ?? '') !== '' ? ' - ' . $cfg['pincode'] : '')),
+            trim((string) ($cfg['state_name'] ?? '')),
+        ]);
+        $hasAddress = trim((string) ($cfg['address_line1'] ?? '')) !== '' && trim((string) ($cfg['pincode'] ?? '')) !== '';
+
+        $isSpecimen = false;
+        if (!$gstinValid || !$hasAddress) {
+            if (!$nonProd) {
+                throw new \RuntimeException(
+                    'Invoice identity is not configured. Set BUSINESS_GSTIN, BUSINESS_ADDRESS_LINE1 and BUSINESS_PINCODE in .env.'
+                );
+            }
+            $isSpecimen = true;
+            if (!$gstinValid) {
+                $gstin = 'NOT CONFIGURED';
+            }
+            if (!$hasAddress) {
+                $addressParts = ['Address not configured (set BUSINESS_ADDRESS_* in .env)', (string) ($cfg['city'] ?? 'Bengaluru'), (string) ($cfg['state_name'] ?? 'Karnataka')];
+            }
+        }
+
+        $contactParts = array_filter([
+            trim((string) ($cfg['support_email'] ?? '')),
+            trim((string) ($cfg['phone'] ?? '')),
+        ]);
+
+        return [
+            'legal_name'  => (string) ($cfg['legal_name'] ?: 'Sara Kinetic Sports Lab'),
+            'trade_name'  => (string) ($cfg['trade_name'] ?: 'Sara Kinetic Sports Lab'),
+            'tagline'     => (string) ($cfg['tagline'] ?? ''),
+            'gstin'       => $gstin,
+            'state_name'  => (string) ($cfg['state_name'] ?? 'Karnataka'),
+            'state_code'  => (string) ($cfg['state_code'] ?? '29'),
+            'address'     => implode(', ', $addressParts),
+            'contact'     => $contactParts ? implode(' | ', $contactParts) : 'the facility reception',
+            'sac_code'    => (string) ($cfg['sac_code'] ?: '999723'),
+            'prefix'      => (string) ($cfg['invoice_prefix'] ?: 'SKSL'),
+            'is_specimen' => $isSpecimen,
+        ];
+    }
+
+    /**
+     * Assign a sequential invoice number once and persist it on the booking.
+     * Format: {PREFIX}/{FY}/{000001}, FY = Indian financial year (Apr–Mar), e.g. SKSL/2026-27/000042.
+     *
+     * @param array<string, mixed> $booking
+     */
+    private function assignInvoiceNumber(array $booking): string
+    {
+        if (!empty($booking['invoice_number'])) {
+            return (string) $booking['invoice_number'];
+        }
+
+        $prefix = self::businessIdentity()['prefix'];
+        $now    = new \DateTimeImmutable('now');
+        $year   = (int) $now->format('Y');
+        $fyStart = ((int) $now->format('n') >= 4) ? $year : $year - 1;
+        $fy = $fyStart . '-' . substr((string) ($fyStart + 1), -2);
+        $like = $prefix . '/' . $fy . '/%';
+
+        // Serialize numbering across concurrent requests
+        $this->db->query("SELECT GET_LOCK('sksl_invoice_seq', 5)");
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT MAX(CAST(SUBSTRING_INDEX(invoice_number, "/", -1) AS UNSIGNED))
+                 FROM bookings WHERE invoice_number LIKE ?'
+            );
+            $stmt->execute([$like]);
+            $next = ((int) $stmt->fetchColumn()) + 1;
+            $number = sprintf('%s/%s/%06d', $prefix, $fy, $next);
+
+            $upd = $this->db->prepare(
+                'UPDATE bookings SET invoice_number = ? WHERE id = ? AND invoice_number IS NULL'
+            );
+            $upd->execute([$number, (int) $booking['id']]);
+            if ($upd->rowCount() === 0) {
+                // Another request numbered it first; read back
+                $re = $this->db->prepare('SELECT invoice_number FROM bookings WHERE id = ?');
+                $re->execute([(int) $booking['id']]);
+                $number = (string) $re->fetchColumn();
+            }
+        } finally {
+            $this->db->query("SELECT RELEASE_LOCK('sksl_invoice_seq')");
+        }
+
+        return $number;
     }
 
     /**
@@ -270,6 +396,11 @@ class InvoiceService
                     </td>
                 </tr>
             </table>
+            <?php if (!empty($data['is_specimen'])): ?>
+            <div style="border: 2px solid #b91c1c; color: #b91c1c; padding: 8px; text-align: center; font-weight: bold; margin-bottom: 14px;">
+                SPECIMEN — business identity not configured. Not a valid tax invoice.
+            </div>
+            <?php endif; ?>
 
             <!-- Customer & Session Metadata -->
             <table class="meta-table">
@@ -280,7 +411,7 @@ class InvoiceService
                             <strong><?= htmlspecialchars($data['customer_name'], ENT_QUOTES, 'UTF-8') ?></strong><br>
                             Email: <?= htmlspecialchars($data['customer_email'], ENT_QUOTES, 'UTF-8') ?><br>
                             Phone: <?= htmlspecialchars($data['customer_mobile'], ENT_QUOTES, 'UTF-8') ?><br>
-                            Place of Supply: Karnataka (33)
+                            Place of Supply: <?= htmlspecialchars($data['business_state'], ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($data['business_state_code'], ENT_QUOTES, 'UTF-8') ?>)
                         </div>
                     </td>
                     <td style="width: 4%;"></td>
@@ -330,11 +461,11 @@ class InvoiceService
                     <td class="text-right">&#8377;<?= number_format((float) $data['base_amount'], 2) ?></td>
                 </tr>
                 <tr>
-                    <td class="text-right" style="color: #64748b;">CGST (9.0%):</td>
+                    <td class="text-right" style="color: #64748b;">CGST (<?= number_format((float) $data['cgst_percent'], 1) ?>%):</td>
                     <td class="text-right">&#8377;<?= number_format((float) $data['cgst_amount'], 2) ?></td>
                 </tr>
                 <tr>
-                    <td class="text-right" style="color: #64748b;">SGST (9.0%):</td>
+                    <td class="text-right" style="color: #64748b;">SGST (<?= number_format((float) $data['sgst_percent'], 1) ?>%):</td>
                     <td class="text-right">&#8377;<?= number_format((float) $data['sgst_amount'], 2) ?></td>
                 </tr>
                 <tr class="grand-total">
@@ -355,7 +486,7 @@ class InvoiceService
             <div class="footer">
                 This is a computer-generated tax invoice issued in accordance with the Central Goods and Services Tax Act, 2017.<br>
                 For questions or support, contact <?= htmlspecialchars($data['business_contact'], ENT_QUOTES, 'UTF-8') ?>.<br>
-                Sara Kinetic Sports Lab &bull; Recover. Recharge. Perform.
+                <?= htmlspecialchars($data['business_name'], ENT_QUOTES, 'UTF-8') ?><?= $data['business_tagline'] !== '' ? ' &bull; ' . htmlspecialchars($data['business_tagline'], ENT_QUOTES, 'UTF-8') : '' ?>
             </div>
         </body>
         </html>
@@ -371,14 +502,16 @@ class InvoiceService
     {
         $outputPath = $this->storageDir . '/' . $bookingReference . '.pdf';
 
-        // Cache hit: return if already generated
-        if (file_exists($outputPath) && filesize($outputPath) > 1000) {
-            return $outputPath;
-        }
-
+        // Eligibility is re-checked on every call, even for a cached file, so a booking
+        // that was later cancelled/refunded cannot keep serving its old invoice.
         $data = $this->getInvoiceData($bookingReference);
         if (!$data) {
             throw new \RuntimeException('Booking reference not found for invoice generation: ' . $bookingReference);
+        }
+
+        // Cache hit: return if already generated (never cache a specimen)
+        if (empty($data['is_specimen']) && file_exists($outputPath) && filesize($outputPath) > 1000) {
+            return $outputPath;
         }
 
         $html = $this->renderHtml($data);
@@ -393,8 +526,8 @@ class InvoiceService
             'margin_bottom' => 15,
         ]);
 
-        $mpdf->SetTitle('SKSL Tax Invoice - ' . $data['invoice_number']);
-        $mpdf->SetAuthor('Sara Kinetic Sports Lab');
+        $mpdf->SetTitle('Tax Invoice ' . $data['invoice_number']);
+        $mpdf->SetAuthor((string) $data['business_name']);
         $mpdf->WriteHTML($html);
         $mpdf->Output($outputPath, \Mpdf\Output\Destination::FILE);
 
@@ -420,14 +553,18 @@ class InvoiceService
             exit;
         }
 
-        // Restrict invoice download: tax invoices are not issued for cancelled or pending bookings
-        if ($booking['booking_status'] === 'cancelled' || $booking['booking_status'] === 'pending') {
+        try {
+            $pdfPath = $this->generateInvoicePdf($bookingReference);
+        } catch (InvoiceNotAvailableException $e) {
             http_response_code(403);
-            echo 'Tax Invoice is not available for ' . htmlspecialchars($booking['booking_status']) . ' bookings.';
+            echo 'Tax Invoice is not available for ' . htmlspecialchars($booking['booking_status'], ENT_QUOTES, 'UTF-8') . ' bookings.';
+            exit;
+        } catch (\Throwable $e) {
+            error_log('Invoice generation failed for ' . $bookingReference . ': ' . $e->getMessage());
+            http_response_code(503);
+            echo 'Invoice is temporarily unavailable. Please contact SKSL.';
             exit;
         }
-
-        $pdfPath = $this->generateInvoicePdf($bookingReference);
 
         if (!file_exists($pdfPath)) {
             http_response_code(500);
@@ -435,8 +572,9 @@ class InvoiceService
             exit;
         }
 
+        $safeRef = preg_replace('/[^A-Za-z0-9\-]/', '', $bookingReference);
         header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="SKSL_Invoice_' . $bookingReference . '.pdf"');
+        header('Content-Disposition: attachment; filename="SKSL_Invoice_' . $safeRef . '.pdf"');
         header('Content-Length: ' . (string) filesize($pdfPath));
         header('Cache-Control: private, max-age=0, must-revalidate');
         header('Pragma: public');

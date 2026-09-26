@@ -113,6 +113,7 @@ function config(string $key, mixed $default = null): mixed
             'database' => require __DIR__ . '/config/database.php',
             'mail'     => require __DIR__ . '/config/mail.php',
             'razorpay' => require __DIR__ . '/config/razorpay.php',
+            'business' => require __DIR__ . '/config/business.php',
         ];
     }
 

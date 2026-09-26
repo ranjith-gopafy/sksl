@@ -71,25 +71,54 @@ assert($paymentModel->findByOrderId($orderId)['razorpay_payment_id'] === $paymen
 echo "[PASS] 3. Linked payment record created (Payment ID: $paymentId)\n";
 
 // 4. Test getInvoiceData()
+$identity = \App\Services\InvoiceService::businessIdentity();
 $invData = $invoiceSvc->getInvoiceData($bookingRef);
 assert($invData !== null, 'Invoice data was null');
-assert(str_starts_with($invData['invoice_number'], 'INV-'), 'Invoice number does not start with INV-');
-assert($invData['sac_code'] === '999723', 'SAC Code is not 999723');
+assert((bool) preg_match('#^[A-Z0-9]+/\d{4}-\d{2}/\d{6}$#', $invData['invoice_number']), 'Invoice number must be PREFIX/FY/000001, got ' . $invData['invoice_number']);
+assert($invData['sac_code'] === $identity['sac_code'], 'SAC Code must come from business config');
 assert($invData['base_amount'] === 499.00, 'Base amount mismatch');
+assert($invData['cgst_percent'] === 9.0 && $invData['sgst_percent'] === 9.0, 'GST split must derive from stored gst_percent (18 -> 9 + 9)');
 assert($invData['cgst_amount'] === 44.91, 'CGST 9% mismatch');
 assert($invData['sgst_amount'] === 44.91, 'SGST 9% mismatch');
 assert(round($invData['cgst_amount'] + $invData['sgst_amount'], 2) === 89.82, 'Total GST sum mismatch');
 assert($invData['total_amount'] === 588.82, 'Total amount mismatch');
-assert($invData['business_gstin'] === '33AATCS1234F1Z9', 'GSTIN mismatch');
-echo "[PASS] 4. Authoritative invoice data validated (GST split: ₹44.91 CGST + ₹44.91 SGST = ₹89.82)\n";
+assert($invData['business_gstin'] === $identity['gstin'], 'GSTIN must come from business config');
+assert($invData['business_gstin'] !== '33AATCS1234F1Z9', 'Placeholder GSTIN must be gone');
+echo "[PASS] 4. Authoritative invoice data validated (GST split: ₹44.91 CGST + ₹44.91 SGST = ₹89.82; GSTIN from config" . ($identity['is_specimen'] ? ', SPECIMEN mode' : '') . ")\n";
+
+// 4b. Invoice number is assigned once and persisted
+$again = $invoiceSvc->getInvoiceData($bookingRef);
+assert($again['invoice_number'] === $invData['invoice_number'], 'Invoice number must be stable');
+$stored = $bookingModel->findByReference($bookingRef);
+assert($stored['invoice_number'] === $invData['invoice_number'], 'Invoice number must be stored on the booking');
+echo "[PASS] 4b. Invoice number persisted on booking: {$invData['invoice_number']}\n";
+
+// 4c. Unpaid / cancelled bookings cannot get an invoice
+$bookingModel->updateStatus($bookingId, 'cancelled');
+try {
+    $invoiceSvc->getInvoiceData($bookingRef);
+    assert(false, 'Cancelled booking must not receive an invoice');
+} catch (\App\Services\InvoiceNotAvailableException $e) {
+    echo "[PASS] 4c. Cancelled booking refused an invoice\n";
+}
+$bookingModel->updateStatus($bookingId, 'confirmed', 'pending');
+try {
+    $invoiceSvc->getInvoiceData($bookingRef);
+    assert(false, 'Unpaid booking must not receive an invoice');
+} catch (\App\Services\InvoiceNotAvailableException $e) {
+    echo "[PASS] 4d. Unpaid booking refused an invoice\n";
+}
+$bookingModel->updateStatus($bookingId, 'confirmed', 'paid');
 
 // 5. Test renderHtml()
 $html = $invoiceSvc->renderHtml($invData);
 assert(str_contains($html, 'TAX INVOICE'), 'Missing TAX INVOICE heading');
-assert(str_contains($html, '33AATCS1234F1Z9'), 'Missing GSTIN');
-assert(str_contains($html, '999723'), 'Missing SAC code');
+assert(str_contains($html, $identity['gstin']), 'Missing GSTIN');
+assert(str_contains($html, $identity['sac_code']), 'Missing SAC code');
 assert(str_contains($html, $invData['invoice_number']), 'Missing invoice number');
 assert(str_contains($html, $paymentId), 'Missing payment ID in audit trail');
+assert(!str_contains($html, '98765 43210') && !str_contains($html, 'sk-sports-lab.com'), 'Placeholder contact details must be gone');
+assert($identity['is_specimen'] ? str_contains($html, 'SPECIMEN') : !str_contains($html, 'SPECIMEN'), 'SPECIMEN stamp must match configuration state');
 echo "[PASS] 5. HTML invoice template rendered with compliant GST headers\n";
 
 // 6. Test generateInvoicePdf() using mPDF

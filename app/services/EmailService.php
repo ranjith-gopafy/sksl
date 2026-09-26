@@ -119,14 +119,21 @@ HTML;
     public function sendBookingConfirmation(array $booking, ?string $invoicePdfPath = null): bool
     {
         $toEmail = (string) ($booking['user_email'] ?? '');
-        $toName  = (string) ($booking['user_name'] ?? 'Athlete');
-        $ref     = (string) ($booking['booking_reference'] ?? '');
-        $service = (string) ($booking['service_name'] ?? 'Recovery Session');
+        $toNameRaw  = (string) ($booking['user_name'] ?? 'Athlete');
+        $serviceRaw = (string) ($booking['service_name_snapshot'] ?: ($booking['service_name'] ?? 'Recovery Session'));
+        $refRaw     = (string) ($booking['booking_reference'] ?? '');
+        // Everything interpolated into the HTML body is escaped; the plain-text body uses the raw values.
+        $toName  = htmlspecialchars($toNameRaw, ENT_QUOTES, 'UTF-8');
+        $ref     = htmlspecialchars($refRaw, ENT_QUOTES, 'UTF-8');
+        $service = htmlspecialchars($serviceRaw, ENT_QUOTES, 'UTF-8');
         $date    = date('l, d F Y', strtotime((string) $booking['booking_date']));
         $time    = date('h:i A', strtotime((string) $booking['start_time'])) . ' – ' . date('h:i A', strtotime((string) $booking['end_time'])) . ' IST';
         $amount  = number_format((float) ($booking['total_amount'] ?? 0), 2);
+        $myBookingsUrl = htmlspecialchars(app_url('my-bookings'), ENT_QUOTES, 'UTF-8');
+        $business = (array) config('business', []);
+        $footerLine = htmlspecialchars(trim(($business['trade_name'] ?? 'Sara Kinetic Sports Lab') . ' • ' . ($business['city'] ?? 'Bengaluru') . ', ' . ($business['state_name'] ?? 'Karnataka') . ', India'), ENT_QUOTES, 'UTF-8');
 
-        $subject = "Confirmed: Your {$service} Session on {$date} ({$ref})";
+        $subject = "Confirmed: Your {$serviceRaw} Session on {$date} ({$refRaw})";
 
         $htmlBody = <<<HTML
 <!DOCTYPE html>
@@ -248,14 +255,13 @@ HTML;
 
             <!-- CTA -->
             <div class="cta-wrap">
-                <a href="https://sk-sports-lab.com/my-bookings" class="cta-btn">View My Bookings</a>
+                <a href="{$myBookingsUrl}" class="cta-btn">View My Bookings</a>
             </div>
 
             <!-- Footer -->
             <div class="footer">
-                Sara Kinetic Sports Lab &bull; Bengaluru, Karnataka, India<br>
-                This is an automated confirmation. Please do not reply to this email.<br>
-                &copy; <?= date('Y') ?> Sara Kinetic Sports Lab. All rights reserved.
+                {$footerLine}<br>
+                This is an automated confirmation. Please do not reply to this email.
             </div>
         </div>
     </div>
@@ -263,11 +269,11 @@ HTML;
 </html>
 HTML;
 
-        $altBody = "Hello {$toName},\n\nYour session at Sara Kinetic Sports Lab is confirmed!\n\nBooking Ref: {$ref}\nModality: {$service}\nDate: {$date}\nTime: {$time}\nTotal Paid: INR {$amount}\n\nPlease arrive 10 minutes prior to your session.\nTax Invoice attached.";
+        $altBody = "Hello {$toNameRaw},\n\nYour session at Sara Kinetic Sports Lab is confirmed!\n\nBooking Ref: {$refRaw}\nModality: {$serviceRaw}\nDate: {$date}\nTime: {$time}\nTotal Paid: INR {$amount}\n\nPlease arrive 10 minutes prior to your session.\nTax Invoice attached.";
 
-        $attachmentName = $invoicePdfPath ? "SKSL_Invoice_{$ref}.pdf" : null;
+        $attachmentName = $invoicePdfPath ? "SKSL_Invoice_{$refRaw}.pdf" : null;
 
-        return $this->send($toEmail, $toName, $subject, $htmlBody, $altBody, $invoicePdfPath, $attachmentName);
+        return $this->send($toEmail, $toNameRaw, $subject, $htmlBody, $altBody, $invoicePdfPath, $attachmentName);
     }
 
     /**
@@ -279,19 +285,22 @@ HTML;
     {
         $adminEmail = trim((string) ($this->config['admin_email'] ?? ''));
         if ($adminEmail === '') {
-            $adminEmail = 'admin@sk-sports-lab.com';
+            error_log('EmailService: ADMIN_EMAIL not configured; admin booking notification not sent.');
+            return false;
         }
 
-        $ref     = (string) ($booking['booking_reference'] ?? '');
-        $service = (string) ($booking['service_name'] ?? '');
-        $custName= (string) ($booking['user_name'] ?? '');
-        $custMail= (string) ($booking['user_email'] ?? '');
-        $custMob = (string) ($booking['user_mobile'] ?? '');
+        $e = static fn(string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+        $ref     = $e((string) ($booking['booking_reference'] ?? ''));
+        $service = $e((string) ($booking['service_name_snapshot'] ?: ($booking['service_name'] ?? '')));
+        $custName= $e((string) ($booking['user_name'] ?? ''));
+        $custMail= $e((string) ($booking['user_email'] ?? ''));
+        $custMob = $e((string) ($booking['user_mobile'] ?? ''));
         $date    = (string) ($booking['booking_date'] ?? '');
         $time    = (string) ($booking['start_time'] ?? '') . ' - ' . (string) ($booking['end_time'] ?? '');
         $amount  = number_format((float) ($booking['total_amount'] ?? 0), 2);
 
-        $subject = "[New Booking] {$service} — {$custName} ({$ref})";
+        $subject = '[New Booking] ' . (string) ($booking['service_name_snapshot'] ?: ($booking['service_name'] ?? ''))
+                 . ' — ' . (string) ($booking['user_name'] ?? '') . ' (' . (string) ($booking['booking_reference'] ?? '') . ')';
 
         $htmlBody = <<<HTML
 <!DOCTYPE html>
