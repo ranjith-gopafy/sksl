@@ -70,6 +70,28 @@ try {
 // ── Run migrations ────────────────────────────────────────────────────────
 cliHead('=== SKSL Migration Runner ===');
 
+// Applied-migration ledger. Files recorded here are never executed again, which
+// makes ALTER TABLE migrations safe on MySQL (no ADD COLUMN IF NOT EXISTS there).
+$db->exec(
+    'CREATE TABLE IF NOT EXISTS `migrations` (
+        `filename`   VARCHAR(191) NOT NULL,
+        `applied_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`filename`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+);
+$applied = $db->query('SELECT filename FROM migrations')->fetchAll(PDO::FETCH_COLUMN) ?: [];
+$applied = array_flip($applied);
+
+/**
+ * MySQL/MariaDB error codes that mean "this DDL was already applied".
+ * 1050 table exists, 1060 duplicate column, 1061 duplicate key, 1091 can't drop (missing).
+ */
+function isAlreadyAppliedError(PDOException $e): bool
+{
+    $code = (int) ($e->errorInfo[1] ?? 0);
+    return in_array($code, [1050, 1060, 1061, 1091], true);
+}
+
 $migrationDir = __DIR__ . '/migrations/';
 $files        = glob($migrationDir . '*.sql');
 
@@ -87,8 +109,15 @@ $skipped = 0;
 foreach ($files as $file) {
     $filename = basename($file);
 
+    if (isset($applied[$filename])) {
+        if ($showOnly) {
+            cliOk("Applied:   $filename");
+        }
+        continue;
+    }
+
     if ($showOnly) {
-        cliInfo("Would run: $filename");
+        cliInfo("Pending:   $filename");
         continue;
     }
 
@@ -100,9 +129,17 @@ foreach ($files as $file) {
         // NOTE: MySQL DDL (CREATE TABLE / ALTER TABLE) causes implicit commits.
         // Transactions around DDL are not effective — execute statements directly.
         foreach ($statements as $stmt) {
-            $db->exec($stmt);
+            try {
+                $db->exec($stmt);
+            } catch (PDOException $e) {
+                if (!isAlreadyAppliedError($e)) {
+                    throw $e;
+                }
+                cliWarn("Skipped statement already applied in $filename (" . ($e->errorInfo[1] ?? '?') . ')');
+            }
         }
 
+        $db->prepare('INSERT IGNORE INTO migrations (filename) VALUES (?)')->execute([$filename]);
         cliOk("Done:    $filename");
         $ran++;
     } catch (PDOException $e) {
