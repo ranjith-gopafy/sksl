@@ -41,6 +41,15 @@ class AuthService
 
         $name = trim((string) ($input['name'] ?? ''));
         $email = strtolower(trim((string) ($input['email'] ?? '')));
+
+        // Rate limit: 10 attempts per email and 20 per IP, per hour (DB-backed).
+        $wait = RateLimit::throttle('cust_register', $email !== '' ? $email : RateLimit::clientIp(), 10, 20, 3600);
+        if ($wait > 0) {
+            return [
+                'success' => false,
+                'message' => 'Too many registration attempts. Please try again in ' . (int) ceil($wait / 60) . ' minute(s).',
+            ];
+        }
         $mobile = preg_replace('/\D/', '', (string) ($input['mobile'] ?? ''));
         $password = (string) ($input['password'] ?? '');
         $passwordConfirmation = (string) ($input['password_confirmation'] ?? '');
@@ -101,12 +110,13 @@ class AuthService
     public function login(string $email, string $password): array
     {
         $normalizedEmail = strtolower(trim($email));
-        $rateLimitKey = 'cust_login_' . md5($normalizedEmail);
+        $rateLimitKey = RateLimit::key('cust_login', $normalizedEmail);
 
-        // Rate limit: 5 attempts per 15 minutes (900 seconds)
-        if (!RateLimit::attempt($rateLimitKey, 5, 900)) {
-            $remaining = RateLimit::remainingSeconds($rateLimitKey);
-            $minutes = (int) ceil($remaining / 60);
+        // Rate limit (DB-backed, counts failures only):
+        // 5 failures per account and 30 per IP lock for 15 minutes.
+        $wait = RateLimit::retryAfter('cust_login', $normalizedEmail);
+        if ($wait > 0) {
+            $minutes = (int) ceil($wait / 60);
             return [
                 'success' => false,
                 'message' => "Too many failed login attempts. Please try again in {$minutes} minute(s).",
@@ -116,6 +126,7 @@ class AuthService
         $user = $this->userModel->findByEmail($normalizedEmail);
 
         if ($user === null || !password_verify($password, $user['password_hash'])) {
+            RateLimit::recordFailure('cust_login', $normalizedEmail, 5, 30, 900);
             return [
                 'success' => false,
                 'message' => 'Invalid email or password.',
@@ -177,9 +188,9 @@ class AuthService
     public function forgotPassword(string $email): array
     {
         $normalizedEmail = strtolower(trim($email));
-        $rateLimitKey = 'cust_forgot_' . md5($normalizedEmail);
 
-        if (!RateLimit::attempt($rateLimitKey, 3, 900)) {
+        // 3 reset emails per account and 10 per IP, per 15 minutes; response stays generic.
+        if (RateLimit::throttle('cust_forgot', $normalizedEmail, 3, 10, 900) > 0) {
             return [
                 'success' => true,
                 'message' => 'If an account with that email exists, a password reset link has been sent.',
@@ -240,6 +251,14 @@ class AuthService
             return [
                 'success' => false,
                 'message' => 'Passwords do not match.',
+            ];
+        }
+
+        // Token guessing is infeasible (256-bit), but throttle per IP anyway.
+        if (!RateLimit::attempt(RateLimit::key('cust_reset_ip', RateLimit::clientIp()), 10, 900)) {
+            return [
+                'success' => false,
+                'message' => 'Too many attempts. Please wait 15 minutes and try again.',
             ];
         }
 

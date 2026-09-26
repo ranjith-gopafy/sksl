@@ -13,6 +13,7 @@ const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
+  globalSetup: require.resolve('./tests/e2e/global-setup.js'),
   timeout: 30000,
   fullyParallel: false,        // Sequential for booking flow tests (shared DB state)
   forbidOnly: !!process.env.CI,

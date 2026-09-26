@@ -49,7 +49,9 @@ use App\Services\PaymentService;
 use App\Services\AvailabilityService;
 use App\Services\AdminAuthService;
 use App\Services\InvoiceService;
+use App\Services\AuthService;
 use App\Helpers\TimeHelper;
+use App\Helpers\RateLimit;
 
 echo "===================================================================\n";
 echo "SKSL — Comprehensive Security & Multi-Scenario Audit Test Suite\n";
@@ -58,6 +60,9 @@ echo "===================================================================\n\n";
 $db = getDb();
 $baseUrl = rtrim(config('app.url'), '/');
 $testRunId = time();
+
+// Rate limiter is DB-backed and per-IP: start every run from a clean slate
+$db->exec('DELETE FROM rate_limits');
 
 // Helper for HTTP requests
 function httpRequest(string $method, string $url, array $headers = [], array|string $body = null, ?string &$cookies = ''): array
@@ -525,6 +530,50 @@ assert($throttleRes['success'] === false, '6th OTP request within 15 min throttl
 assert(str_contains(strtolower($throttleRes['message']), 'too many login attempts'), 'Throttle message returned');
 echo "[PASS] 7.2 Database-backed OTP request throttling blocks rate-limit evasion\n";
 
+// 7.3 Customer login lockout cannot be evaded by discarding the session cookie (H4)
+$authService = new AuthService();
+$victimEmail = "victim_{$testRunId}@sk-sports-lab.test";
+$victimId = $userModel->create('Lockout Victim', $victimEmail, '9000000099', password_hash('CorrectHorse!9', PASSWORD_DEFAULT));
+$loginOnce = static function (string $email, string $password) use ($baseUrl): array {
+    $jar = ''; // brand-new session every time, like an attacker rotating cookies
+    $page = httpRequest('GET', $baseUrl . '/login', [], null, $jar);
+    preg_match('/name="_csrf_token"\s+value="([a-f0-9]+)"/i', $page['body'], $m);
+    $res = httpRequest('POST', $baseUrl . '/login', [], ['_csrf_token' => $m[1] ?? '', 'email' => $email, 'password' => $password], $jar);
+    // follow the redirect to read the flash message
+    $follow = httpRequest('GET', $baseUrl . '/login', [], null, $jar);
+    return [$res['code'], $follow['body'], $jar];
+};
+for ($i = 1; $i <= 5; $i++) {
+    [, $body] = $loginOnce($victimEmail, 'wrong-password');
+    assert(!str_contains($body, 'Too many failed login attempts'), "Failure {$i} is a normal rejection");
+}
+[, $lockedBody] = $loginOnce($victimEmail, 'CorrectHorse!9');
+assert(str_contains($lockedBody, 'Too many failed login attempts'), 'Correct password rejected while account is locked, even with a fresh session');
+$rlCheck = $db->prepare('SELECT locked_until FROM rate_limits WHERE rl_key = ?');
+$rlCheck->execute([RateLimit::key('cust_login', $victimEmail)]);
+assert($rlCheck->fetchColumn() !== null, 'Lockout is stored server-side in rate_limits');
+RateLimit::clear(RateLimit::key('cust_login', $victimEmail));
+[$okCode, , $okJar] = $loginOnce($victimEmail, 'CorrectHorse!9');
+$dash = httpRequest('GET', $baseUrl . '/my-bookings', [], null, $okJar);
+assert($dash['code'] === 200, 'Login works again after the lockout is cleared');
+echo "[PASS] 7.3 Login lockout is database-backed: new session cookies do not reset it\n";
+
+// 7.4 Registration and forgot-password are throttled per IP (DB-backed)
+for ($i = 1; $i <= 3; $i++) {
+    $fp = $authService->forgotPassword("nobody_{$i}_{$testRunId}@sk-sports-lab.test");
+    assert($fp['success'] === true, 'forgot-password always returns the generic success');
+}
+assert(RateLimit::retryAfter('cust_forgot', "nobody_1_{$testRunId}@sk-sports-lab.test") === 0, 'Under the per-account cap no lock is set');
+RateLimit::clearScope('cust_forgot');
+RateLimit::clearScope('cust_forgot_ip');
+for ($i = 1; $i <= 21; $i++) {
+    $reg = $authService->register(['name' => 'x', 'email' => "spam_{$i}_{$testRunId}@sk-sports-lab.test", 'mobile' => '1', 'password' => 'short', 'password_confirmation' => 'short']);
+}
+assert($reg['success'] === false && str_contains($reg['message'], 'Too many registration attempts'), 'Registration throttled per IP after 20 attempts');
+RateLimit::clearScope('cust_register');
+RateLimit::clearScope('cust_register_ip');
+echo "[PASS] 7.4 Registration and forgot-password requests are throttled per IP\n";
+
 
 // ─── SCENARIO 8: Test Data Cleanup ───────────────────────────────────────────
 echo "\n--- Scenario 8: Test Data Cleanup ---\n";
@@ -532,7 +581,8 @@ echo "\n--- Scenario 8: Test Data Cleanup ---\n";
 $db->exec("DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE user_id IN ({$customerAId}, {$customerBId}))");
 $db->exec("DELETE FROM bookings WHERE user_id IN ({$customerAId}, {$customerBId})");
 $db->exec("DELETE FROM booking_holds WHERE user_id IN ({$customerAId}, {$customerBId})");
-$db->exec("DELETE FROM users WHERE id IN ({$customerAId}, {$customerBId})");
+$db->exec("DELETE FROM users WHERE id IN ({$customerAId}, {$customerBId}, {$victimId})");
+$db->exec("DELETE FROM password_resets WHERE user_id NOT IN (SELECT id FROM users)");
 $db->exec("DELETE FROM admin_otps WHERE admin_id IN ({$adminId}, {$bruteAdminId}, {$throttleAdminId})");
 $db->exec("DELETE FROM admins WHERE id IN ({$adminId}, {$bruteAdminId}, {$throttleAdminId})");
 

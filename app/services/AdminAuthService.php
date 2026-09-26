@@ -39,9 +39,8 @@ class AdminAuthService
             return ['success' => false, 'message' => 'Please enter a valid email address.'];
         }
 
-        // Rate limit: 5 OTP requests per 15 minutes per IP + email
-        $rateKey = 'admin_otp_req_' . md5($cleanEmail . '_' . ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
-        if (!RateLimit::attempt($rateKey, 5, 900)) {
+        // Rate limit (DB-backed): 5 OTP requests per email and 10 per IP, per 15 minutes
+        if (RateLimit::throttle('admin_otp_req', $cleanEmail, 5, 10, 900) > 0) {
             return [
                 'success' => false,
                 'message' => 'Too many login attempts. Please wait 15 minutes before requesting another code.',
@@ -89,8 +88,15 @@ class AdminAuthService
             return ['success' => false, 'message' => 'Verification code must be exactly 6 digits.'];
         }
 
+        // Failed verifications: 10 per email and 20 per IP lock for 15 minutes,
+        // on top of the 5-attempt cap stored on each OTP row.
+        if (RateLimit::retryAfter('admin_otp_verify', $cleanEmail) > 0) {
+            return ['success' => false, 'message' => 'Too many verification attempts. Please wait 15 minutes and request a new code.'];
+        }
+
         $admin = $this->adminModel->findByEmail($cleanEmail);
         if (!$admin) {
+            RateLimit::recordFailure('admin_otp_verify', $cleanEmail, 10, 20, 900);
             return ['success' => false, 'message' => 'Invalid or expired verification code.'];
         }
 
@@ -107,11 +113,13 @@ class AdminAuthService
 
         if (!password_verify($cleanOtp, $otpRecord['otp_hash'])) {
             $this->adminModel->incrementAttempts((int) $otpRecord['id']);
+            RateLimit::recordFailure('admin_otp_verify', $cleanEmail, 10, 20, 900);
             return ['success' => false, 'message' => 'Incorrect verification code. Please check and try again.'];
         }
 
-        // Consume OTP (single use)
+        // Consume OTP (single use) and reset the per-account verify counter
         $this->adminModel->markOtpUsed((int) $otpRecord['id']);
+        RateLimit::clear(RateLimit::key('admin_otp_verify', $cleanEmail));
 
         // Establish admin session
         if (!headers_sent()) {

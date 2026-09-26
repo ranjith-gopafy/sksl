@@ -49,7 +49,18 @@ function assertTest(bool $condition, string $testName): void {
 
 // Clean up any residual test data first
 $testEmail = 'test_athlete_' . time() . '@example.com';
+// Remove leftovers from earlier runs (bookings reference users via FK, so cascade by hand)
+$db->exec("DELETE p FROM payments p JOIN bookings b ON b.id = p.booking_id JOIN users u ON u.id = b.user_id WHERE u.email LIKE 'test_athlete_%@example.com'");
+$db->exec("DELETE b FROM bookings b JOIN users u ON u.id = b.user_id WHERE u.email LIKE 'test_athlete_%@example.com'");
+$db->exec("DELETE h FROM booking_holds h JOIN users u ON u.id = h.user_id WHERE u.email LIKE 'test_athlete_%@example.com'");
 $db->exec("DELETE FROM users WHERE email LIKE 'test_athlete_%@example.com'");
+// Rate limiter is DB-backed and per-IP; start from a clean slate
+RateLimit::clearScope('cust_login');
+RateLimit::clearScope('cust_login_ip');
+RateLimit::clearScope('cust_register');
+RateLimit::clearScope('cust_register_ip');
+RateLimit::clearScope('cust_forgot');
+RateLimit::clearScope('cust_forgot_ip');
 $mailLog = dirname(__DIR__) . '/storage/logs/mail.log';
 if (file_exists($mailLog)) {
     @unlink($mailLog);
@@ -127,7 +138,7 @@ assertTest(!isset($_SESSION['user_id']), 'Session user_id cleared on logout');
 echo "\n6. Testing Login Rate Limiting...\n";
 
 $spamEmail = 'rate_limit_test_' . time() . '@example.com';
-$key = 'cust_login_' . md5($spamEmail);
+$key = RateLimit::key('cust_login', $spamEmail);
 RateLimit::clear($key);
 
 for ($i = 1; $i <= 5; $i++) {
@@ -136,7 +147,25 @@ for ($i = 1; $i <= 5; $i++) {
 }
 $sixth = $authService->login($spamEmail, 'bad_pass');
 assertTest(!$sixth['success'] && str_contains($sixth['message'], 'Too many'), '6th attempt is rate-limited/locked out');
+
+// Lockout lives in the database, not the session: a fresh session is still locked
+$rowStmt = $db->prepare('SELECT attempts, locked_until FROM rate_limits WHERE rl_key = ?');
+$rowStmt->execute([$key]);
+$rlRow = $rowStmt->fetch();
+assertTest($rlRow !== false && (int) $rlRow['attempts'] >= 5 && $rlRow['locked_until'] !== null, 'Lockout persisted in rate_limits table');
+$_SESSION = [];
+$afterReset = $authService->login($spamEmail, 'bad_pass');
+assertTest(!$afterReset['success'] && str_contains($afterReset['message'], 'Too many'), 'Dropping the session cookie does not reset the lockout');
+assertTest(RateLimit::remainingSeconds($key) > 0 && RateLimit::remainingSeconds($key) <= 900, 'remainingSeconds reports the active lockout');
 RateLimit::clear($key);
+assertTest(RateLimit::remainingSeconds($key) === 0, 'clear() removes the lockout');
+
+// Successful logins are not counted against the account
+for ($i = 1; $i <= 7; $i++) {
+    $ok = $authService->login($testEmail, 'StrongPassword123!');
+    assertTest($ok['success'], "Successful login {$i} not throttled");
+}
+$authService->logout();
 
 // ── Test 7: Forgot Password Flow ─────────────────────────────────────────────
 echo "\n7. Testing Forgot Password...\n";
