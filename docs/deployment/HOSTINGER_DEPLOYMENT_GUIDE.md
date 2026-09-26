@@ -144,13 +144,25 @@ rsync -avz --exclude='.git' --exclude='node_modules' --exclude='.env' \
 
 Hostinger shared hosting serves from `public_html/` by default. Since SKSL's web root is the `public/` subdirectory, you need one of these:
 
-### Option A — Redirect via .htaccess in public_html root
+### Option A — Keep the document root at public_html (fallback)
 
-Create `public_html/.htaccess`:
+The repository ships a hardened `.htaccess` in the project root. When the
+project is uploaded as-is into `public_html/`, that file:
 
-```apache
-RewriteEngine On
-RewriteRule ^(.*)$ /public/$1 [L,QSA]
+- returns **403** for `.env`, `bootstrap.php`, `Router.php`, `composer.*`, and
+  the `app/`, `config/`, `database/`, `storage/`, `tests/`, `cron/`, `docs/`,
+  `vendor/` directories (each of those directories also carries its own
+  `Require all denied` `.htaccess`);
+- rewrites every other request into `public/`, so `https://your-domain/services`
+  works without `/public/` in the URL.
+
+Nothing needs to be created by hand — just make sure the root `.htaccess` was
+uploaded (FTP clients often hide dotfiles). Verify after deploying:
+
+```bash
+curl -I https://your-domain/.env          # expect 403
+curl -I https://your-domain/storage/logs/ # expect 403
+curl -I https://your-domain/services      # expect 200
 ```
 
 ### Option B — Set Document Root to public/ (Preferred — via hPanel)

@@ -1,0 +1,39 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# SKSL — project-root .htaccess
+#
+# The web root SHOULD be public/ (Hostinger: set Document Root to
+# public_html/public). If the document root is left at the project root, this
+# file (1) refuses every request for application code, secrets, storage,
+# tests, cron, database dumps and docs, and (2) routes everything else into
+# public/ so the site still works.
+# ──────────────────────────────────────────────────────────────────────────────
+
+Options -Indexes
+ServerSignature Off
+
+# 1. Dotfiles (.env, .git*, .htaccess) and build/config manifests are never served
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.(env|env\..*|json|lock|sql|sql\.gz|md|log|txt|yml|yaml|ini|dist|example|bak|tmp|sh|ps1)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^(bootstrap\.php|Router\.php|composer\.(json|lock)|package(-lock)?\.json|playwright\.config\.js|tailwind\.config\.js|coming soon\.html)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 2. Hard-deny non-public directories (403), whatever file is requested
+    RewriteRule ^(app|config|database|storage|tests|cron|docs|src|assets|vendor|node_modules|playwright-report|test-results|\.git)(/|$) - [F,L]
+
+    # 3. Everything else is served from public/
+    RewriteCond %{REQUEST_URI} !^(.*/)?public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Fallback when mod_rewrite is unavailable: at least block the directories
+<IfModule !mod_rewrite.c>
+    RedirectMatch 403 ^/(app|config|database|storage|tests|cron|docs|src|assets|vendor|node_modules)(/|$)
+</IfModule>

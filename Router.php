@@ -96,10 +96,20 @@ class Router
         $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
         $uri = rawurldecode($uri ?? '/');
 
-        // Remove the script base path if app is in a subdirectory
-        $base = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-        if ($base !== '' && str_starts_with($uri, $base)) {
-            $uri = substr($uri, strlen($base));
+        // Remove the script base path if app is in a subdirectory.
+        // SCRIPT_NAME is e.g. /sksl/public/index.php. The request may have been
+        // routed through the project-root .htaccess (URI /sksl/services) or hit
+        // public/ directly (URI /sksl/public/services); support both.
+        $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+        $candidates = [$base];
+        if (str_ends_with($base, '/public')) {
+            $candidates[] = rtrim(substr($base, 0, -strlen('/public')), '/');
+        }
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '' && ($uri === $candidate || str_starts_with($uri, $candidate . '/'))) {
+                $uri = substr($uri, strlen($candidate));
+                break;
+            }
         }
 
         $uri = '/' . ltrim($uri, '/');
