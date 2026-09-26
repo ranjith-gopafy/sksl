@@ -62,9 +62,12 @@ $paymentRecordId = $paymentModel->create([
     'razorpay_order_id' => $orderId,
     'amount'            => 588.82,
     'currency'          => 'INR',
-    'status'            => 'paid',
+    'status'            => 'pending',
 ]);
 $paymentModel->markPaid($paymentRecordId, $paymentId, 'mock_signature', '{}');
+// markPaid is idempotent: a second call must not overwrite the payment id
+$paymentModel->markPaid($paymentRecordId, 'pay_should_not_win', 'x', '{}');
+assert($paymentModel->findByOrderId($orderId)['razorpay_payment_id'] === $paymentId, 'markPaid must not overwrite a paid row');
 echo "[PASS] 3. Linked payment record created (Payment ID: $paymentId)\n";
 
 // 4. Test getInvoiceData()

@@ -114,18 +114,29 @@ class BookingModel
      */
     public function create(array $data): int
     {
+        // service_name_snapshot is required: if the caller did not supply it, read it now
+        // so historical bookings never depend on the live services row.
+        $serviceName = trim((string) ($data['service_name_snapshot'] ?? ''));
+        if ($serviceName === '') {
+            $lookup = $this->db->prepare('SELECT name FROM services WHERE id = ? LIMIT 1');
+            $lookup->execute([(int) $data['service_id']]);
+            $serviceName = (string) ($lookup->fetchColumn() ?: 'Recovery Session');
+        }
+
         $stmt = $this->db->prepare(
             'INSERT INTO bookings (
                 booking_reference, user_id, service_id, booking_date,
-                start_time, end_time, service_duration_minutes,
+                start_time, end_time,
+                service_name_snapshot, service_duration_minutes,
                 checkin_buffer_minutes, checkout_buffer_minutes,
-                base_amount, gst_amount, convenience_fee, total_amount,
+                base_amount, gst_percent, gst_amount, convenience_fee, total_amount,
                 booking_status, payment_status
              ) VALUES (
                 :ref, :user_id, :service_id, :booking_date,
-                :start_time, :end_time, :duration,
+                :start_time, :end_time,
+                :service_name, :duration,
                 :checkin_buf, :checkout_buf,
-                :base_amount, :gst_amount, :conv_fee, :total_amount,
+                :base_amount, :gst_percent, :gst_amount, :conv_fee, :total_amount,
                 :b_status, :p_status
              )'
         );
@@ -137,10 +148,12 @@ class BookingModel
             'booking_date' => $data['booking_date'],
             'start_time'   => $data['start_time'],
             'end_time'     => $data['end_time'],
+            'service_name' => mb_substr($serviceName, 0, 150),
             'duration'     => $data['service_duration_minutes'],
             'checkin_buf'  => $data['checkin_buffer_minutes'] ?? 0,
             'checkout_buf' => $data['checkout_buffer_minutes'] ?? 0,
             'base_amount'  => $data['base_amount'],
+            'gst_percent'  => $data['gst_percent'] ?? 18.00,
             'gst_amount'   => $data['gst_amount'],
             'conv_fee'     => $data['convenience_fee'] ?? 0.00,
             'total_amount' => $data['total_amount'],
@@ -167,6 +180,41 @@ class BookingModel
             'UPDATE bookings SET booking_status = ? WHERE id = ?'
         );
         return $stmt->execute([$bookingStatus, $id]);
+    }
+
+    /**
+     * Atomically move a booking from pending -> confirmed/paid.
+     * Returns true only if THIS call performed the transition. A cancelled,
+     * completed, or already-confirmed booking is left untouched and returns false.
+     */
+    public function confirmIfPending(int $id): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET booking_status = 'confirmed', payment_status = 'paid'
+             WHERE id = ? AND booking_status = 'pending'"
+        );
+        $stmt->execute([$id]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Record that money was captured for a booking that had already been
+     * cancelled/expired. Payment is marked paid so it shows in reconciliation,
+     * and a note is appended for staff to arrange a refund.
+     */
+    public function markPaymentReceivedAfterClose(int $id): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET payment_status = 'paid',
+                 notes = CONCAT_WS('\n', notes, ?)
+             WHERE id = ? AND booking_status NOT IN ('confirmed', 'completed')"
+        );
+        return $stmt->execute([
+            '[' . date('Y-m-d H:i:s') . '] Payment captured after booking was closed. Refund required.',
+            $id,
+        ]);
     }
 
     /**

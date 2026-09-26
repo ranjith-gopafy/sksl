@@ -69,7 +69,8 @@ class PaymentModel
     }
 
     /**
-     * Mark payment as paid (idempotently).
+     * Mark payment as paid. Idempotent: a row that is already paid is never
+     * overwritten, so a late duplicate callback cannot replace the payment id.
      */
     public function markPaid(int $id, string $paymentId, string $signature, ?string $gatewayResponse = null): bool
     {
@@ -80,7 +81,7 @@ class PaymentModel
                  status              = 'paid',
                  paid_at             = NOW(),
                  gateway_response    = ?
-             WHERE id = ?"
+             WHERE id = ? AND status != 'paid'"
         );
         return $stmt->execute([$paymentId, $signature, $gatewayResponse, $id]);
     }

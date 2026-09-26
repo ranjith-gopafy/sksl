@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+require_once __DIR__ . '/support/payment_support.php';
 
 use App\Models\UserModel;
 use App\Models\ServiceModel;
@@ -114,7 +115,7 @@ assert($httpCode === 200 && ($orderJson['success'] ?? false) === true, "Order cr
 $orderId = $orderJson['data']['razorpay_order_id'];
 echo "[PASS] 3. HTTP Razorpay Order created: $orderId\n";
 
-// 5. Verify payment via HTTP
+// 5a. Verify with a forged signature via HTTP must be rejected
 $ch = curl_init("$baseUrl/api/payment/verify");
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
@@ -123,8 +124,31 @@ curl_setopt_array($ch, [
         '_csrf_token' => $csrfToken,
         'booking_reference' => $bookingRef,
         'razorpay_order_id' => $orderId,
-        'razorpay_payment_id' => 'pay_http_test_123',
-        'razorpay_signature' => 'sig_http_test_123',
+        'razorpay_payment_id' => 'pay_http_forged',
+        'razorpay_signature' => 'sig_http_forged',
+    ]),
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_HTTPHEADER => ['Accept: application/json'],
+]);
+$forgedJson = json_decode(curl_exec($ch), true);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert($httpCode === 400 && ($forgedJson['success'] ?? true) === false, "Forged signature must be rejected: " . json_encode($forgedJson));
+echo "[PASS] 3b. HTTP verify rejects a forged signature (HTTP $httpCode)\n";
+
+// 5. Verify payment via HTTP with a correctly signed payload
+$httpPaymentId = 'pay_http_' . bin2hex(random_bytes(4));
+$ch = curl_init("$baseUrl/api/payment/verify");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => http_build_query([
+        '_csrf_token' => $csrfToken,
+        'booking_reference' => $bookingRef,
+        'razorpay_order_id' => $orderId,
+        'razorpay_payment_id' => $httpPaymentId,
+        'razorpay_signature' => sksl_server_sign($orderId, $httpPaymentId),
     ]),
     CURLOPT_COOKIEJAR => $cookieFile,
     CURLOPT_COOKIEFILE => $cookieFile,

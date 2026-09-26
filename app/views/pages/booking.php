@@ -973,14 +973,13 @@ document.addEventListener('DOMContentLoaded', () => {
         mockSuccessBtn.disabled = true;
         mockSuccessBtn.textContent = 'Simulating...';
 
-        const mockPaymentId = 'pay_mock_' + Math.random().toString(36).substring(2, 12);
-        const mockSignature = 'sig_mock_' + Math.random().toString(36).substring(2, 12);
-
+        // Local mock mode: the server issued a payment id and a signature that the
+        // regular verification path checks. Nothing is skipped server-side.
         await completeVerification(
             currentOrder.booking_reference,
             currentOrder.razorpay_order_id,
-            mockPaymentId,
-            mockSignature
+            currentOrder.mock_payment_id,
+            currentOrder.mock_signature
         );
     });
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+require_once __DIR__ . '/support/payment_support.php';
 
 use App\Models\UserModel;
 use App\Models\ServiceModel;
@@ -25,7 +26,7 @@ $bookingModel = new BookingModel();
 $holdModel    = new BookingHoldModel();
 $paymentModel = new PaymentModel();
 $bookingSvc   = new BookingService();
-$paymentSvc   = new PaymentService();
+$paymentSvc   = sksl_test_payment_service();
 $invoiceSvc   = new InvoiceService();
 $emailSvc     = new EmailService();
 
@@ -63,7 +64,7 @@ echo "[PASS] 3. Gateway order issued: $orderId\n";
 
 // 4. Verify Payment — This triggers post-commit invoice PDF generation + 2 emails (customer + admin)
 $mockPaymentId = 'pay_mail_' . bin2hex(random_bytes(6));
-$mockSignature = 'sig_mail_' . bin2hex(random_bytes(16));
+$mockSignature = sksl_test_sign($orderId, $mockPaymentId);
 
 $verifyRes = $paymentSvc->verifyPayment($userId, $bookingRef, $orderId, $mockPaymentId, $mockSignature);
 assert($verifyRes['success'] === true, 'Payment verify failed: ' . ($verifyRes['message'] ?? ''));

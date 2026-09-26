@@ -35,6 +35,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+require_once __DIR__ . '/support/payment_support.php';
 
 use App\Models\UserModel;
 use App\Models\AdminModel;
@@ -210,7 +211,7 @@ $holdModel->create([
 echo "\n--- Scenario 3: IDOR & Cross-Account Isolation ---\n";
 
 $bookingService = new BookingService();
-$paymentService = new PaymentService();
+$paymentService = sksl_test_payment_service();
 
 // 3.1 Customer A attempts to release Customer B's hold -> must fail
 $releaseAttempt = $bookingService->releaseHold($customerAId, $bookingRefB);
@@ -234,8 +235,9 @@ assert($verifyAttempt['success'] === false, 'Customer A cannot verify Customer B
 assert(str_contains(strtolower($verifyAttempt['message']), 'unauthorized'), 'Unauthorized payment verification blocked');
 echo "[PASS] 3.3 IDOR: Customer A cannot confirm/verify Customer B's booking\n";
 
-// Legitimate Customer B confirms payment
-$validVerify = $paymentService->verifyPayment($customerBId, $bookingRefB, $orderId, 'pay_mock_' . bin2hex(random_bytes(4)), 'sig_mock');
+// Legitimate Customer B confirms payment (properly signed)
+$payIdB = 'pay_mock_' . bin2hex(random_bytes(4));
+$validVerify = $paymentService->verifyPayment($customerBId, $bookingRefB, $orderId, $payIdB, sksl_test_sign($orderId, $payIdB));
 assert($validVerify['success'] === true, 'Customer B payment successfully verified');
 
 // 3.4 Customer A attempts to cancel Customer B's booking -> must fail
@@ -288,6 +290,25 @@ echo "[PASS] 4.2 Invalid booking reference rejected during verification\n";
 $reverify = $paymentService->verifyPayment($customerBId, $bookingRefB, $orderId, 'pay_mock_sec001', 'sig_mock');
 assert($reverify['success'] === true && !empty($reverify['data']['already_confirmed']), 'Idempotent verification returns already_confirmed without re-processing');
 echo "[PASS] 4.3 Payment verification is strictly idempotent\n";
+
+// 4.4 Forged checkout signature on a pending order is rejected (no bypass path)
+$forgedVerify = $paymentService->verifyPayment($customerBId, $bookingRefB2, $orderIdB2, 'pay_forged', 'sig_forged');
+assert($forgedVerify['success'] === false, 'Forged signature rejected');
+assert(str_contains(strtolower($forgedVerify['message']), 'signature'), 'Message flags signature failure');
+echo "[PASS] 4.4 Forged checkout signature rejected\n";
+
+// 4.5 Webhook: missing secret => 503, forged signature => 400, valid signature => 200
+$whBody = json_encode(['event' => 'payment.captured', 'payload' => ['payment' => ['entity' => [
+    'id' => 'pay_wh_' . bin2hex(random_bytes(3)), 'order_id' => $orderIdB2, 'amount' => 1, 'currency' => 'INR',
+]]]]);
+$whForged = $paymentService->handleWebhook($whBody, 'not-a-signature');
+assert($whForged['success'] === false && $whForged['code'] === 400, 'Forged webhook signature rejected with 400');
+$noSecretService = new PaymentService(null, null, null, null, null, null, [
+    'key_id' => 'x', 'key_secret' => SKSL_TEST_KEY_SECRET, 'webhook_secret' => '', 'mock' => true,
+]);
+$whNoSecret = $noSecretService->handleWebhook($whBody, sksl_test_sign_webhook($whBody));
+assert($whNoSecret['success'] === false && $whNoSecret['code'] === 503, 'Webhook without configured secret fails closed (503)');
+echo "[PASS] 4.5 Webhook signature is mandatory (forged => 400, unconfigured => 503)\n";
 
 
 // ─── SCENARIO 5: Session & Role Privilege Escalation ─────────────────────────

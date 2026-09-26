@@ -332,6 +332,50 @@ HTML;
     }
 
     /**
+     * Alert staff that a payment was captured for a booking that is no longer
+     * pending (e.g. cancelled before the gateway callback arrived). Refund needed.
+     *
+     * @param array<string, mixed> $booking
+     */
+    public function sendAdminPaymentAfterCloseAlert(array $booking, string $paymentId): bool
+    {
+        $adminEmail = trim((string) ($this->config['admin_email'] ?? ''));
+        if ($adminEmail === '') {
+            error_log('EmailService: ADMIN_EMAIL not configured; payment-after-close alert not sent.');
+            return false;
+        }
+
+        $ref     = htmlspecialchars((string) ($booking['booking_reference'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $status  = htmlspecialchars((string) ($booking['booking_status'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $name    = htmlspecialchars((string) ($booking['user_name'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $mail    = htmlspecialchars((string) ($booking['user_email'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $amount  = number_format((float) ($booking['total_amount'] ?? 0), 2);
+        $payId   = htmlspecialchars($paymentId, ENT_QUOTES, 'UTF-8');
+
+        $subject = "[Action Required] Payment received for {$status} booking {$ref}";
+
+        $htmlBody = <<<HTML
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; color: #0f172a;">
+    <h2 style="color: #b91c1c;">Refund required</h2>
+    <p>A payment was captured for a booking that is <strong>{$status}</strong>. The slot was not re-opened.</p>
+    <table style="font-size: 13px;">
+        <tr><td>Reference</td><td><strong>{$ref}</strong></td></tr>
+        <tr><td>Customer</td><td>{$name} ({$mail})</td></tr>
+        <tr><td>Amount</td><td>&#8377;{$amount}</td></tr>
+        <tr><td>Razorpay Payment ID</td><td>{$payId}</td></tr>
+    </table>
+    <p>Please process the refund in the Razorpay dashboard and inform the customer.</p>
+</body></html>
+HTML;
+
+        $altBody = "Refund required.\nBooking {$ref} is {$status} but payment {$paymentId} was captured.\nCustomer: {$name} ({$mail})\nAmount: INR {$amount}";
+
+        return $this->send($adminEmail, 'SKSL Admin', $subject, $htmlBody, $altBody);
+    }
+
+    /**
      * Internal email sender. Dispatches via SMTP or falls back safely to logging.
      */
     public function send(
