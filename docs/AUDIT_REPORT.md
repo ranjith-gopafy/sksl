@@ -2,7 +2,8 @@
 
 **Date:** 26 September 2026  
 **Scope:** Application source in this repository only. The live site was not reviewed.  
-**Method:** Static review of routing, authentication, booking, payments, invoices, admin tools, views, schema, and deployment configuration. No application code was changed. No requests were sent to a running server, and dependency CVE databases were not queried.
+**Method:** Static review of routing, authentication, booking, payments, invoices, admin tools, views, schema, and deployment configuration. No application code was changed. No requests were sent to a running server, and dependency CVE databases were not queried.  
+**Remediation:** 26 September 2026, branch `audit-fixes`, one commit per step. Status per finding is in [Remediation status](#remediation-status). The finding texts below are left as originally written; they describe the code **before** the fixes.
 
 This is a PHP 8.1 booking platform (Razorpay, email, GST invoices, customer accounts, admin OTP). The document root is expected to be `public/`.
 
@@ -16,6 +17,54 @@ The core design is sound: prepared SQL, server-side prices, ownership checks, ha
 | High | 8 | Account abuse, refunds, file upload, or deployment exposure |
 | Medium | 16 | Booking rules, privacy accuracy, sessions, email, operations |
 | Low | 12 | Hardening and content quality |
+
+---
+
+## Remediation status
+
+Every finding was worked on branch `audit-fixes` (18 commits, `1ec601c` … `fd87866`).
+Decisions taken with the client during remediation:
+
+- **Cancellation and refund:** customers do not cancel online. They contact SKSL with their booking reference; only admins change booking status, and refunds (if any) are handled manually in the Razorpay dashboard. The public policy now says exactly that.
+- **Legal identity:** business name, GSTIN, address, phone and support email come from `BUSINESS_*` variables in `.env` (placeholders in `.env.example`); invoices are refused until the GSTIN validates.
+- **Fonts:** Inter and Outfit are self-hosted from `public/fonts/`.
+
+Verification after the last commit: 22 PHP test files, 636 checks, 0 failures (`tests/test_*.php`, including live HTTP checks against Apache); Playwright 68 tests × 3 projects (Desktop Chromium, Pixel 7, iPhone 14) = 204 runs: 195 passed, 9 skipped by design, 0 failed.
+
+| # | Finding | Status | Commit | Notes |
+| --- | --- | --- | --- | --- |
+| C1 | Payment confirmation skipped when secrets empty | **Fixed** | `1ec601c` | Mock mode is refused outside `local`/`testing`; webhook requires a valid signature (no secret → rejected); amount and order id compared before confirming; non-pending bookings are never confirmed; one notification path. |
+| C2 | Booking insert does not match table | **Fixed** | `c9710f7` | Insert writes every snapshot column; migration ledger + migration 012 align the schema; `database/sksl_export.sql` regenerated from the migrations. |
+| C3 | Placeholder legal identity on invoices | **Fixed** | `aef8b7e` | `config/business.php` from `.env`; CGST/SGST split from the stored `gst_percent`; invoice only when `payment_status = paid`; invoice number stored on the booking. |
+| H1 | Cancellation promises a refund the code never makes | **Fixed** | `1c30897` | Customer self-cancel removed; “contact SKSL” panel on My Bookings; admin transitions restricted to `BookingModel::ADMIN_TRANSITIONS`; cancelled/expired/completed are terminal. |
+| H2 | Paid booking can be charged again | **Fixed** | `1ec601c` | `createOrder` refuses a second gateway order for paid/non-pending bookings; `markPaid()` guarded. |
+| H3 | Uploads in web root with client extension | **Fixed** | `9063f44` | `getimagesize()` + MIME check, extension derived from type, random file name, `public/uploads/.htaccess` denies PHP execution and non-image files. |
+| H4 | Rate limits only in session | **Fixed** | `f0d6186` | `rate_limits` table + `RateLimit` helper on login, register, forgot/reset password, admin OTP request/verify; failures counted, cleared on success. |
+| H5 | Hero image URL unescaped | **Fixed** | `24b8795` | `safe_image()` / `safe_link()` allow-lists (relative paths, same-site links) and `h()` on every URL attribute. |
+| H6 | Document root not enforced | **Fixed** | `6b6e895` | Root `.htaccess` denies app/config/storage/tests/cron/database/docs and dotfiles, routes everything else into `public/`; `storage/.htaccess` deny-all; 49 live checks in `test_http_exposure.php`. |
+| H7 | Cookie not Secure, no HSTS/CSP | **Fixed** | `3c06325` | `Secure` forced in production, HSTS on HTTPS, nonce-based CSP (no `unsafe-inline` for scripts), `X-XSS-Protection` removed. Fonts now `'self'` only (`9b46941`). |
+| H8 | Withdrawn | — | — | Image files are present and committed. |
+| M | Booking rules disagree | **Fixed** | `014731b` | `BookingRules` is the single source for advance window, same-day cutoff and grid alignment (date picker, availability API, hold); per-user hold cap; pending bookings expire (`cron/expire-holds.php` + on admin page load); webhook releases the hold; upcoming/completed classification uses `end_time`. Multi-modality at the same clock time stays allowed — documented decision. |
+| M | Authentication and sessions | **Fixed** | `4758732` | No enumeration on register or admin OTP; `password_changed_at` invalidates other sessions; customer/admin role separation; POST-only logout; `safe_return_url()` for redirects; `/health` returns only status (details need `HEALTH_CHECK_TOKEN`); `E_ALL` with display off; branded 503 on DB failure; terms checkbox stored as `terms_accepted_at`; `PasswordPolicy`; CSRF token rotated on login/logout. `APP_SECRET` remains unused — documented as reserved (`fd87866`). |
+| M | Privacy and email | **Fixed** | `17dd800`, `9b46941` | OTP out of subject and never logged; every send recorded in `email_logs` (metadata only, 90-day purge); names escaped; no invented sender; `MAIL_DRIVER=log` refused in production; privacy policy rewritten (processors, cookies, retention, rights, contact); Google Fonts removed entirely. Account deletion/export: handled by request to SKSL (stated in the policy). |
+| M | Schema and money | **Fixed** | `2631226`, `aef8b7e` | `markPaid()` guard; stored invoice number; price ≥ ₹1 with format/range validation, capacity 1–50; GST split from stored rate; `LIKE` wildcards escaped. `users.mobile` intentionally left non-unique (one phone may serve several accounts; email is the unique login) — **accepted**. |
+| M | Accessibility | **Fixed** | `b2bd776` | Skip link; one `h1` per page (slides are `h2`, inactive slides `aria-hidden`); labelled modality card, calendar and slot groups; slot/day buttons carry `aria-label`/`aria-pressed`/`aria-disabled`; toasts and admin modal use `textContent`; small grey text raised to AA (`slate-500`), gold on light surfaces uses `#8F5E0A`; contact page: phone, email and Google Maps link from `.env`. |
+| M | SEO and sharing | **Fixed** | `f9341c0` | `App\Helpers\Seo`: per-page descriptions, canonical + robots meta, Open Graph/Twitter, favicon, LocalBusiness JSON-LD from `.env`, generated `/robots.txt` and `/sitemap.xml`; nav active state by exact path with `aria-current`. |
+| M | Performance | **Fixed** | `9b46941` | Self-hosted fonts with preload; `width`/`height` + lazy/async on images (first hero slide eager); 1-year immutable cache for versioned CSS/JS/fonts, 30 days images, `mod_deflate` rules; `app.css` confirmed minified. Availability query count left as is (acceptable at this scale). **Open suggestion:** the ten service JPEGs (~850 KB each) and the 364 KB logo should be re-encoded; not done because it alters brand assets. |
+| M | Deployment and operations | **Fixed** | `6b6e895`, `014731b`, `fd87866` | Cron documented (holds + pending expiry + email-log purge) and unreachable over HTTP; `tests/` and `coming soon.html` refused by `.htaccess`; `check_credentials` fails on empty webhook secret in production. |
+| L | `X-XSS-Protection` | **Fixed** | `3c06325` | Removed. |
+| L | Logout clears only role keys / CSRF not rotated | **Fixed** | `4758732` | Role keys cleared, session id and CSRF token regenerated on login and logout. |
+| L | `isApiRequest()` by `Accept` header | **Accepted** | — | Behaviour kept; CSRF applies either way and JSON callers rely on it. |
+| L | `LIKE` wildcards | **Fixed** | `2631226` | `BookingModel::likeTerm()` escapes `\ % _`, capped at 100 chars. |
+| L | Reference column exactly full | **Fixed** | `c9710f7` | Column widened in migration 012. |
+| L | `GuestMiddleware` coverage | **Verified** | `4758732` | Covered by `test_auth_hardening.php`. |
+| L | Field errors not tied with `aria-describedby` | **Partially** | `4758732` | Password hints are linked via `aria-describedby`; validation errors remain toasts (announced via `aria-live`). |
+| L | No `security.txt` | **Fixed** | `fd87866` | `/.well-known/security.txt` and `/security.txt` from `SECURITY_CONTACT_EMAIL` (fallback `BUSINESS_SUPPORT_EMAIL`). |
+| L | No staff-side account lock | **Accepted** | — | Out of scope for this pass; `users.status` still rejects inactive users at login. |
+| L | Closed dates do not cancel confirmed bookings | **Accepted** | `1c30897` | Policy no longer promises automatic refunds; staff cancel affected bookings from the admin list and handle refunds manually. |
+| L | Health declaration not stored | **Fixed** | `fd87866` | Hold endpoint requires `health_declared=1` (422 otherwise); stored on `booking_holds.health_declared_at` and copied to `bookings.health_declared_at`. |
+| L | `_method` override | **Accepted** | — | Limited to PUT/DELETE, CSRF still enforced. |
+| L | Generic 404/500 | **Fixed** | `fd87866` | 404 renders inside the site layout; global exception handler shows a self-contained branded 500 (JSON for `/api/*`), details only in `storage/logs/php-error.log`. |
 
 ---
 

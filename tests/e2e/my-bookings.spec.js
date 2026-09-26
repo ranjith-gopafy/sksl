@@ -65,7 +65,8 @@ test.describe('My Bookings Dashboard UI', () => {
 
   test('"Book a Session" CTA link is present', async ({ page }) => {
     await page.goto('/my-bookings', { waitUntil: 'domcontentloaded' });
-    const anyBookLink = page.locator('a[href*="booking"], a[href*="services"]').first();
+    // The desktop header link is display:none on phones; pick a visible one on every viewport
+    const anyBookLink = page.locator('a[href*="booking"]:visible, a[href*="services"]:visible').first();
     await expect(anyBookLink).toBeVisible();
   });
 
