@@ -88,23 +88,28 @@ echo "[PASS] 7. Service reactivated successfully\n";
 // Update specs
 $newPrice = 199.00;
 $newCap = 2;
+// updateDetails() writes every column it knows about, so carry the image through
+// and restore the exact original row afterwards (other suites depend on it).
 $serviceModel->updateDetails($srvId, [
     'price'       => $newPrice,
     'capacity'    => $newCap,
     'description' => 'Updated high-performance walker session.',
     'status'      => 'active',
+    'image'       => $testService['image'] ?? null,
 ]);
 $updatedSrv = $serviceModel->findById($srvId);
 assert((float) $updatedSrv['price'] === 199.00, 'Updated price mismatch');
 assert((int) $updatedSrv['capacity'] === 2, 'Updated capacity mismatch');
+assert(($updatedSrv['image'] ?? null) === ($testService['image'] ?? null), 'Image must survive a details update');
 echo "[PASS] 8. Service price and capacity specifications updated\n";
 
-// Revert to original seed specs (149.00, cap 1)
+// Revert to the original row
 $serviceModel->updateDetails($srvId, [
-    'price'       => 149.00,
-    'capacity'    => 1,
-    'description' => 'Low-impact walking treadmill designed for active recovery and mobility warm-ups.',
-    'status'      => 'active',
+    'price'       => $testService['price'],
+    'capacity'    => $testService['capacity'],
+    'description' => $testService['description'],
+    'status'      => $testService['status'] ?? 'active',
+    'image'       => $testService['image'] ?? null,
 ]);
 
 // 6. Test Facility Closed Dates Management (Phase 13)
@@ -138,7 +143,6 @@ echo "[PASS] 11. Unauthenticated request to /admin/bookings redirects to /admin/
 
 // Login admin via HTTP
 $cookieFile = sys_get_temp_dir() . '/sksl_admin_ops_cookie_' . time() . '.txt';
-$mailLogFile = dirname(__DIR__) . '/storage/logs/mail.log';
 
 $ch = curl_init("$baseUrl/admin/login");
 curl_setopt_array($ch, [
@@ -168,10 +172,10 @@ curl_setopt_array($ch, [
 curl_exec($ch);
 curl_close($ch);
 
-// Extract OTP from mail log
-$mailLog = file_get_contents($mailLogFile);
-preg_match_all('/Your SKSL Admin Login OTP:\s*(\d{6})/i', $mailLog, $matches);
-$otp = end($matches[1]);
+// The web server's mail driver may be real SMTP (nothing readable on disk), so
+// issue a second, known code for this admin exactly as the service would.
+$otp = '246810';
+$adminModel->createOtp($adminId, password_hash($otp, PASSWORD_BCRYPT), date('Y-m-d H:i:s', time() + 300));
 
 // Verify OTP
 $ch = curl_init("$baseUrl/admin/verify-otp");
@@ -190,8 +194,8 @@ curl_setopt_array($ch, [
 curl_exec($ch);
 curl_close($ch);
 
-// Test GET /admin/bookings as logged-in admin
-$ch = curl_init("$baseUrl/admin/bookings");
+// Test GET /admin/bookings as logged-in admin (the test booking is 'completed'; the default tab is 'confirmed')
+$ch = curl_init("$baseUrl/admin/bookings?status=all");
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_COOKIEJAR => $cookieFile,

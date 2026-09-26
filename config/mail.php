@@ -8,6 +8,9 @@
  */
 
 return [
+    // 'smtp' or 'log'. Empty = smtp when SMTP_HOST is set, otherwise log (dev only;
+    // the log driver is refused in production).
+    'driver'       => $_ENV['MAIL_DRIVER']       ?? '',
     'host'         => $_ENV['SMTP_HOST']         ?? '',
     'port'         => (int) ($_ENV['SMTP_PORT']  ?? 587),
     'username'     => $_ENV['SMTP_USERNAME']      ?? '',

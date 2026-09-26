@@ -201,7 +201,9 @@ RAZORPAY_KEY_ID=rzp_live_XXXXXXXXXXXX
 RAZORPAY_KEY_SECRET=<your-live-secret>
 RAZORPAY_WEBHOOK_SECRET=<your-webhook-secret>
 
-# SMTP (Hostinger Titan Mail)
+# SMTP (Hostinger Titan Mail). MAIL_DRIVER must be empty or "smtp" in production —
+# the "log" driver (writes mail to storage/logs/mail.log) is refused when APP_ENV=production.
+MAIL_DRIVER=
 SMTP_HOST=smtp.titan.email
 SMTP_PORT=587
 SMTP_USERNAME=info@yourdomain.com
@@ -370,9 +372,9 @@ Before switching to LIVE Razorpay keys:
 |---|---|
 | 500 Internal Server Error | Check `APP_DEBUG=true` temporarily, review Apache error logs |
 | Database connection failed | Verify `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` in `.env` |
-| Emails not sending | Run `test_smtp_send.php`, check SMTP credentials |
+| Emails not sending | Query `SELECT * FROM email_logs ORDER BY id DESC LIMIT 20` — every attempt is recorded with status `sent`/`failed` and the SMTP error (never the body). Also check `MAIL_FROM_ADDRESS` is set, then run `test_smtp_send.php` |
 | Razorpay payment fails | Verify keys are correct mode (test vs live), check webhook URL |
 | Invoice PDF not generating | Ensure `storage/invoices/` is writable (`chmod 777`) |
-| OTP not arriving | Check `ADMIN_EMAIL` in `.env`, verify SMTP credentials |
+| OTP not arriving | Check `email_logs` for `email_type = 'admin_otp'` rows and their error, verify SMTP credentials (the code is only in the email body, never in logs) |
 | CSS not loading | Check `public/css/app.css` was uploaded; run `npm run build` locally first |
 | File upload fails | Check `UPLOAD_MAX_SIZE_BYTES` and `upload_max_filesize` in `php.ini` |

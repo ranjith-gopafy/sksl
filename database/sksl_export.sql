@@ -1,7 +1,7 @@
 -- ============================================================
 -- SKSL — Database Export (GENERATED — do not edit by hand)
 -- Sara Kinetic Sports Lab — Online Booking Platform
--- Generated: 2026-09-26 14:16 by database/build-export.php
+-- Generated: 2026-09-26 14:34 by database/build-export.php
 --
 -- Contains every file in database/migrations/ and database/seeds/, in order,
 -- plus the `migrations` ledger so `php database/migrate.php` knows they ran.
@@ -434,6 +434,26 @@ CREATE TABLE IF NOT EXISTS `rate_limits` (
 
 ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL DEFAULT NULL AFTER password_changed_at;
 
+-- ── 20260926_014_email_logs_subject_status.sql ────────────────────────────
+-- Migration: 20260926_014_email_logs_subject_status
+-- Purpose: email_logs becomes the delivery record for every outbound email
+--          (audit: "The email_logs table exists and is never written").
+-- Tables: email_logs
+-- Data impact: None (adds a nullable column, widens an ENUM)
+-- Rollback:
+--   ALTER TABLE email_logs DROP COLUMN subject;
+--   ALTER TABLE email_logs MODIFY status ENUM('sent','failed') NOT NULL DEFAULT 'sent';
+-- Notes:
+--   'logged' = written to storage/logs/mail.log by the development mail driver
+--   (MAIL_DRIVER=log or no SMTP host outside production). Bodies are never stored here.
+--   Subjects never contain secrets (the admin OTP was removed from the subject line).
+
+ALTER TABLE `email_logs`
+    MODIFY `status` ENUM('sent','failed','logged') NOT NULL DEFAULT 'sent';
+
+ALTER TABLE `email_logs`
+    ADD COLUMN `subject` VARCHAR(255) NULL DEFAULT NULL AFTER `email_type`;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ── Seed: admin_seed.sql ──────────────────────────────────────────────────
@@ -484,3 +504,4 @@ INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260907_010_create_email_
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260907_011_create_hero_banners_and_update_service_images.sql');
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_012_audit_fixes.sql');
 INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_013_auth_hardening.sql');
+INSERT IGNORE INTO `migrations` (`filename`) VALUES ('20260926_014_email_logs_subject_status.sql');

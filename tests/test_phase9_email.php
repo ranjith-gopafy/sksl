@@ -20,6 +20,9 @@ echo "SKSL — Phase 9 Transactional Email System Verification\n";
 echo "=======================================================\n\n";
 
 $db = getDb();
+// Development mail driver: messages land in storage/logs/mail.log and are recorded in email_logs as 'logged'
+$_ENV['MAIL_DRIVER'] = 'log';
+$emailLogModel = new \App\Models\EmailLogModel();
 $userModel    = new UserModel();
 $serviceModel = new ServiceModel();
 $bookingModel = new BookingModel();
@@ -95,12 +98,50 @@ echo "[PASS] 6. Customer booking confirmation email logged with attached PDF inv
 assert(str_contains($mailLogContent, '[New Booking] Steam — Email Test Athlete'), "Admin notification subject not found in mail log");
 echo "[PASS] 7. Admin new booking notification email logged\n";
 
+// 6b. Both deliveries are recorded in email_logs, linked to the booking, without bodies
+$bookingRow = $bookingModel->findByReference($bookingRef);
+$logRows = $emailLogModel->findByBooking((int) $bookingRow['id']);
+$types = array_column($logRows, 'email_type');
+assert(in_array('booking_confirmation', $types, true), 'booking_confirmation not recorded in email_logs');
+assert(in_array('admin_new_booking', $types, true), 'admin_new_booking not recorded in email_logs');
+foreach ($logRows as $row) {
+    assert($row['status'] === 'logged', "email_logs status should be 'logged' for the dev driver, got {$row['status']}");
+    assert(!array_key_exists('body', $row) && !array_key_exists('html_body', $row), 'email_logs must not store bodies');
+}
+$custRow = array_values(array_filter($logRows, static fn($r) => $r['email_type'] === 'booking_confirmation'))[0];
+assert($custRow['recipient'] === $testEmail && str_contains((string) $custRow['subject'], $bookingRef), 'Customer confirmation log has recipient + subject');
+echo "[PASS] 7b. email_logs holds one row per delivery (recipient, type, subject, status) linked to booking #{$bookingRow['id']}\n";
+
+// 6c. SMTP misconfiguration never dumps bodies: with no sender address the send fails cleanly and is recorded
+$savedDriver = $_ENV['MAIL_DRIVER'];
+$_ENV['MAIL_DRIVER'] = 'smtp';
+$smtpSvc = new EmailService();
+$probeEmail = 'probe_' . time() . '@sk-sports-lab.test';
+$sizeBefore = filesize($mailLogFile);
+if ($smtpSvc->fromAddress() === '') {
+    $ok = $smtpSvc->send($probeEmail, 'Probe', 'Probe subject', '<p>SECRET-BODY-42</p>', 'SECRET-BODY-42', null, null, 'probe');
+    assert($ok === false, 'send() must return false when no sender is configured');
+    $probeLogs = $emailLogModel->findByRecipient($probeEmail, 'probe', 1);
+    assert(count($probeLogs) === 1 && $probeLogs[0]['status'] === 'failed', 'Failed send recorded as failed');
+    assert(filesize($mailLogFile) === $sizeBefore, 'No body written to mail.log on SMTP failure');
+    echo "[PASS] 7c. SMTP send without sender fails closed and is recorded (no body on disk)\n";
+} else {
+    echo "[SKIP] 7c. SMTP is configured locally; failure path covered by source inspection\n";
+}
+$src = file_get_contents(dirname(__DIR__) . '/app/services/EmailService.php');
+assert(!preg_match('/catch \(PHPMailerException[^}]*logMail\(/s', $src), 'The SMTP failure path must not call logMail()');
+assert(!str_contains($src, 'noreply@sksl.in'), 'No invented fallback sender address');
+assert(str_contains($src, "'Your SKSL Admin sign-in code'"), 'OTP subject line carries no code');
+$_ENV['MAIL_DRIVER'] = $savedDriver;
+$db->prepare("DELETE FROM email_logs WHERE recipient = ?")->execute([$probeEmail]);
+
 // 7. Cleanup
 @unlink($pdfPath);
 $db->prepare('DELETE FROM payments WHERE razorpay_order_id = ?')->execute([$orderId]);
 $db->prepare('DELETE FROM bookings WHERE booking_reference = ?')->execute([$bookingRef]);
 $db->prepare('DELETE FROM booking_holds WHERE booking_reference = ?')->execute([$bookingRef]);
 $db->prepare('DELETE FROM users WHERE id = ?')->execute([$userId]);
+$db->prepare('DELETE FROM email_logs WHERE recipient = ? OR subject LIKE ?')->execute([$testEmail, '%' . $bookingRef . '%']);
 echo "[PASS] 8. Test data cleaned up successfully\n\n";
 
 echo ">>> ALL PHASE 9 TRANSACTIONAL EMAIL TESTS PASSED! <<<\n";

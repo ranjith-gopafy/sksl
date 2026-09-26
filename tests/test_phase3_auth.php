@@ -29,6 +29,9 @@ use App\Helpers\RateLimit;
 echo "=== SKSL Phase 3 Verification Test Suite ===\n\n";
 
 $db = getDb();
+// Development mail driver: reset links are readable from mail.log in this CLI run.
+// Must be set before AuthService constructs its EmailService.
+$_ENV['MAIL_DRIVER'] = 'log';
 $authService = new AuthService();
 $userModel   = new UserModel();
 $resetModel  = new PasswordResetModel();
@@ -204,6 +207,13 @@ preg_match('/reset-password\?token=([a-f0-9]+)/', $logContent, $matches);
 $plainToken = $matches[1] ?? '';
 assertTest(!empty($plainToken), 'Extracted plain reset token from email log');
 
+// Delivery is recorded in email_logs (metadata only — the token/body is never stored there)
+$emailLogStmt = $db->prepare("SELECT * FROM email_logs WHERE recipient = ? AND email_type = 'password_reset' ORDER BY id DESC LIMIT 1");
+$emailLogStmt->execute([strtolower($testEmail)]);
+$emailLogRow = $emailLogStmt->fetch();
+assertTest($emailLogRow !== false && $emailLogRow['status'] === 'logged', 'password_reset delivery recorded in email_logs');
+assertTest($emailLogRow !== false && !str_contains(json_encode($emailLogRow), $plainToken), 'email_logs row does not contain the reset token');
+
 // Verify token lookup
 $validRecord = $authService->verifyResetToken($plainToken);
 assertTest($validRecord !== null, 'Plain token successfully validates against stored SHA-256 hash');
@@ -274,6 +284,7 @@ echo "\n11. Cleaning up test data...\n";
 $resetModel->deleteOldForUser($testUserId);
 $db->exec("DELETE FROM password_resets WHERE user_id = {$testUserId}");
 $db->exec("DELETE FROM users WHERE id = {$testUserId}");
+$db->prepare('DELETE FROM email_logs WHERE recipient = ?')->execute([strtolower($testEmail)]);
 echo "  [INFO] Test user and reset records cleaned up.\n";
 
 echo "\n============================================\n";

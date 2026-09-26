@@ -152,17 +152,18 @@ Suggested:
 - `used_at` nullable
 - `created_at`
 
-## 10. email_logs (optional)
-Suggested:
+## 10. email_logs
+Written by `EmailService::send()` for every outbound email attempt (`EmailLogModel`).
 - `id`
-- `booking_id` nullable
+- `booking_id` nullable (FK bookings, SET NULL on delete)
 - `recipient`
-- `email_type`
-- `status`
+- `email_type` — `password_reset`, `existing_account_notice`, `admin_otp`, `booking_confirmation`, `admin_new_booking`, `admin_payment_after_close`
+- `subject` nullable (never contains secrets; the admin OTP is body-only)
+- `status` — `sent` (SMTP accepted), `failed` (error_message holds the SMTP/config error), `logged` (development `MAIL_DRIVER=log` wrote it to `storage/logs/mail.log`)
 - `error_message` nullable
 - `created_at`
 
-Never store credentials.
+Never store credentials or message bodies. Rows older than `EMAIL_LOG_RETENTION_DAYS` (default 90) are purged by `cron/expire-holds.php`.
 
 ## Relationships
 ```text

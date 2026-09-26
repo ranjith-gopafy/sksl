@@ -4,24 +4,48 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\EmailLogModel;
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
 /**
  * Email Service
  *
- * Uses PHPMailer with SMTP.
- * Safe fallback: If SMTP credentials are empty or during local testing when an SMTP server
- * is unavailable, safely logs the email to storage/logs/mail.log so development is never blocked.
- * Email failures never crash calling flows (such as confirmed bookings or password resets).
+ * Drivers (MAIL_DRIVER, or inferred from SMTP_HOST):
+ *   smtp — PHPMailer over SMTP. Delivery failures are recorded in `email_logs`
+ *          and the PHP error log *without* the message body (audit: OTPs and reset
+ *          links used to be dumped to storage/logs/mail.log on failure).
+ *   log  — development only: writes the full message to storage/logs/mail.log so
+ *          local work is never blocked. Refused in production (recorded as failed).
+ *
+ * Every attempt (sent / failed / logged) is written to `email_logs` — recipient,
+ * type, subject, outcome — never the body. Email failures never crash calling
+ * flows (confirmed bookings, password resets).
  */
 class EmailService
 {
+    public const DRIVER_SMTP = 'smtp';
+    public const DRIVER_LOG  = 'log';
+
     private array $config;
+    private string $driver;
+    private ?EmailLogModel $logModel = null;
 
     public function __construct()
     {
         $this->config = config('mail', []);
+
+        // $_ENV is read directly so CLI tools/tests can force the driver after bootstrap.
+        $driver = strtolower(trim((string) ($_ENV['MAIL_DRIVER'] ?? ($this->config['driver'] ?? ''))));
+        if ($driver === '') {
+            $driver = trim((string) ($this->config['host'] ?? '')) !== '' ? self::DRIVER_SMTP : self::DRIVER_LOG;
+        }
+        $this->driver = $driver === self::DRIVER_LOG ? self::DRIVER_LOG : self::DRIVER_SMTP;
+    }
+
+    public function driver(): string
+    {
+        return $this->driver;
     }
 
     /**
@@ -29,7 +53,9 @@ class EmailService
      */
     public function sendPasswordReset(string $toEmail, string $toName, string $resetUrl): bool
     {
-        $subject = 'Reset Your Password — Sara Kinetic Sports Lab';
+        $subject  = 'Reset Your Password — Sara Kinetic Sports Lab';
+        $safeName = htmlspecialchars($toName, ENT_QUOTES, 'UTF-8');
+        $safeUrl  = htmlspecialchars($resetUrl, ENT_QUOTES, 'UTF-8');
 
         $htmlBody = <<<HTML
 <!DOCTYPE html>
@@ -50,11 +76,11 @@ class EmailService
         <div class="brand">SARA KINETIC SPORTS LAB</div>
         <div class="tagline">Recover. Recharge. Perform.</div>
         <h2>Password Reset Request</h2>
-        <p>Hello {$toName},</p>
+        <p>Hello {$safeName},</p>
         <p>We received a request to reset the password for your SKSL account. Click the button below to choose a new password:</p>
-        <p><a href="{$resetUrl}" class="btn">Reset My Password</a></p>
+        <p><a href="{$safeUrl}" class="btn">Reset My Password</a></p>
         <p>Or copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; color: #0284c7; font-size: 13px;">{$resetUrl}</p>
+        <p style="word-break: break-all; color: #0284c7; font-size: 13px;">{$safeUrl}</p>
         <p class="footer">
             This reset link is valid for <strong>1 hour</strong> and can only be used once.<br>
             If you did not request this password reset, please ignore this email. Your account remains secure.
@@ -66,7 +92,7 @@ HTML;
 
         $altBody = "Hello {$toName},\n\nWe received a request to reset your SKSL account password. Use this link within 1 hour:\n{$resetUrl}\n\nIf you did not request this, please ignore this email.";
 
-        return $this->send($toEmail, $toName, $subject, $htmlBody, $altBody);
+        return $this->send($toEmail, $toName, $subject, $htmlBody, $altBody, null, null, 'password_reset');
     }
 
     /**
@@ -116,15 +142,18 @@ HTML;
 
         $altBody = "Hello {$toName},\n\nSomeone (probably you) tried to create a new SKSL account with this email address. An account already exists, so nothing was changed.\n\nSign in: {$loginUrl}\nForgot your password? {$forgotUrl}\n\nIf this wasn't you, no action is needed.";
 
-        return $this->send($toEmail, $toName, $subject, $htmlBody, $altBody);
+        return $this->send($toEmail, $toName, $subject, $htmlBody, $altBody, null, null, 'existing_account_notice');
     }
 
     /**
      * Send Admin Login OTP Email.
+     * The code lives only in the body — never in the subject line, which is
+     * visible in notification previews, mail logs and server-side delivery records.
      */
     public function sendAdminOtp(string $toEmail, string $otp): bool
     {
-        $subject = "Your SKSL Admin Login OTP: {$otp}";
+        $subject = 'Your SKSL Admin sign-in code';
+        $otp     = preg_replace('/\D/', '', $otp) ?? '';
 
         $htmlBody = <<<HTML
 <!DOCTYPE html>
@@ -158,7 +187,7 @@ HTML;
 
         $altBody = "SKSL Admin Login Code: {$otp}\nValid for 5 minutes. Do not share this code.";
 
-        return $this->send($toEmail, 'SKSL Admin', $subject, $htmlBody, $altBody);
+        return $this->send($toEmail, 'SKSL Admin', $subject, $htmlBody, $altBody, null, null, 'admin_otp');
     }
 
     /**
@@ -323,7 +352,7 @@ HTML;
 
         $attachmentName = $invoicePdfPath ? "SKSL_Invoice_{$refRaw}.pdf" : null;
 
-        return $this->send($toEmail, $toNameRaw, $subject, $htmlBody, $altBody, $invoicePdfPath, $attachmentName);
+        return $this->send($toEmail, $toNameRaw, $subject, $htmlBody, $altBody, $invoicePdfPath, $attachmentName, 'booking_confirmation', isset($booking['id']) ? (int) $booking['id'] : null);
     }
 
     /**
@@ -387,7 +416,7 @@ HTML;
 
         $altBody = "New Booking Confirmed: {$ref}\nModality: {$service}\nCustomer: {$custName} ({$custMail}, {$custMob})\nDate: {$date} {$time}\nAmount: INR {$amount}";
 
-        return $this->send($adminEmail, 'SKSL Admin', $subject, $htmlBody, $altBody);
+        return $this->send($adminEmail, 'SKSL Admin', $subject, $htmlBody, $altBody, null, null, 'admin_new_booking', isset($booking['id']) ? (int) $booking['id'] : null);
     }
 
     /**
@@ -431,11 +460,31 @@ HTML;
 
         $altBody = "Refund required.\nBooking {$ref} is {$status} but payment {$paymentId} was captured.\nCustomer: {$name} ({$mail})\nAmount: INR {$amount}";
 
-        return $this->send($adminEmail, 'SKSL Admin', $subject, $htmlBody, $altBody);
+        return $this->send($adminEmail, 'SKSL Admin', $subject, $htmlBody, $altBody, null, null, 'admin_payment_after_close', isset($booking['id']) ? (int) $booking['id'] : null);
     }
 
     /**
-     * Internal email sender. Dispatches via SMTP or falls back safely to logging.
+     * The address outbound mail is sent from. MAIL_FROM_ADDRESS, or the SMTP
+     * username when that is itself an email address. No made-up fallback domain:
+     * an unverifiable sender is the fastest way to land in spam or be rejected.
+     */
+    public function fromAddress(): string
+    {
+        $from = trim((string) ($this->config['from_address'] ?? ''));
+        if ($from === '') {
+            $user = trim((string) ($this->config['username'] ?? ''));
+            if (filter_var($user, FILTER_VALIDATE_EMAIL)) {
+                $from = $user;
+            }
+        }
+        return filter_var($from, FILTER_VALIDATE_EMAIL) ? $from : '';
+    }
+
+    /**
+     * Internal email sender. Every attempt is recorded in `email_logs`.
+     *
+     * @param string   $emailType short machine label stored in email_logs.email_type
+     * @param int|null $bookingId related booking (for booking emails)
      */
     public function send(
         string $toEmail,
@@ -444,14 +493,37 @@ HTML;
         string $htmlBody,
         string $altBody = '',
         ?string $attachmentPath = null,
-        ?string $attachmentName = null
+        ?string $attachmentName = null,
+        string $emailType = 'generic',
+        ?int $bookingId = null
     ): bool {
-        $smtpHost = trim((string) ($this->config['host'] ?? ''));
+        // Header hygiene: no CR/LF in a subject that partially comes from user data
+        $subject = trim((string) preg_replace('/[\r\n]+/', ' ', $subject));
+        $toEmail = trim($toEmail);
 
-        // If SMTP is not configured or in local dev without live host, log safely to storage/logs/mail.log
-        if ($smtpHost === '') {
+        if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+            $this->record($toEmail, $emailType, EmailLogModel::STATUS_FAILED, $subject, 'Invalid recipient address', $bookingId);
+            error_log("EmailService: refusing to send '{$emailType}' — invalid recipient address.");
+            return false;
+        }
+
+        if ($this->driver === self::DRIVER_LOG) {
+            if ((string) config('app.env') === 'production') {
+                // Never dump message bodies (OTPs, reset links) to disk on a live server.
+                $this->record($toEmail, $emailType, EmailLogModel::STATUS_FAILED, $subject, 'Mail driver is "log" / SMTP_HOST not configured in production', $bookingId);
+                error_log("EmailService: '{$emailType}' to {$toEmail} NOT sent — configure SMTP_HOST (MAIL_DRIVER=log is refused in production).");
+                return false;
+            }
             $this->logMail($toEmail, $subject, $htmlBody, $altBody, $attachmentPath);
+            $this->record($toEmail, $emailType, EmailLogModel::STATUS_LOGGED, $subject, null, $bookingId);
             return true;
+        }
+
+        $fromAddress = $this->fromAddress();
+        if ($fromAddress === '') {
+            $this->record($toEmail, $emailType, EmailLogModel::STATUS_FAILED, $subject, 'MAIL_FROM_ADDRESS not configured', $bookingId);
+            error_log("EmailService: '{$emailType}' to {$toEmail} NOT sent — MAIL_FROM_ADDRESS is not configured.");
+            return false;
         }
 
         try {
@@ -459,7 +531,7 @@ HTML;
 
             // Server settings
             $mail->isSMTP();
-            $mail->Host       = $smtpHost;
+            $mail->Host       = trim((string) ($this->config['host'] ?? ''));
             $mail->SMTPAuth   = !empty($this->config['username']);
             $mail->Username   = (string) ($this->config['username'] ?? '');
             $mail->Password   = (string) ($this->config['password'] ?? '');
@@ -468,10 +540,10 @@ HTML;
                 : PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = (int) ($this->config['port'] ?? 587);
             $mail->CharSet    = 'UTF-8';
+            $mail->Timeout    = 20;
 
             // Recipients
-            $fromAddress = $this->config['from_address'] ?: 'noreply@sksl.in';
-            $fromName    = $this->config['from_name'] ?: 'Sara Kinetic Sports Lab';
+            $fromName = trim((string) ($this->config['from_name'] ?? '')) ?: 'Sara Kinetic Sports Lab';
             $mail->setFrom($fromAddress, $fromName);
             $mail->addAddress($toEmail, $toName);
 
@@ -487,15 +559,32 @@ HTML;
             $mail->AltBody = $altBody ?: strip_tags($htmlBody);
 
             $mail->send();
+            $this->record($toEmail, $emailType, EmailLogModel::STATUS_SENT, $subject, null, $bookingId);
             return true;
         } catch (PHPMailerException $e) {
-            error_log("EmailService: Failed to send email to {$toEmail}: " . $e->getMessage());
-            // Fall back to log file so email content is still reviewable
-            $this->logMail($toEmail, $subject, $htmlBody, $altBody, $attachmentPath);
+            // Metadata only — the body (which may hold an OTP or a reset link) is never written anywhere.
+            $error = trim($e->getMessage());
+            $this->record($toEmail, $emailType, EmailLogModel::STATUS_FAILED, $subject, $error, $bookingId);
+            error_log("EmailService: failed to send '{$emailType}' to {$toEmail}: {$error}");
             return false;
         }
     }
 
+    private function record(string $recipient, string $type, string $status, ?string $subject, ?string $error, ?int $bookingId): void
+    {
+        try {
+            $this->logModel ??= new EmailLogModel();
+            $this->logModel->record($recipient, $type, $status, $subject, $error, $bookingId);
+        } catch (\Throwable $e) {
+            error_log('EmailService: email_logs unavailable: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Development driver: append the message to storage/logs/mail.log.
+     * Only reachable outside production (see send()). The directory is denied
+     * over HTTP by storage/.htaccess and the root .htaccess.
+     */
     private function logMail(string $toEmail, string $subject, string $htmlBody, string $altBody, ?string $attachmentPath): void
     {
         $logDir = dirname(__DIR__, 2) . '/storage/logs';

@@ -10,6 +10,7 @@
  *    so abandoned checkouts stop cluttering the admin list.
  *    A late Razorpay webhook for such a booking is still recorded and flagged
  *    for staff by PaymentService::settlePayment().
+ * 3. Deletes email_logs rows older than EMAIL_LOG_RETENTION_DAYS (default 90).
  *
  * The admin bookings page runs the same housekeeping on load, so this job is
  * a safety net; schedule it every 5–15 minutes:
@@ -22,12 +23,15 @@ require_once dirname(__DIR__) . '/bootstrap.php';
 
 use App\Models\BookingHoldModel;
 use App\Models\BookingModel;
+use App\Models\EmailLogModel;
 
 $expiredHolds    = (new BookingHoldModel())->expireStale();
 $expiredBookings = (new BookingModel())->expireStalePending();
+// 3. Retention: email delivery records are kept for 90 days (see Privacy Policy §6).
+$purgedEmailLogs = (new EmailLogModel())->purgeOlderThan((int) ($_ENV['EMAIL_LOG_RETENTION_DAYS'] ?? 90));
 
 $timestamp = date('Y-m-d H:i:s');
-$message = "[{$timestamp}] expire-holds cron executed. Expired {$expiredHolds} stale hold(s) and {$expiredBookings} unpaid pending booking(s).\n";
+$message = "[{$timestamp}] expire-holds cron executed. Expired {$expiredHolds} stale hold(s) and {$expiredBookings} unpaid pending booking(s); purged {$purgedEmailLogs} email log row(s) past retention.\n";
 
 echo $message;
 
