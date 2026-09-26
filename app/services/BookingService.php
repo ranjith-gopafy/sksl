@@ -9,6 +9,7 @@ use App\Models\ClosedDateModel;
 use App\Models\BookingModel;
 use App\Models\BookingHoldModel;
 use App\Helpers\TimeHelper;
+use App\Helpers\BookingRules;
 
 /**
  * Booking Service
@@ -61,17 +62,25 @@ class BookingService
             return ['success' => false, 'message' => 'Invalid time format (HH:MM required).'];
         }
 
-        if (TimeHelper::isPastDate($date)) {
-            return ['success' => false, 'message' => 'Cannot reserve slots for past dates.'];
+        // Booking window (past / beyond ADVANCE_BOOKING_DAYS) — same rule as the availability API
+        if (($windowError = BookingRules::dateWindowError($date)) !== null) {
+            return ['success' => false, 'message' => $windowError];
         }
 
         if ($this->closedDateModel->isDateClosed($date)) {
             return ['success' => false, 'message' => 'The facility is closed on this date.'];
         }
 
-        $holdMinutes = (int) ($_ENV['BOOKING_HOLD_MINUTES'] ?? 10);
-        if ($holdMinutes <= 0) {
-            $holdMinutes = 10;
+        $holdMinutes = BookingRules::holdMinutes();
+
+        // Per-customer cap on simultaneous unpaid holds (stops one account
+        // blocking the calendar for everyone during the hold window).
+        $maxHolds = BookingRules::maxActiveHoldsPerUser();
+        if ($this->holdModel->countActiveForUser($userId) >= $maxHolds) {
+            return [
+                'success' => false,
+                'message' => "You already have {$maxHolds} slots awaiting payment. Complete or release one of them before holding another.",
+            ];
         }
 
         // 2. Begin Concurrency-Safe Transaction
@@ -99,45 +108,56 @@ class BookingService
             $startTotalMinutes = ($startH * 60) + $startM;
             $endTotalMinutes   = $startTotalMinutes + $durationMinutes;
 
-            // Facility operating hours check (06:00 - 22:00)
+            // Facility hours + grid alignment: the start time must be one of the
+            // exact slots the availability API publishes for this service
+            // (open + n × (duration + buffer)). This also guarantees holds never
+            // straddle the turnaround buffer.
+            [$openMinutes, $closeMinutes] = BookingRules::facilityMinutes();
             $openStr  = $_ENV['FACILITY_OPEN'] ?? '06:00';
             $closeStr = $_ENV['FACILITY_CLOSE'] ?? '22:00';
-            [$openH, $openM]   = array_map('intval', explode(':', $openStr));
-            [$closeH, $closeM] = array_map('intval', explode(':', $closeStr));
-
-            $openMinutes  = ($openH * 60) + $openM;
-            $closeMinutes = ($closeH * 60) + $closeM;
 
             if ($startTotalMinutes < $openMinutes || $endTotalMinutes > $closeMinutes) {
                 $this->db->rollBack();
                 return ['success' => false, 'message' => "Slot falls outside facility hours ({$openStr} – {$closeStr} IST)."];
             }
 
+            if (!BookingRules::isOnGrid($durationMinutes, $startTime)) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'That start time is not an available slot for this modality. Please pick a slot from the schedule.'];
+            }
+
             $endTimeStr = sprintf('%02d:%02d', intdiv($endTotalMinutes, 60), $endTotalMinutes % 60);
 
-            // Same-day past time check
-            if ($date === TimeHelper::today() && TimeHelper::currentTime() >= $startTime) {
+            // Same-day: slot must start after now + SAME_DAY_CUTOFF_MINUTES
+            if (BookingRules::isTooLate($date, $startTime)) {
                 $this->db->rollBack();
-                return ['success' => false, 'message' => 'This time slot has already passed for today.'];
+                $cutoff = BookingRules::sameDayCutoffMinutes();
+                return [
+                    'success' => false,
+                    'message' => $cutoff > 0
+                        ? "Same-day sessions must be booked at least {$cutoff} minutes before they start."
+                        : 'This time slot has already passed for today.',
+                ];
             }
 
             $dbStartTime = $startTime . ':00';
             $dbEndTime   = $endTimeStr . ':00';
 
-            // 3. Customer Conflict Check: Does this user already have a confirmed booking or active hold for this modality overlapping this interval?
-            if ($this->bookingModel->hasCustomerOverlap($userId, $date, $dbStartTime, $dbEndTime, $serviceId)) {
+            // 3. Customer conflict: an athlete can only be in one session at a
+            //    time, regardless of modality (confirmed booking or unpaid hold).
+            if ($this->bookingModel->hasCustomerOverlap($userId, $date, $dbStartTime, $dbEndTime)) {
                 $this->db->rollBack();
                 return [
                     'success' => false,
-                    'message' => 'You already have another confirmed booking for this modality scheduled during this time interval.',
+                    'message' => 'You already have a confirmed booking during this time interval. Choose a slot that does not overlap it.',
                 ];
             }
 
-            if ($this->holdModel->hasCustomerActiveHold($userId, $date, $dbStartTime, $dbEndTime, $serviceId)) {
+            if ($this->holdModel->hasCustomerActiveHold($userId, $date, $dbStartTime, $dbEndTime)) {
                 $this->db->rollBack();
                 return [
                     'success' => false,
-                    'message' => 'You already have an active payment hold for this modality during this time interval.',
+                    'message' => 'You already have an active payment hold during this time interval. Complete or release it first.',
                 ];
             }
 

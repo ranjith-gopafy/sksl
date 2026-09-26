@@ -93,6 +93,7 @@
                         <option value="completed" <?= (($filters['status'] ?? '') === 'completed') ? 'selected' : '' ?>>Completed</option>
                         <option value="cancelled" <?= (($filters['status'] ?? '') === 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
                         <option value="pending" <?= (($filters['status'] ?? '') === 'pending') ? 'selected' : '' ?>>Pending</option>
+                        <option value="expired" <?= (($filters['status'] ?? '') === 'expired') ? 'selected' : '' ?>>Expired (unpaid)</option>
                         <option value="all" <?= (($filters['status'] ?? '') === 'all') ? 'selected' : '' ?>>All Statuses</option>
                     </select>
                     <button 
@@ -136,6 +137,7 @@
                     'completed' => 'Completed',
                     'cancelled' => 'Cancelled',
                     'pending'   => 'Pending',
+                    'expired'   => 'Expired',
                 ];
                 $currentStatus = $filters['status'] ?? 'confirmed';
                 foreach ($statusTabs as $statusCode => $statusLabel):
@@ -299,7 +301,13 @@
                                             <?php else: ?>
                                             <div class="my-1 border-t border-slate-100"></div>
                                             <div class="px-3.5 py-1.5 text-[11px] text-slate-400 italic">
-                                                <?= $b['booking_status'] === 'cancelled' ? 'Cancelled — final. Athlete must book again.' : 'Completed — final.' ?>
+                                                <?php
+                                                echo match ($b['booking_status']) {
+                                                    'cancelled' => 'Cancelled — final. Athlete must book again.',
+                                                    'expired'   => 'Checkout expired unpaid — final.',
+                                                    default     => 'Completed — final.',
+                                                };
+                                                ?>
                                             </div>
                                             <?php endif; ?>
 

@@ -42,8 +42,15 @@ class AdminBookingController
         AdminAuth::handle();
 
         $rawStatus = isset($_GET['status']) ? trim((string) $_GET['status']) : null;
-        // Default to 'confirmed' if status parameter not provided
-        $activeStatus = ($rawStatus === null || $rawStatus === '') ? 'confirmed' : $rawStatus;
+        // Default to 'confirmed' if status parameter not provided; unknown values fall back too
+        $activeStatus = in_array($rawStatus, ['all', 'confirmed', 'completed', 'cancelled', 'pending', 'expired'], true)
+            ? $rawStatus
+            : 'confirmed';
+
+        // Housekeeping: close abandoned checkouts and stale holds before listing,
+        // so staff never see "pending" rows that can no longer be paid.
+        $this->holdModel->expireStale();
+        $this->bookingModel->expireStalePending();
 
         $filters = [
             'date'       => trim((string) ($_GET['date'] ?? '')),

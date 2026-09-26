@@ -9,6 +9,7 @@ use App\Models\ClosedDateModel;
 use App\Models\BookingModel;
 use App\Models\BookingHoldModel;
 use App\Helpers\TimeHelper;
+use App\Helpers\BookingRules;
 
 /**
  * Dynamic Availability Service
@@ -64,22 +65,12 @@ class AvailabilityService
             ];
         }
 
-        // 2. Reject past dates (in Asia/Kolkata timezone)
-        if (TimeHelper::isPastDate($date)) {
+        // 2./3. Booking window: not in the past, not beyond ADVANCE_BOOKING_DAYS.
+        //       Same rule object is used by the hold endpoint (BookingRules).
+        if (($windowError = BookingRules::dateWindowError($date)) !== null) {
             return [
                 'success' => false,
-                'message' => 'Appointments cannot be booked for past dates.',
-                'slots'   => [],
-            ];
-        }
-
-        // 3. Check advance booking limit (default: 30 days ahead)
-        $maxAdvanceDays = (int) ($_ENV['MAX_ADVANCE_DAYS'] ?? 30);
-        $maxDate = TimeHelper::now()->modify("+{$maxAdvanceDays} days")->format('Y-m-d');
-        if ($date > $maxDate) {
-            return [
-                'success' => false,
-                'message' => "Bookings can only be made up to {$maxAdvanceDays} days in advance.",
+                'message' => $windowError,
                 'slots'   => [],
             ];
         }
@@ -114,47 +105,23 @@ class AvailabilityService
             ];
         }
 
-        // 6. Operating hours boundaries (06:00 to 22:00)
-        $facilityOpenStr  = $_ENV['FACILITY_OPEN'] ?? '06:00';
-        $facilityCloseStr = $_ENV['FACILITY_CLOSE'] ?? '22:00';
-
-        [$openH, $openM]   = array_map('intval', explode(':', $facilityOpenStr));
-        [$closeH, $closeM] = array_map('intval', explode(':', $facilityCloseStr));
-
-        $startMinutesLimit = ($openH * 60) + $openM;
-        $closeMinutesLimit = ($closeH * 60) + $closeM;
-
-        // Turnaround / operational buffer between consecutive sessions
-        $checkinBuffer  = (int) ($_ENV['CHECKIN_BUFFER_MINUTES'] ?? 0);
-        $checkoutBuffer = (int) ($_ENV['CHECKOUT_BUFFER_MINUTES'] ?? 0);
-        $generalBuffer  = (int) ($_ENV['BUFFER_MINUTES'] ?? 0);
-        $totalBuffer    = $generalBuffer > 0 ? $generalBuffer : ($checkinBuffer + $checkoutBuffer);
-
-        $isToday = ($date === TimeHelper::today());
-        $currentTimeStr = TimeHelper::currentTime();
+        // 6. Operating hours, buffer and grid all come from BookingRules so the
+        //    hold endpoint validates against exactly the same list of start times.
+        $totalBuffer = BookingRules::bufferMinutes();
+        $isToday     = ($date === TimeHelper::today());
+        $cutoffStart = BookingRules::earliestStartToday(); // now + SAME_DAY_CUTOFF_MINUTES
 
         $slots = [];
-        $cursorMinutes = $startMinutesLimit;
-
-        // Slot step interval: session duration + turnaround cleaning/buffer minutes
-        $slotStep = $durationMinutes + max(0, $totalBuffer);
 
         // 7. Dynamic candidate slot generation loop
-        while (($cursorMinutes + $durationMinutes) <= $closeMinutesLimit) {
-            $slotStartH = intdiv($cursorMinutes, 60);
-            $slotStartM = $cursorMinutes % 60;
-            $slotEndMinutes = $cursorMinutes + $durationMinutes;
-            $slotEndH   = intdiv($slotEndMinutes, 60);
-            $slotEndM   = $slotEndMinutes % 60;
-
-            $slotStartStr = sprintf('%02d:%02d', $slotStartH, $slotStartM);
-            $slotEndStr   = sprintf('%02d:%02d', $slotEndH, $slotEndM);
+        foreach (BookingRules::gridStarts($durationMinutes) as $slotStartStr) {
+            $slotEndStr = TimeHelper::addMinutes($slotStartStr, $durationMinutes);
 
             $available = true;
             $unavailableReason = null;
 
-            // Past time check for same-day slots
-            if ($isToday && $slotStartStr <= $currentTimeStr) {
+            // Same-day: slot must start after now + cutoff lead time
+            if ($isToday && $slotStartStr <= $cutoffStart) {
                 $available = false;
                 $unavailableReason = 'past';
             }
@@ -175,9 +142,10 @@ class AvailabilityService
                 }
             }
 
-            // Customer overlap conflict check (scoped to this specific modality)
+            // Customer conflict: one athlete cannot be in two sessions at once,
+            // whatever the modality (matches BookingService::createHold()).
             if ($available && $currentUserId !== null) {
-                if ($this->bookingModel->hasCustomerOverlap($currentUserId, $date, $dbStart, $dbEnd, (int) $service['id'])) {
+                if ($this->bookingModel->hasCustomerOverlap($currentUserId, $date, $dbStart, $dbEnd)) {
                     $available = false;
                     $unavailableReason = 'user_conflict';
                 }
@@ -196,14 +164,17 @@ class AvailabilityService
                 'available'          => $available,
                 'unavailable_reason' => $unavailableReason,
             ];
-
-            // Advance cursor by service duration + buffer minutes
-            $cursorMinutes += $slotStep;
         }
 
         return [
             'success' => true,
             'date'    => $date,
+            'rules'   => [
+                'advance_booking_days'    => BookingRules::advanceDays(),
+                'max_date'                => BookingRules::maxDate(),
+                'same_day_cutoff_minutes' => BookingRules::sameDayCutoffMinutes(),
+                'buffer_minutes'          => $totalBuffer,
+            ],
             'service' => [
                 'id'               => (int) $service['id'],
                 'name'             => $service['name'],

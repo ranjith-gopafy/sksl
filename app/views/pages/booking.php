@@ -61,7 +61,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
         type="date" 
         id="date_selector" 
         min="<?= date('Y-m-d') ?>"
-        max="<?= date('Y-m-d', strtotime('+30 days')) ?>"
+        max="<?= h(\App\Helpers\BookingRules::maxDate()) ?>"
         value="<?= date('Y-m-d') ?>"
         class="sr-only" 
         tabindex="-1"
@@ -70,7 +70,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
         type="date" 
         id="date_input" 
         min="<?= date('Y-m-d') ?>"
-        max="<?= date('Y-m-d', strtotime('+30 days')) ?>"
+        max="<?= h(\App\Helpers\BookingRules::maxDate()) ?>"
         value="<?= date('Y-m-d') ?>"
         class="sr-only" 
         tabindex="-1"
@@ -452,8 +452,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Booking window comes from the server (ADVANCE_BOOKING_DAYS) so the picker,
+    // the availability API and the hold endpoint always agree.
+    const advanceBookingDays = <?= (int) \App\Helpers\BookingRules::advanceDays() ?>;
     const maxBookingDate = new Date(today);
-    maxBookingDate.setDate(maxBookingDate.getDate() + 30);
+    maxBookingDate.setDate(maxBookingDate.getDate() + advanceBookingDays);
 
     let viewYear = today.getFullYear();
     let viewMonth = today.getMonth(); // 0-11

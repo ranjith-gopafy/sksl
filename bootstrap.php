@@ -132,6 +132,14 @@ function getDb(): PDO
 
         try {
             $pdo = new PDO($dsn, $config['username'], $config['password'], $config['options']);
+            // Align MySQL's NOW()/CURDATE() with the application clock (Asia/Kolkata)
+            // so hold expiry and rate-limit windows behave the same on a UTC host.
+            try {
+                $offset = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('P');
+                $pdo->exec("SET time_zone = '" . $offset . "'");
+            } catch (Throwable $tzErr) {
+                error_log('Could not set MySQL session time_zone: ' . $tzErr->getMessage());
+            }
         } catch (PDOException $e) {
             // Never expose connection details in the response
             error_log('Database connection failed: ' . $e->getMessage());

@@ -26,13 +26,12 @@ return [
         'gst_rate'                => (float) ($_ENV['GST_RATE'] ?? 18),
         'checkin_buffer_minutes'  => (int) ($_ENV['CHECKIN_BUFFER_MINUTES'] ?? 0),
         'checkout_buffer_minutes' => (int) ($_ENV['CHECKOUT_BUFFER_MINUTES'] ?? 0),
-        // Pending client decisions — null means not yet confirmed
-        'advance_booking_days'    => isset($_ENV['ADVANCE_BOOKING_DAYS'])
-                                     ? (int) $_ENV['ADVANCE_BOOKING_DAYS']
-                                     : null,
-        'same_day_cutoff_minutes' => isset($_ENV['SAME_DAY_CUTOFF_MINUTES'])
-                                     ? (int) $_ENV['SAME_DAY_CUTOFF_MINUTES']
-                                     : null,
+        // Window rules are enforced by App\Helpers\BookingRules (date picker,
+        // availability API and hold endpoint all read the same values).
+        'advance_booking_days'    => \App\Helpers\BookingRules::advanceDays(),
+        'same_day_cutoff_minutes' => \App\Helpers\BookingRules::sameDayCutoffMinutes(),
+        'max_active_holds_per_user'      => \App\Helpers\BookingRules::maxActiveHoldsPerUser(),
+        'pending_booking_expiry_minutes' => \App\Helpers\BookingRules::pendingBookingExpiryMinutes(),
     ],
 
     // Uploads

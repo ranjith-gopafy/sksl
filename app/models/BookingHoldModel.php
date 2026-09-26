@@ -77,6 +77,19 @@ class BookingHoldModel
     }
 
     /**
+     * Number of active, non-expired holds a customer currently has (any service/date).
+     */
+    public function countActiveForUser(int $userId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM booking_holds
+             WHERE user_id = ? AND status = 'active' AND expires_at > NOW()"
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
      * Create a new temporary hold.
      *
      * @param array<string, mixed> $data

@@ -248,6 +248,16 @@ Copy the output and use it as `APP_SECRET` in production `.env`.
 
 ## Step 7: Configure Cron Job for Hold Expiry
 
+`cron/expire-holds.php` does two things every run: it marks timed-out slot holds as
+`expired`, and it marks bookings that are still **pending / unpaid** after
+`PENDING_BOOKING_EXPIRY_MINUTES` (default: hold minutes + 30) as `expired` so
+abandoned checkouts do not pile up in the admin list. The admin bookings page runs the
+same housekeeping on load, so the cron is a safety net rather than a hard dependency.
+
+Booking window rules live in `.env` and are applied everywhere at once (date picker,
+`/api/availability`, `/api/bookings/hold`): `ADVANCE_BOOKING_DAYS`,
+`SAME_DAY_CUTOFF_MINUTES`, `CHECKIN/CHECKOUT_BUFFER_MINUTES`, `MAX_ACTIVE_HOLDS_PER_USER`.
+
 In hPanel → **Advanced → Cron Jobs**, add:
 
 | Field | Value |

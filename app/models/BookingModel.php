@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Helpers\BookingRules;
+use App\Helpers\TimeHelper;
+
 /**
  * Booking Model
  *
@@ -235,16 +238,26 @@ class BookingModel
 
         $params = ['user_id' => $userId];
 
+        // "Now" is taken from the application clock (Asia/Kolkata), not the DB
+        // server's, so a session that ended an hour ago is no longer "upcoming"
+        // even when the database runs in UTC.
+        $today   = TimeHelper::today();
+        $nowTime = TimeHelper::now()->format('H:i:s');
+
         if ($filter === 'upcoming') {
-            $sql .= " AND b.booking_status = 'confirmed' 
-                      AND (CONCAT(b.booking_date, ' ', b.end_time) >= NOW() OR b.booking_date >= CURDATE())";
+            $sql .= " AND b.booking_status = 'confirmed'
+                      AND (b.booking_date > :today OR (b.booking_date = :today2 AND b.end_time > :now_time))";
+            $params += ['today' => $today, 'today2' => $today, 'now_time' => $nowTime];
         } elseif ($filter === 'completed') {
-            $sql .= " AND (b.booking_status = 'completed' OR (b.booking_status = 'confirmed' AND CONCAT(b.booking_date, ' ', b.end_time) < NOW() AND b.booking_date < CURDATE()))";
+            $sql .= " AND (b.booking_status = 'completed'
+                      OR (b.booking_status = 'confirmed'
+                          AND (b.booking_date < :today OR (b.booking_date = :today2 AND b.end_time <= :now_time))))";
+            $params += ['today' => $today, 'today2' => $today, 'now_time' => $nowTime];
         } elseif ($filter === 'cancelled') {
             $sql .= " AND b.booking_status = 'cancelled'";
         } else {
-            // For 'all' or default: return real bookings (confirmed, completed, cancelled), excluding abandoned pending holds
-            $sql .= " AND b.booking_status != 'pending'";
+            // 'all' / default: real bookings only — never abandoned (pending/expired) checkouts
+            $sql .= " AND b.booking_status NOT IN ('pending', 'expired')";
         }
 
         $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC";
@@ -268,7 +281,31 @@ class BookingModel
         'confirmed' => ['completed', 'cancelled'],
         'completed' => [],
         'cancelled' => [],
+        'expired'   => [], // abandoned checkout, closed automatically — terminal
     ];
+
+    /**
+     * Expire abandoned checkouts: bookings still pending/unpaid after the hold
+     * window plus a grace period become 'expired' so they stop cluttering the
+     * admin list. A late webhook for such a row is still recorded by
+     * settlePayment() (markPaymentReceivedAfterClose) and flagged for staff.
+     *
+     * @return int rows expired
+     */
+    public function expireStalePending(?int $olderThanMinutes = null): int
+    {
+        $minutes = $olderThanMinutes ?? BookingRules::pendingBookingExpiryMinutes();
+        $cutoff  = TimeHelper::now()->modify("-{$minutes} minutes")->format('Y-m-d H:i:s');
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET booking_status = 'expired'
+             WHERE booking_status = 'pending'
+               AND payment_status = 'pending'
+               AND created_at < ?"
+        );
+        $stmt->execute([$cutoff]);
+        return $stmt->rowCount();
+    }
 
     /**
      * Validate a staff-requested status change against the state machine.
@@ -291,6 +328,9 @@ class BookingModel
         }
         if ($from === 'completed') {
             return ['allowed' => false, 'reason' => 'A completed booking is final.'];
+        }
+        if ($from === 'expired') {
+            return ['allowed' => false, 'reason' => 'This checkout expired without payment. Ask the athlete to book again.'];
         }
         if ($to === 'confirmed') {
             return ['allowed' => false, 'reason' => 'Bookings are confirmed automatically once payment is verified; they cannot be confirmed manually.'];
@@ -366,6 +406,7 @@ class BookingModel
              'completed' => 0,
              'cancelled' => 0,
              'pending'   => 0,
+             'expired'   => 0,
          ];
 
          foreach ($rows as $r) {

@@ -42,7 +42,11 @@ $service = $serviceModel->findBySlug('spa');
 assert($service !== null, 'Service "spa" not found.');
 $serviceId = (int) $service['id'];
 $testDate = date('Y-m-d', strtotime('+3 days'));
-$startTime = '10:00';
+// Holds must sit on the published slot grid (open + n × (duration + buffer)),
+// so pick real grid times instead of hard-coding clock values.
+$spaGrid   = \App\Helpers\BookingRules::gridStarts((int) $service['duration_minutes']);
+$startTime = $spaGrid[(int) floor(count($spaGrid) / 4)];   // mid-morning slot
+$laterSlot = $spaGrid[(int) floor(count($spaGrid) * 3 / 4)]; // afternoon slot, no overlap
 
 // 3. Create a hold
 $holdRes = $bookingSvc->createHold($userId, $serviceId, $testDate, $startTime);
@@ -164,7 +168,7 @@ assert(str_contains($reorder['message'], 'already'), 'Refusal message must expla
 echo "[PASS] 12. No second Razorpay order is opened for a confirmed booking\n";
 
 // 12. A cancelled booking must never be re-confirmed by a late payment callback
-$hold2 = $bookingSvc->createHold($userId, $serviceId, $testDate, '15:00');
+$hold2 = $bookingSvc->createHold($userId, $serviceId, $testDate, $laterSlot);
 assert($hold2['success'] === true, 'Second hold failed: ' . ($hold2['message'] ?? ''));
 $ref2 = $hold2['data']['booking_reference'];
 $order2 = $paymentSvc->createOrder($userId, $ref2);

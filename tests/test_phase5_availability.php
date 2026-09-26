@@ -14,6 +14,15 @@ use App\Helpers\TimeHelper;
 
 echo "=== SKSL Phase 5 Availability Engine Test Suite ===\n\n";
 
+// This suite exercises the pure duration grid (06:00, 06:10, 06:20 … for a 10-min
+// service). Force the turnaround buffer to 0 for the run regardless of .env so
+// the expected slot counts below are deterministic. Buffered grids are covered
+// by tests/test_booking_rules.php.
+foreach (['CHECKIN_BUFFER_MINUTES', 'CHECKOUT_BUFFER_MINUTES', 'BUFFER_MINUTES'] as $bufKey) {
+    $_ENV[$bufKey] = '0';
+    putenv($bufKey . '=0');
+}
+
 $db = getDb();
 $availability = new AvailabilityService();
 $closedDateModel = new ClosedDateModel();

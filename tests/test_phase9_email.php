@@ -49,7 +49,8 @@ $service = $serviceModel->findBySlug('steam');
 assert($service !== null, 'Service "steam" not found');
 $serviceId = (int) $service['id'];
 $date = date('Y-m-d', strtotime('+3 days'));
-$startTime = '14:00';
+$steamGrid = \App\Helpers\BookingRules::gridStarts((int) $service['duration_minutes']);
+$startTime = $steamGrid[(int) floor(count($steamGrid) / 2)]; // a real grid slot around midday
 
 $holdRes = $bookingSvc->createHold($userId, $serviceId, $date, $startTime);
 assert($holdRes['success'] === true, 'Failed to create hold: ' . ($holdRes['message'] ?? ''));

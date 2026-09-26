@@ -1,15 +1,19 @@
 <?php
 
 /**
- * SKSL — Hold Expiry Cron Job
+ * SKSL — Hold & Pending-Booking Expiry Cron Job
  *
- * Scheduled task to periodically update expired booking holds from 'active' to 'expired'.
+ * 1. Marks booking_holds whose expires_at has passed as 'expired'.
+ *    (Availability already ignores them; this keeps the table tidy.)
+ * 2. Marks bookings that are still pending/unpaid after
+ *    PENDING_BOOKING_EXPIRY_MINUTES (default: hold minutes + 30) as 'expired',
+ *    so abandoned checkouts stop cluttering the admin list.
+ *    A late Razorpay webhook for such a booking is still recorded and flagged
+ *    for staff by PaymentService::settlePayment().
  *
- * Availability logic independently ignores expired holds even if this cron has not run.
- * This job keeps the database clean and provides operational auditing.
- *
- * Usage:
- *   php cron/expire-holds.php
+ * The admin bookings page runs the same housekeeping on load, so this job is
+ * a safety net; schedule it every 5–15 minutes:
+ *   php /path/to/sksl/cron/expire-holds.php
  */
 
 declare(strict_types=1);
@@ -17,12 +21,13 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/bootstrap.php';
 
 use App\Models\BookingHoldModel;
+use App\Models\BookingModel;
 
-$holdModel = new BookingHoldModel();
-$expiredCount = $holdModel->expireStale();
+$expiredHolds    = (new BookingHoldModel())->expireStale();
+$expiredBookings = (new BookingModel())->expireStalePending();
 
 $timestamp = date('Y-m-d H:i:s');
-$message = "[{$timestamp}] expire-holds cron executed. Expired {$expiredCount} stale booking hold(s).\n";
+$message = "[{$timestamp}] expire-holds cron executed. Expired {$expiredHolds} stale hold(s) and {$expiredBookings} unpaid pending booking(s).\n";
 
 echo $message;
 
