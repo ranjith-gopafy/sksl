@@ -122,15 +122,14 @@ test.describe('Mobile — Compact Horizontal Modality Cards', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    // Mobile horizontal cards should be compact
-    const mobileCard = page.locator('.modality-card .md\\:hidden').first();
-    if (await mobileCard.isVisible()) {
-      const box = await mobileCard.boundingBox();
-      if (box) {
-        // Compact mobile cards should be under 200px tall
-        expect(box.height).toBeLessThan(200);
-      }
-    }
+    // One card per service, laid out as a compact row on a phone
+    const mobileCard = page.locator('.modality-card').first();
+    await expect(mobileCard).toBeVisible();
+    const box = await mobileCard.boundingBox();
+    expect(box).toBeTruthy();
+    expect(box.height).toBeLessThan(200);
+    expect(await mobileCard.locator('h3').count()).toBe(1);
+    expect(await mobileCard.locator('a').count()).toBe(1);
   });
 });
 

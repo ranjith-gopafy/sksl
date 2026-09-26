@@ -111,7 +111,7 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
             <div class="inline-flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-[#D6981E] animate-pulse"></span>
-                <span>Open Daily: <strong class="text-white">6:00 AM – 10:00 PM IST</strong> &bull; Sports Science &amp; Athletic Recovery</span>
+                <span>Open Daily: <strong class="text-white">6:00 AM – 10:00 PM </strong> &bull; Sports Science &amp; Athletic Recovery</span>
             </div>
             <div class="flex items-center gap-4 text-slate-300">
                 <span class="inline-flex items-center gap-1.5"><span class="text-[#4A9CC0]">📍</span> Bengaluru, India</span>
@@ -278,7 +278,7 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
 
             <div class="mt-12 pt-8 border-t border-[#D9DBDA]/60 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
                 <div>&copy; <?= date('Y') ?> Sara Kinetic Sports Lab. All rights reserved.</div>
-                <div>Statutory GST: 18% &bull; Facility Hours: 06:00 – 22:00 IST &bull; Bengaluru, Karnataka</div>
+                <div>Statutory GST: 18% &bull; Facility Hours: 06:00 AM – 10:00 PM &bull; Bengaluru, Karnataka</div>
             </div>
         </div>
     </footer>

@@ -234,128 +234,57 @@ if (empty($bannerSlides)) {
                     class="modality-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"
                     data-category="<?= h($cat) ?>"
                 >
-                    <!-- MOBILE VIEW: Compact Horizontal App Card (< 768px) -->
-                    <div class="flex md:hidden items-center p-3 gap-3.5">
-                        <!-- Left: Compact Image Thumbnail -->
-                        <div class="relative w-28 h-28 rounded-xl overflow-hidden bg-slate-100 shrink-0">
-                            <img 
-                                src="<?= $imgSrc ?>" 
-                                alt="<?= h($srv['name']) ?>" 
+                    <!-- One card. Row on phones, column from md up. Name, price and link exist once. -->
+                    <div class="flex items-stretch md:flex-col h-full">
+                        <div class="relative w-28 h-28 md:w-full md:h-56 shrink-0 overflow-hidden bg-slate-100 rounded-xl md:rounded-none m-3 md:m-0">
+                            <img
+                                src="<?= $imgSrc ?>"
+                                alt=""
                                 width="1200" height="896"
-                                class="w-full h-full object-cover"
+                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                 loading="lazy" decoding="async"
                             >
-                            <!-- Duration Badge on Thumbnail -->
-                            <div class="absolute bottom-1.5 left-1.5">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-white/95 text-[#075183] shadow-xs backdrop-blur-md flex items-center gap-0.5">
-                                    <svg class="w-3 h-3 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="hidden md:block absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" aria-hidden="true"></div>
+                            <div class="absolute bottom-1.5 left-1.5 md:top-3 md:bottom-auto md:left-3">
+                                <span class="px-2 py-0.5 md:px-2.5 md:py-1 rounded-full text-[10px] md:text-xs font-extrabold bg-white/95 text-[#075183] shadow-xs backdrop-blur-md flex items-center gap-0.5">
+                                    <svg class="w-3 h-3 md:w-3.5 md:h-3.5 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
-                                    <?= h($srv['duration_minutes']) ?>m
+                                    <?= h($srv['duration_minutes']) ?> min
                                 </span>
                             </div>
                         </div>
 
-                        <!-- Right Side of Image: Client Name in Two Lines + Modality & Price -->
-                        <div class="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
-                            <div>
-                                <!-- Client Name in Two Lines -->
-                                <div class="border-l-2 border-[#D6981E] pl-2 leading-none">
-                                    <div class="font-heading font-extrabold text-[10px] tracking-wider text-[#075183] uppercase">
-                                        Sara Kinetic
-                                    </div>
-                                    <div class="font-heading font-bold text-[9px] tracking-widest text-[#BF5B2B] uppercase mt-0.5">
-                                        Sports Lab
-                                    </div>
+                        <div class="flex-1 min-w-0 flex flex-col justify-between py-3 pr-3 md:p-0">
+                            <div class="md:p-5 md:pb-3">
+                                <div class="md:hidden border-l-2 border-[#D6981E] pl-2 leading-none mb-1">
+                                    <div class="font-heading font-extrabold text-[10px] tracking-wider text-[#075183] uppercase">Sara Kinetic</div>
+                                    <div class="font-heading font-bold text-[9px] tracking-widest text-[#BF5B2B] uppercase mt-0.5">Sports Lab</div>
                                 </div>
-
-                                <!-- Modality Name -->
-                                <h3 class="text-sm font-extrabold font-heading text-slate-900 leading-snug mt-1 truncate">
+                                <h3 class="text-sm md:text-xl font-extrabold font-heading text-slate-900 leading-snug truncate">
                                     <?= h($srv['name']) ?>
                                 </h3>
-                                <div class="text-[11px] text-slate-500 font-medium">
+                                <div class="text-[11px] md:text-xs text-slate-500 font-medium mt-0.5">
                                     Max <?= h($srv['capacity']) ?> athletes
                                 </div>
+                                <p class="hidden md:block text-sm text-slate-600 leading-relaxed mt-3 min-h-[48px]">
+                                    <?= h($srv['description'] ?: 'High-performance athletic protocol engineered for rapid physical recovery, lactate clearance, and nervous system balance.') ?>
+                                </p>
                             </div>
-
-                            <!-- Price & CTA Bar -->
-                            <div class="flex items-center justify-between pt-1.5 border-t border-[#D9DBDA]/60 mt-1">
+                            <div class="flex items-center justify-between pt-1.5 mt-1 border-t border-[#D9DBDA]/60 md:mx-5 md:mb-5 md:px-0 md:pt-3 md:border-[#D9DBDA]/80">
                                 <div>
-                                    <div class="text-[8px] uppercase tracking-wider font-bold text-slate-500">Base Rate</div>
-                                    <div class="text-sm font-extrabold text-slate-900 font-heading -mt-0.5">
+                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">Base rate</div>
+                                    <div class="text-sm md:text-xl font-extrabold text-slate-900 font-heading">
                                         &#8377;<?= number_format($basePrice, 2) ?>
                                     </div>
                                 </div>
-                                <a 
-                                    href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
-                                    class="app-touch-target px-3.5 py-1.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-[11px] uppercase tracking-wider shadow-xs"
+                                <a
+                                    href="<?= app_url('booking?service_id=' . $srv['id']) ?>"
+                                    class="app-touch-target inline-flex items-center justify-center px-3.5 py-1.5 md:px-4 md:py-2.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-[11px] md:text-xs uppercase tracking-wider shadow-xs"
                                 >
                                     Book
                                 </a>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- DESKTOP VIEW: Full 3-Column Showcase Card (>= 768px) -->
-                    <div class="hidden md:flex md:flex-col justify-between h-full">
-                        <div>
-                            <!-- Service Photography with Subtle Hover Zoom -->
-                            <div class="relative w-full h-52 sm:h-56 overflow-hidden bg-slate-100">
-                                <img 
-                                    src="<?= $imgSrc ?>" 
-                                    alt="<?= h($srv['name']) ?>" 
-                                    width="1200" height="896"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    loading="lazy" decoding="async"
-                                >
-                                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
-                                
-                                <!-- Badges on Image with Brand Colors -->
-                                <div class="absolute top-3 left-3 flex items-center gap-2">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 text-[#075183] backdrop-blur-md shadow-xs flex items-center gap-1">
-                                        <svg class="w-3.5 h-3.5 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <?= h($srv['duration_minutes']) ?> Min
-                                    </span>
-                                </div>
-
-                                <div class="absolute top-3 right-3">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md border border-white/10">
-                                        Max <?= h($srv['capacity']) ?> Athletes
-                                    </span>
-                                </div>
-
-                                <div class="absolute bottom-3 left-4 right-4 text-white">
-                                    <h3 class="text-xl font-extrabold font-heading text-white drop-shadow-sm">
-                                        <?= h($srv['name']) ?>
-                                    </h3>
-                                </div>
-                            </div>
-
-                            <!-- Card Body -->
-                            <div class="p-5 sm:p-6">
-                                <p class="text-sm text-slate-600 leading-relaxed min-h-[48px]">
-                                    <?= h($srv['description'] ?: 'High-performance athletic protocol engineered for rapid physical recovery, lactate clearance, and nervous system balance.') ?>
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- Price & CTA Bar -->
-                        <div class="px-5 pb-5 sm:px-6 sm:pb-6 pt-3 border-t border-[#D9DBDA]/80 flex items-center justify-between">
-                            <div>
-                                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Base Rate / Session</div>
-                                <div class="text-xl font-extrabold text-slate-900 font-heading">
-                                    &#8377;<?= number_format($basePrice, 2) ?>
-                                </div>
-                            </div>
-
-                            <a 
-                                href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
-                                class="app-touch-target inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
-                            >
-                                Book Slot
-                            </a>
                         </div>
                     </div>
                 </div>
