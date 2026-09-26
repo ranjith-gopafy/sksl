@@ -386,8 +386,8 @@ class BookingModel
          }
 
          if (!empty($filters['search'])) {
-             $sql .= " AND (b.booking_reference LIKE :s1 OR u.name LIKE :s2 OR u.email LIKE :s3 OR u.mobile LIKE :s4)";
-             $term = '%' . $filters['search'] . '%';
+             $sql .= " AND (b.booking_reference LIKE :s1 ESCAPE '\\\\' OR u.name LIKE :s2 ESCAPE '\\\\' OR u.email LIKE :s3 ESCAPE '\\\\' OR u.mobile LIKE :s4 ESCAPE '\\\\')";
+             $term = self::likeTerm((string) $filters['search']);
              $params['s1'] = $term;
              $params['s2'] = $term;
              $params['s3'] = $term;
@@ -420,6 +420,18 @@ class BookingModel
 
          return $counts;
      }
+
+    /**
+     * Build a LIKE pattern for a free-text search term: the user's `%`, `_` and `\`
+     * are matched literally (the query declares ESCAPE '\\'), and the term is
+     * capped so a huge input cannot turn into an expensive scan.
+     */
+    public static function likeTerm(string $search): string
+    {
+        $search = mb_substr(trim($search), 0, 100);
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
+        return '%' . $escaped . '%';
+    }
 
     /**
      * Search and retrieve bookings for admin management.
@@ -456,8 +468,8 @@ class BookingModel
         }
 
         if (!empty($filters['search'])) {
-            $sql .= " AND (b.booking_reference LIKE :s1 OR u.name LIKE :s2 OR u.email LIKE :s3 OR u.mobile LIKE :s4)";
-            $term = '%' . $filters['search'] . '%';
+            $sql .= " AND (b.booking_reference LIKE :s1 ESCAPE '\\\\' OR u.name LIKE :s2 ESCAPE '\\\\' OR u.email LIKE :s3 ESCAPE '\\\\' OR u.mobile LIKE :s4 ESCAPE '\\\\')";
+            $term = self::likeTerm((string) $filters['search']);
             $params['s1'] = $term;
             $params['s2'] = $term;
             $params['s3'] = $term;

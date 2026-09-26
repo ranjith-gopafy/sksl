@@ -287,7 +287,8 @@
                         id="edit_price" 
                         name="price" 
                         step="0.01" 
-                        min="0" 
+                        min="<?= number_format(\App\Controllers\AdminServiceController::MIN_PRICE, 2, '.', '') ?>" 
+                        max="<?= number_format(\App\Controllers\AdminServiceController::MAX_PRICE, 2, '.', '') ?>" 
                         required 
                         class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500"
                     >
@@ -300,7 +301,7 @@
                         id="edit_capacity" 
                         name="capacity" 
                         min="1" 
-                        max="50" 
+                        max="<?= (int) \App\Controllers\AdminServiceController::MAX_CAPACITY ?>" 
                         required 
                         class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500"
                     >

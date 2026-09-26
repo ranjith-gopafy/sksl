@@ -16,6 +16,11 @@ use App\Helpers\ImageUpload;
  */
 class AdminServiceController
 {
+    /** Pricing guard rails (₹). A service must be chargeable; the ceiling catches typos. */
+    public const MIN_PRICE    = 1.00;
+    public const MAX_PRICE    = 100000.00;
+    public const MAX_CAPACITY = 50;
+
     private ServiceModel $serviceModel;
 
     public function __construct(?ServiceModel $serviceModel = null)
@@ -87,16 +92,35 @@ class AdminServiceController
             exit;
         }
 
-        $price    = (float) ($_POST['price'] ?? $service['price']);
-        $capacity = (int) ($_POST['capacity'] ?? $service['capacity']);
-        $desc     = trim((string) ($_POST['description'] ?? $service['description']));
-        $status   = trim((string) ($_POST['status'] ?? $service['status']));
+        $priceRaw    = trim((string) ($_POST['price'] ?? $service['price']));
+        $capacityRaw = trim((string) ($_POST['capacity'] ?? $service['capacity']));
+        $desc        = trim((string) ($_POST['description'] ?? $service['description']));
+        $status      = trim((string) ($_POST['status'] ?? $service['status']));
         if (!in_array($status, ['active', 'inactive'], true)) {
             $status = $service['status'];
         }
 
-        if ($price < 0 || $capacity < 1) {
-            Flash::set('error', 'Price must be positive and capacity must be at least 1.');
+        // Money: a paid service must cost something (a ₹0 price would create free bookings
+        // and a zero-amount Razorpay order), be a plain decimal, and stay within a sane range.
+        if (!is_numeric($priceRaw) || !preg_match('/^\d{1,6}(\.\d{1,2})?$/', $priceRaw)) {
+            Flash::set('error', 'Price must be a number with at most two decimals (e.g. 149.00).');
+            header('Location: ' . app_url('admin/services'));
+            exit;
+        }
+        $price = round((float) $priceRaw, 2);
+        if ($price < self::MIN_PRICE || $price > self::MAX_PRICE) {
+            Flash::set('error', sprintf('Price must be between ₹%s and ₹%s.', number_format(self::MIN_PRICE, 2), number_format(self::MAX_PRICE, 2)));
+            header('Location: ' . app_url('admin/services'));
+            exit;
+        }
+        if (!ctype_digit($capacityRaw) || (int) $capacityRaw < 1 || (int) $capacityRaw > self::MAX_CAPACITY) {
+            Flash::set('error', 'Capacity must be a whole number between 1 and ' . self::MAX_CAPACITY . '.');
+            header('Location: ' . app_url('admin/services'));
+            exit;
+        }
+        $capacity = (int) $capacityRaw;
+        if (mb_strlen($desc) > 1000) {
+            Flash::set('error', 'Description must be 1000 characters or fewer.');
             header('Location: ' . app_url('admin/services'));
             exit;
         }
