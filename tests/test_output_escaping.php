@@ -63,7 +63,7 @@ check(safe_link('https://example.com/a?b=1&c=2') === 'https://example.com/a?b=1&
 // 3. Banner controller refuses unsafe media (through the real admin endpoint, if Apache is up)
 echo "\n--- Section 3: Banner admin validation ---\n";
 $db = getDb();
-$stmt = $db->query("SELECT id, image_url, cta_link FROM hero_banners ORDER BY id LIMIT 1");
+$stmt = $db->query("SELECT id, badge_text, headline, subheadline, image_url, cta_text, cta_link, is_active FROM hero_banners ORDER BY id LIMIT 1");
 $banner = $stmt->fetch();
 if (!$banner) {
     echo "[SKIP] no hero banner rows to test against\n";
@@ -111,8 +111,10 @@ if (!$banner) {
         $attempt = static function (array $fields) use ($http, $baseUrl, $token, $banner): void {
             $http('POST', $baseUrl . '/admin/banner', array_merge([
                 '_csrf_token' => $token, 'id' => $banner['id'], 'action' => 'update',
-                'headline' => 'H5 test', 'subheadline' => 'x', 'badge_text' => 'x', 'cta_text' => 'Go',
-                'image_url' => $banner['image_url'], 'cta_link' => $banner['cta_link'], 'is_active' => '1',
+                'headline' => $banner['headline'], 'subheadline' => $banner['subheadline'],
+                'badge_text' => $banner['badge_text'], 'cta_text' => $banner['cta_text'],
+                'image_url' => $banner['image_url'], 'cta_link' => $banner['cta_link'],
+                'is_active' => (string) (int) $banner['is_active'],
             ], $fields));
         };
         $current = static function () use ($db, $banner): array {
@@ -132,7 +134,8 @@ if (!$banner) {
         check($now['image_url'] === 'images/services/sauna.jpg' && $now['cta_link'] === '/booking?service_id=2', '3.5 valid image + link accepted');
 
         // restore original values + cleanup
-        $db->prepare('UPDATE hero_banners SET image_url = ?, cta_link = ? WHERE id = ?')->execute([$banner['image_url'], $banner['cta_link'], $banner['id']]);
+        $db->prepare('UPDATE hero_banners SET badge_text = ?, headline = ?, subheadline = ?, image_url = ?, cta_text = ?, cta_link = ?, is_active = ? WHERE id = ?')
+            ->execute([$banner['badge_text'], $banner['headline'], $banner['subheadline'], $banner['image_url'], $banner['cta_text'], $banner['cta_link'], (int) $banner['is_active'], $banner['id']]);
         $db->prepare('DELETE FROM admin_otps WHERE admin_id = ?')->execute([$adminId]);
         $db->prepare('DELETE FROM admins WHERE id = ?')->execute([$adminId]);
         @unlink($jar);

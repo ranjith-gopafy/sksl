@@ -21,6 +21,8 @@
     <!-- Tailwind Compiled CSS -->
     <?php $cssPath = (defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__, 3)) . '/public/css/app.css'; ?>
     <link rel="stylesheet" href="<?= asset('css/app.css') ?>?v=<?= file_exists($cssPath) ? filemtime($cssPath) : '1.0' ?>">
+    <?php $jsPath = (defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__, 3)) . '/public/js/app.js'; ?>
+    <script src="<?= asset('js/app.js') ?>?v=<?= file_exists($jsPath) ? filemtime($jsPath) : '1.0' ?>" defer></script>
 
     <style>
         :root {
@@ -281,7 +283,7 @@
     </nav>
 
     <!-- Global Toast Notification Script -->
-    <script>
+    <script nonce="<?= csp_nonce() ?>">
     (function() {
         const toastContainer = document.getElementById('toast-container');
 
@@ -323,7 +325,7 @@
                     <div class="mt-0.5">${iconSvg}</div>
                     <div class="flex-1 min-w-0 pr-2">
                         <div class="text-xs font-bold font-heading uppercase tracking-wider text-slate-800">${titleText}</div>
-                        <div class="text-xs text-slate-600 mt-0.5 break-words font-medium">${message}</div>
+                        <div class="toast-message text-xs text-slate-600 mt-0.5 break-words font-medium"></div>
                     </div>
                     <button type="button" class="text-slate-400 hover:text-slate-700 p-1 -mr-1 rounded-lg transition-colors cursor-pointer" aria-label="Close">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -335,6 +337,11 @@
                     <div class="toast-progress h-full ${barColor} transition-all duration-[${duration}ms] ease-linear w-full"></div>
                 </div>
             `;
+
+            // Message is always inserted as text — never as HTML — so a flash that
+            // echoes user or database content cannot inject markup.
+            const messageEl = toast.querySelector('.toast-message');
+            if (messageEl) messageEl.textContent = String(message);
 
             toastContainer.appendChild(toast);
 
@@ -373,14 +380,15 @@
 
         // Render any pending PHP Flash messages as Toasts
         document.addEventListener('DOMContentLoaded', () => {
+            <?php $jsFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE; ?>
             <?php if (!empty($flashSuccess)): ?>
-                window.showToast(<?= json_encode($flashSuccess) ?>, 'success');
+                window.showToast(<?= json_encode((string) $flashSuccess, $jsFlags) ?>, 'success');
             <?php endif; ?>
             <?php if (!empty($flashError)): ?>
-                window.showToast(<?= json_encode($flashError) ?>, 'error');
+                window.showToast(<?= json_encode((string) $flashError, $jsFlags) ?>, 'error');
             <?php endif; ?>
             <?php if (!empty($flashInfo)): ?>
-                window.showToast(<?= json_encode($flashInfo) ?>, 'info');
+                window.showToast(<?= json_encode((string) $flashInfo, $jsFlags) ?>, 'info');
             <?php endif; ?>
         });
     })();

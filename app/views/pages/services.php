@@ -186,7 +186,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="<?= csp_nonce() ?>">
 document.addEventListener('DOMContentLoaded', () => {
     const filterBtns = document.querySelectorAll('.service-cat-filter');
     const cards = document.querySelectorAll('.service-item-card');

@@ -35,7 +35,7 @@
                     </span>
                     <button 
                         type="button" 
-                        onclick="navigator.clipboard.writeText('<?= h($booking['booking_reference']) ?>'); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 2000)" 
+                        data-copy="<?= h($booking['booking_reference']) ?>"
                         class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-colors"
                     >
                         Copy

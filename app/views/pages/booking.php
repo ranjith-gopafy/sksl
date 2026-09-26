@@ -90,7 +90,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                             src="<?= $modalityImg ?>" 
                             alt="<?= h($selectedService['name']) ?>" 
                             class="w-full h-full object-cover"
-                            onerror="this.src='<?= asset('images/services/spa.jpg') ?>'"
+                            data-fallback-src="<?= h(asset('images/services/spa.jpg')) ?>"
                         >
                     </div>
                     <div class="flex-1 min-w-0">
@@ -414,7 +414,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <!-- Booking Engine JavaScript -->
-<script>
+<script nonce="<?= csp_nonce() ?>">
 document.addEventListener('DOMContentLoaded', () => {
     const serviceInput  = document.getElementById('service_id');
     const dateInput     = document.getElementById('date_selector');

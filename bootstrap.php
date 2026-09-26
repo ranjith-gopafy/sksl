@@ -45,10 +45,18 @@ date_default_timezone_set($appConfig['timezone']);
 
 // ─── Session configuration ────────────────────────────────────────────────
 // Must be called before session_start().
-$secure   = filter_var($_ENV['SESSION_SECURE'] ?? false, FILTER_VALIDATE_BOOLEAN);
+$isProduction   = ($appConfig['env'] ?? 'production') === 'production';
+$requestIsHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['SERVER_PORT'] ?? null) == 443);
+// In production the session cookie is ALWAYS Secure — SESSION_SECURE=false can
+// only relax it for local/testing environments (audit H7).
+$secure   = $isProduction ? true : filter_var($_ENV['SESSION_SECURE'] ?? false, FILTER_VALIDATE_BOOLEAN);
 $sameSite = 'Strict';
 
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.cookie_httponly', '1');
     session_set_cookie_params([
         'lifetime' => 0,
         'path'     => '/',
@@ -60,13 +68,50 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_start();
 }
 
+/**
+ * Per-request nonce for inline <script> tags. Every inline script in the
+ * views must carry nonce="<?= csp_nonce() ?>" or the browser will block it.
+ */
+function csp_nonce(): string
+{
+    static $nonce = null;
+    return $nonce ??= rtrim(strtr(base64_encode(random_bytes(18)), '+/', '-_'), '=');
+}
+
 // ─── HTTP Security Headers ────────────────────────────────────────────────
-if (!headers_sent()) {
+if (!headers_sent() && PHP_SAPI !== 'cli') {
     header('X-Frame-Options: SAMEORIGIN');
     header('X-Content-Type-Options: nosniff');
-    header('X-XSS-Protection: 1; mode=block');
+    // The legacy XSS auditor is removed from modern browsers and caused
+    // vulnerabilities of its own; explicitly disable it and rely on CSP.
+    header('X-XSS-Protection: 0');
     header('Referrer-Policy: strict-origin-when-cross-origin');
-    header('Permissions-Policy: geolocation=(), camera=(), microphone=()');
+    header('Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(self "https://api.razorpay.com" "https://checkout.razorpay.com")');
+
+    if ($requestIsHttps) {
+        // Two years, include subdomains; add "preload" once the domain is submitted to hstspreload.org
+        header('Strict-Transport-Security: max-age=63072000; includeSubDomains');
+    }
+
+    $csp = [
+        "default-src 'self'",
+        "base-uri 'self'",
+        "object-src 'none'",
+        "frame-ancestors 'self'",
+        "form-action 'self'",
+        "script-src 'self' 'nonce-" . csp_nonce() . "' https://checkout.razorpay.com",
+        // Inline style attributes are used throughout the Tailwind markup and by Razorpay Checkout.
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: https:",
+        // Razorpay Checkout opens an iframe and talks to api./lumberjack. sub-domains.
+        "frame-src https://*.razorpay.com",
+        "connect-src 'self' https://*.razorpay.com",
+    ];
+    if ($requestIsHttps) {
+        $csp[] = 'upgrade-insecure-requests';
+    }
+    header('Content-Security-Policy: ' . implode('; ', $csp));
 }
 
 // ─── Database connection ───────────────────────────────────────────────────

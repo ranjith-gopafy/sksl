@@ -432,7 +432,7 @@ if (empty($bannerSlides)) {
 </section>
 
 <!-- Carousel Interaction & Touch Swipe JavaScript -->
-<script>
+<script nonce="<?= csp_nonce() ?>">
 document.addEventListener('DOMContentLoaded', () => {
     const slides = document.querySelectorAll('.carousel-slide');
     const dots = document.querySelectorAll('.carousel-indicator-dot');

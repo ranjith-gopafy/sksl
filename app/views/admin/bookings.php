@@ -245,7 +245,7 @@
                                         <!-- 3-Dots Kebab Button -->
                                         <button 
                                             type="button" 
-                                            onclick="toggleActionMenu(event, <?= (int) $b['id'] ?>)" 
+                                            data-action="toggleActionMenu" data-id="<?= (int) $b['id'] ?>" 
                                             class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 inline-flex items-center justify-center transition-colors border border-slate-200 cursor-pointer shadow-2xs"
                                             title="Management Options"
                                             aria-label="Actions for booking <?= h($b['booking_reference']) ?>"
@@ -318,7 +318,7 @@
                                             <?php endif; ?>
 
                                             <?php if ($canCancel): ?>
-                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>" onsubmit="return confirm(<?= h(json_encode('Cancel booking #' . $b['booking_reference'] . '?' . ($b['payment_status'] === 'paid' ? ' The athlete has paid — you will need to refund via Razorpay.' : ''))) ?>)">
+                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>" data-confirm="<?= h('Cancel booking #' . $b['booking_reference'] . '?' . ($b['payment_status'] === 'paid' ? ' The athlete has paid — you will need to refund via Razorpay.' : '')) ?>">
                                                     <?= \App\Helpers\Csrf::field() ?>
                                                     <input type="hidden" name="status" value="cancelled">
                                                     <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-rose-50 flex items-center gap-2 text-rose-700 font-medium transition-colors cursor-pointer text-left">
@@ -347,7 +347,7 @@
         <!-- Close Button -->
         <button 
             type="button" 
-            onclick="closeBookingViewModal()" 
+            data-action="closeBookingViewModal" 
             class="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label="Close modal"
         >
@@ -470,7 +470,7 @@
             <template id="modal-pdf-icon-template"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></template>
             <button 
                 type="button" 
-                onclick="closeBookingViewModal()" 
+                data-action="closeBookingViewModal" 
                 class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
             >
                 Close View
@@ -479,10 +479,13 @@
     </div>
 </div>
 
-<script>
-function toggleActionMenu(event, id) {
+<script nonce="<?= csp_nonce() ?>">
+// Invoked via data-action="toggleActionMenu" data-id="…" (see public/js/app.js)
+function toggleActionMenu(event, el) {
     event.stopPropagation();
+    const id = (el && el.getAttribute) ? el.getAttribute('data-id') : el;
     const targetDropdown = document.getElementById('action-dropdown-' + id);
+    if (!targetDropdown) return;
     const isHidden = targetDropdown.classList.contains('hidden');
     closeAllActionMenus();
     if (isHidden) {

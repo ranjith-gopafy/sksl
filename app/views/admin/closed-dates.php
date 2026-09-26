@@ -196,7 +196,7 @@
                                         </td>
 
                                         <td class="py-4 px-6 text-right">
-                                            <form method="POST" action="<?= app_url('admin/closed-dates/' . (int) $cd['id'] . '/delete') ?>" onsubmit="return confirm('Re-open facility on <?= h($cd['closed_date']) ?>?')">
+                                            <form method="POST" action="<?= app_url('admin/closed-dates/' . (int) $cd['id'] . '/delete') ?>" data-confirm="Re-open facility on <?= h($cd['closed_date']) ?>?">
                                                 <?= \App\Helpers\Csrf::field() ?>
                                                 <button 
                                                     type="submit" 
@@ -218,7 +218,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="<?= csp_nonce() ?>">
 document.addEventListener('DOMContentLoaded', function () {
     const existingClosedDates = new Set(<?= json_encode(array_values(array_map(fn($d) => (string) $d['closed_date'], $closedDates))) ?>);
     const hiddenInput = document.getElementById('closed_date');

@@ -51,7 +51,7 @@
                 <input 
                     type="text" 
                     id="service-search-input" 
-                    oninput="filterServices()" 
+                    data-oninput="filterServices" 
                     placeholder="Search modality..." 
                     class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-2xs"
                 >
@@ -228,7 +228,7 @@
                 <h3 class="text-base font-extrabold text-slate-900 font-heading" id="modal-service-title">Edit Modality</h3>
                 <p class="text-[11px] text-slate-500">Modify price, capacity, image, and status</p>
             </div>
-            <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+            <button type="button" data-action="closeEditModal" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -331,7 +331,7 @@
             <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button 
                     type="button" 
-                    onclick="closeEditModal()" 
+                    data-action="closeEditModal" 
                     class="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer"
                 >
                     Cancel
@@ -347,7 +347,7 @@
     </div>
 </div>
 
-<script>
+<script nonce="<?= csp_nonce() ?>">
 function filterServices() {
     const query = document.getElementById('service-search-input').value.toLowerCase().trim();
     const cards = document.querySelectorAll('.service-card');
