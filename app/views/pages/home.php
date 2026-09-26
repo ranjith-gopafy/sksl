@@ -58,7 +58,7 @@ if (empty($bannerSlides)) {
             >
                 <!-- Full-Bleed Background Photography with Ken Burns effect -->
                 <img 
-                    src="<?= asset($slideImage) ?>" 
+                    src="<?= safe_image($slideImage, 'images/hero-banner.jpg') ?>" 
                     alt="<?= h($slideHeadline) ?>" 
                     class="absolute inset-0 w-full h-full object-cover object-center transform transition-transform duration-[6000ms] ease-out will-change-transform"
                 >
@@ -91,7 +91,7 @@ if (empty($bannerSlides)) {
                         <!-- Left-Aligned Action CTAs with Brand Colors -->
                         <div class="pt-2 flex flex-wrap items-center gap-3 sm:gap-4">
                             <a 
-                                href="<?= str_starts_with($slideCtaLink, 'http') ? h($slideCtaLink) : app_url(ltrim($slideCtaLink, '/')) ?>" 
+                                href="<?= safe_link($slideCtaLink, '/services') ?>" 
                                 class="app-touch-target inline-flex items-center justify-center font-heading font-bold text-sm px-6 py-3 sm:px-7 sm:py-3.5 rounded-2xl bg-[#053d63] hover:bg-[#075183] text-white shadow-lg shadow-[#053d63]/40 hover:-translate-y-0.5 transition-all"
                             >
                                 <span><?= h($slideCtaText) ?></span>
@@ -206,9 +206,7 @@ if (empty($bannerSlides)) {
         <!-- Services Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" id="services-grid">
             <?php foreach ($services as $srv): 
-                $imgSrc = str_starts_with($srv['image'] ?? '', 'images/') || str_starts_with($srv['image'] ?? '', 'uploads/')
-                    ? asset($srv['image'])
-                    : asset('images/services/' . ($srv['image'] ?? 'spa.jpg'));
+                $imgSrc = service_image($srv['image'] ?? null); // allow-listed + escaped
                 
                 // Categorize for quick app filtering
                 $nameLower = strtolower($srv['name']);
@@ -224,7 +222,7 @@ if (empty($bannerSlides)) {
             ?>
                 <div 
                     class="modality-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"
-                    data-category="<?= $cat ?>"
+                    data-category="<?= h($cat) ?>"
                 >
                     <!-- MOBILE VIEW: Compact Horizontal App Card (< 768px) -->
                     <div class="flex md:hidden items-center p-3 gap-3.5">

@@ -151,10 +151,10 @@
                     $badgeCount = $statusCounts[$statusCode] ?? null;
                 ?>
                     <a 
-                        href="<?= $tabUrl ?>" 
+                        href="<?= h($tabUrl) ?>" 
                         class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 <?= $isActive ? 'bg-[#075183] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white' ?>"
                     >
-                        <span><?= $statusLabel ?></span>
+                        <span><?= h($statusLabel) ?></span>
                         <?php if ($badgeCount !== null): ?>
                             <span class="text-[10px] px-1.5 py-0.5 rounded-full <?= $isActive ? 'bg-white/20 text-white' : 'bg-slate-200/70 text-slate-600' ?>">
                                 <?= $badgeCount ?>
@@ -275,8 +275,8 @@
                                                 <span>View Details</span>
                                             </button>
 
-                                            <!-- 2. Tax Invoice PDF (Hidden for cancelled and pending bookings) -->
-                                            <?php if ($b['booking_status'] !== 'cancelled' && $b['booking_status'] !== 'pending'): ?>
+                                            <!-- 2. Tax Invoice PDF (only paid, live bookings can have one) -->
+                                            <?php if ($b['payment_status'] === 'paid' && $b['booking_status'] !== 'cancelled' && $b['booking_status'] !== 'pending'): ?>
                                                 <a 
                                                     href="<?= app_url('bookings/' . h($b['booking_reference']) . '/invoice') ?>" 
                                                     target="_blank"
@@ -467,6 +467,7 @@
             <div id="modal-pdf-container">
                 <!-- Injected dynamically if valid for PDF -->
             </div>
+            <template id="modal-pdf-icon-template"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></template>
             <button 
                 type="button" 
                 onclick="closeBookingViewModal()" 
@@ -527,11 +528,25 @@ function openBookingViewModal(b) {
         statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600';
     }
 
+    // Build with DOM APIs (never innerHTML with record data) so a crafted
+    // booking reference/status cannot inject markup into the admin page.
     const pdfContainer = document.getElementById('modal-pdf-container');
-    if (b.booking_status !== 'cancelled' && b.booking_status !== 'pending') {
-        pdfContainer.innerHTML = `<a href="<?= app_url('bookings/') ?>${b.booking_reference}/invoice" target="_blank" class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Download PDF Invoice</a>`;
+    pdfContainer.replaceChildren();
+    if (b.payment_status === 'paid' && b.booking_status !== 'cancelled' && b.booking_status !== 'pending') {
+        const link = document.createElement('a');
+        link.href = '<?= app_url('bookings/') ?>' + encodeURIComponent(String(b.booking_reference || '')) + '/invoice';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.className = 'px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs';
+        const icon = document.getElementById('modal-pdf-icon-template');
+        if (icon) link.appendChild(icon.content.cloneNode(true));
+        link.appendChild(document.createTextNode('Download PDF Invoice'));
+        pdfContainer.appendChild(link);
     } else {
-        pdfContainer.innerHTML = `<span class="text-slate-400 text-xs italic">Tax invoice unavailable for ${b.booking_status} booking</span>`;
+        const note = document.createElement('span');
+        note.className = 'text-slate-400 text-xs italic';
+        note.textContent = 'Tax invoice unavailable for ' + String(b.booking_status || 'this') + ' booking';
+        pdfContainer.appendChild(note);
     }
 
     document.getElementById('booking-view-modal').classList.remove('hidden');

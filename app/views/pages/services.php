@@ -32,9 +32,7 @@
     <!-- Services Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" id="services-page-grid">
         <?php foreach ($services as $service): 
-            $imgSrc = str_starts_with($service['image'] ?? '', 'images/') || str_starts_with($service['image'] ?? '', 'uploads/')
-                ? asset($service['image'])
-                : asset('images/services/' . ($service['image'] ?? 'spa.jpg'));
+            $imgSrc = service_image($service['image'] ?? null); // allow-listed + escaped
 
             $nameLower = strtolower($service['name']);
             $cat = 'hydro';
@@ -49,7 +47,7 @@
         ?>
             <div 
                 class="service-item-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"
-                data-category="<?= $cat ?>"
+                data-category="<?= h($cat) ?>"
             >
                 <!-- MOBILE VIEW: Compact Horizontal App Card (< 768px) -->
                 <div class="flex md:hidden items-center p-3 gap-3.5">

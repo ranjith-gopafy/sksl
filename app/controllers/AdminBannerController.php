@@ -123,6 +123,12 @@ class AdminBannerController
                 exit;
             }
 
+            if (($problem = $this->validateMedia($imageUrl, $ctaLink)) !== null) {
+                Flash::set('error', $problem);
+                header('Location: ' . app_url('admin/banner'));
+                exit;
+            }
+
             try {
                 $newId = $this->bannerModel->create([
                     'badge_text'  => $badgeText,
@@ -158,6 +164,12 @@ class AdminBannerController
             exit;
         }
 
+        if (($problem = $this->validateMedia($imageUrl, $ctaLink)) !== null) {
+            Flash::set('error', $problem);
+            header('Location: ' . app_url('admin/banner' . ($id > 0 ? '?edit=' . $id : '')));
+            exit;
+        }
+
         if ($id <= 0) {
             // Fallback: pick first banner ID if none specified
             $first = $this->bannerModel->getAll();
@@ -182,5 +194,27 @@ class AdminBannerController
 
         header('Location: ' . app_url('admin/banner?edit=' . $id));
         exit;
+    }
+
+    /**
+     * Allow-list the banner image and CTA link before they reach the database
+     * (audit H5). Images must be bundled/uploaded files that exist on disk (or
+     * an https URL); links must be site-relative or http(s) — never javascript:.
+     */
+    private function validateMedia(string $imageUrl, string $ctaLink): ?string
+    {
+        if (!is_safe_image_path($imageUrl)) {
+            return 'Image must be a JPG/PNG/WebP under images/ or uploads/ (e.g. images/hero-banner.jpg) or an https:// image URL.';
+        }
+        if (!str_starts_with($imageUrl, 'https://')) {
+            $onDisk = dirname(__DIR__, 2) . '/public/' . $imageUrl;
+            if (!is_file($onDisk)) {
+                return 'Image file "' . $imageUrl . '" was not found in the public folder.';
+            }
+        }
+        if (!is_safe_link($ctaLink)) {
+            return 'Button link must be a site path like /booking or /services, or a full http(s):// URL.';
+        }
+        return null;
     }
 }

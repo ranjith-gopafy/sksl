@@ -185,3 +185,86 @@ function app_url(string $path = ''): string
     $base = app_base_url();
     return $path === '' ? $base : $base . '/' . ltrim($path, '/');
 }
+
+/**
+ * Is a stored image reference acceptable for output?
+ * Allowed: a relative path under public/images/ or public/uploads/ that ends
+ * in .jpg/.jpeg/.png/.webp (no traversal), or an absolute https:// URL.
+ */
+function is_safe_image_path(?string $path): bool
+{
+    $path = trim((string) $path);
+    if ($path === '' || str_contains($path, '..') || preg_match('/[\s<>"\'\\\\]/', $path)) {
+        return false;
+    }
+    if (preg_match('#^(images|uploads)/[A-Za-z0-9_\-/]+\.(?i:jpe?g|png|webp)$#', $path)) {
+        return true;
+    }
+    return (bool) preg_match('#^https://[^\s<>"\']+\.(?i:jpe?g|png|webp)(\?[^\s<>"\']*)?$#', $path)
+        && filter_var($path, FILTER_VALIDATE_URL) !== false;
+}
+
+/**
+ * Attribute-safe <img src> for an admin/DB-supplied image reference.
+ * Anything outside the allow-list falls back to $fallback (a bundled asset).
+ */
+function safe_image(?string $path, string $fallback = 'images/services/spa.jpg'): string
+{
+    $path = trim((string) $path);
+    if (!is_safe_image_path($path)) {
+        $path = $fallback;
+    }
+    $url = str_starts_with($path, 'https://') ? $path : asset($path);
+    return h($url);
+}
+
+/**
+ * Attribute-safe <img src> for a service's stored image. Accepts the legacy
+ * bare filename form ("spa.jpg") as well as images/… and uploads/… paths.
+ */
+function service_image(?string $image, string $fallback = 'images/services/spa.jpg'): string
+{
+    $image = trim((string) $image);
+    if ($image !== '' && preg_match('/^[A-Za-z0-9_\-]+\.(?i:jpe?g|png|webp)$/', $image)) {
+        $image = 'images/services/' . $image;
+    }
+    return safe_image($image, $fallback);
+}
+
+/**
+ * Is a stored link acceptable as an href?
+ * Allowed: a site-relative path ("/services", "/booking?service_id=3") or an
+ * absolute http(s):// URL. Rejects protocol-relative ("//evil"), javascript:,
+ * data:, and anything with control characters or markup.
+ */
+function is_safe_link(?string $link): bool
+{
+    $link = trim((string) $link);
+    if ($link === '' || preg_match('/[\s<>"\'\\\\\x00-\x1F]/', $link)) {
+        return false;
+    }
+    if (str_starts_with($link, '//')) {
+        return false;
+    }
+    if ($link[0] === '/') {
+        return (bool) preg_match('~^/[A-Za-z0-9_\-/.?=&%+#]*$~', $link);
+    }
+    if (preg_match('#^https?://#i', $link)) {
+        return filter_var($link, FILTER_VALIDATE_URL) !== false;
+    }
+    return false;
+}
+
+/**
+ * Attribute-safe href for an admin/DB-supplied link. Relative paths are
+ * resolved through app_url(); unsafe values fall back to $fallback.
+ */
+function safe_link(?string $link, string $fallback = '/services'): string
+{
+    $link = trim((string) $link);
+    if (!is_safe_link($link)) {
+        $link = $fallback;
+    }
+    $url = preg_match('#^https?://#i', $link) ? $link : app_url(ltrim($link, '/'));
+    return h($url);
+}

@@ -100,7 +100,7 @@
                     <!-- Image Thumbnail & Badges -->
                     <div class="relative h-28 bg-slate-900 overflow-hidden group">
                         <img 
-                            src="<?= asset($b['image_url'] ?? 'images/hero-banner.jpg') ?>" 
+                            src="<?= safe_image($b['image_url'] ?? null, 'images/hero-banner.jpg') ?>" 
                             alt="Slide <?= $slideNum ?>" 
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         >
@@ -358,7 +358,7 @@
                         <!-- Background preview -->
                         <img 
                             id="preview-img" 
-                            src="<?= asset($selectedBanner['image_url'] ?? 'images/hero-banner.jpg') ?>" 
+                            src="<?= safe_image($selectedBanner['image_url'] ?? null, 'images/hero-banner.jpg') ?>" 
                             alt="Hero Preview" 
                             class="absolute inset-0 w-full h-full object-cover object-center"
                         >

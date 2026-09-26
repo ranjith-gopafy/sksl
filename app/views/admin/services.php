@@ -65,9 +65,7 @@
     <!-- Modalities Responsive Grid: Optimized for Desktop and Mobile Viewports -->
     <div id="services-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <?php foreach ($services as $s): 
-            $imgSrc = str_starts_with($s['image'] ?? '', 'images/') || str_starts_with($s['image'] ?? '', 'uploads/')
-                ? asset($s['image'])
-                : asset('images/services/' . ($s['image'] ?? 'spa.jpg'));
+            $imgSrc = service_image($s['image'] ?? null); // allow-listed + escaped
             $isActive = ($s['status'] === 'active');
         ?>
             <div 

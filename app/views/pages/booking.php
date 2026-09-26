@@ -10,9 +10,7 @@
  * - Auto-release hold if payment is dismissed/cancelled
  */
 
-$modalityImg = (!empty($selectedService['image']) && str_starts_with($selectedService['image'], 'http'))
-    ? $selectedService['image']
-    : asset('images/services/' . ($selectedService['image'] ?? 'spa.jpg'));
+$modalityImg = service_image($selectedService['image'] ?? null); // allow-listed + escaped
 
 $basePrice = (float) ($selectedService['price'] ?? 0);
 $gstAmount = (float) ($selectedService['pricing']['gst_amount'] ?? ($basePrice * 0.18));
