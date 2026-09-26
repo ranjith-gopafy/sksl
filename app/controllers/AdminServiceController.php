@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Models\ServiceModel;
 use App\Middleware\AdminAuth;
 use App\Helpers\Flash;
+use App\Helpers\ImageUpload;
 
 /**
  * Admin Service Controller
@@ -100,46 +101,26 @@ class AdminServiceController
             exit;
         }
 
-        // --- Image Handling ---
+        // --- Image Handling (see App\Helpers\ImageUpload for the validation rules) ---
         $imagePath = $service['image']; // default: keep existing
+        $publicDir = dirname(__DIR__, 2) . '/public';
 
         $removeImage = !empty($_POST['remove_image']);
-        $hasUpload   = isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK;
+        $hasUpload   = isset($_FILES['image']) && (int) $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE;
 
         if ($hasUpload) {
-            $file    = $_FILES['image'];
-            $allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-            $mime    = mime_content_type($file['tmp_name']);
-
-            if (!in_array($mime, $allowed, true)) {
-                Flash::set('error', 'Invalid image type. Only JPG, PNG, and WebP are allowed.');
+            $result = ImageUpload::store($_FILES['image'], $publicDir . '/uploads/services', 'service_' . $id);
+            if (!$result['ok']) {
+                Flash::set('error', $result['error'] ?? 'Image upload failed.');
                 header('Location: ' . app_url('admin/services'));
                 exit;
             }
 
-            if ($file['size'] > 5 * 1024 * 1024) {
-                Flash::set('error', 'Image size must not exceed 5 MB.');
-                header('Location: ' . app_url('admin/services'));
-                exit;
-            }
-
-            $ext      = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = 'service_' . $id . '_' . time() . '.' . strtolower($ext);
-            $destDir  = dirname(__DIR__, 2) . '/public/uploads/services/';
-
-            if (!is_dir($destDir)) {
-                mkdir($destDir, 0775, true);
-            }
-
-            if (!move_uploaded_file($file['tmp_name'], $destDir . $filename)) {
-                Flash::set('error', 'Failed to save uploaded image. Please try again.');
-                header('Location: ' . app_url('admin/services'));
-                exit;
-            }
-
-            $imagePath = 'uploads/services/' . $filename;
-
+            // Replace: remove the previous admin upload (never the seeded images/ assets).
+            ImageUpload::deleteWithin((string) ($service['image'] ?? ''), $publicDir, 'uploads/services');
+            $imagePath = 'uploads/services/' . $result['filename'];
         } elseif ($removeImage) {
+            ImageUpload::deleteWithin((string) ($service['image'] ?? ''), $publicDir, 'uploads/services');
             $imagePath = null; // reset to default
         }
 
