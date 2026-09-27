@@ -36,25 +36,12 @@ class CustomerBookingController
 
         $allBookings = $this->bookingModel->findByUser($userId, null);
 
-        $now = time();
-        $today = date('Y-m-d');
-        $upcomingCount  = 0;
-        $completedCount = 0;
-        $cancelledCount = 0;
+        // Counts come from the same filters as the lists. A confirmed session
+        // whose end time has already passed (including earlier today) is completed.
+        $upcomingCount  = count($this->bookingModel->findByUser($userId, 'upcoming'));
+        $completedCount = count($this->bookingModel->findByUser($userId, 'completed'));
+        $cancelledCount = count($this->bookingModel->findByUser($userId, 'cancelled'));
         $totalCount     = count($allBookings);
-
-        foreach ($allBookings as &$b) {
-            $sessionEnd = strtotime($b['booking_date'] . ' ' . $b['end_time']);
-
-            if ($b['booking_status'] === 'cancelled') {
-                $cancelledCount++;
-            } elseif ($b['booking_status'] === 'completed' || ($b['booking_status'] === 'confirmed' && $sessionEnd < $now && $b['booking_date'] < $today)) {
-                $completedCount++;
-            } elseif ($b['booking_status'] === 'confirmed') {
-                $upcomingCount++;
-            }
-        }
-        unset($b);
 
         // Determine active tab
         if ($rawTab !== null && in_array($rawTab, ['all', 'upcoming', 'completed', 'cancelled'], true)) {
