@@ -11,7 +11,7 @@
 --   CLI: mysql -u<user> -p <database> < sksl_export.sql
 --
 -- AFTER IMPORT:
---   1. UPDATE admins SET email='your-admin@yourdomain.com' WHERE id=1;
+--   1. The seeded admin is info@sarakineticsportslab.com (OTP login, no password).
 --   2. Fill BUSINESS_* and INVOICE_* values in .env (legal identity for invoices)
 --   3. Update hero banner slides via /admin/banner
 -- ============================================================
@@ -475,15 +475,11 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- ── Seed: admin_seed.sql ──────────────────────────────────────────────────
 -- Seed: admin
 -- Purpose: Insert initial admin account
--- IMPORTANT: Update the email address before going live.
 -- The admin authenticates via OTP only — no password stored.
--- Admin email is also used for notifications (set ADMIN_EMAIL in .env).
+-- Booking alerts use ADMIN_EMAIL in .env, which can be a different address.
 
 INSERT INTO `admins` (`name`, `email`, `status`)
-VALUES ('SKSL Admin', 'admin@sksl.in', 'active');
-
--- NOTE: After seeding, update the email to the actual admin email address.
--- UPDATE admins SET email = 'actual-admin@example.com' WHERE id = 1;
+VALUES ('SKSL Admin', 'info@sarakineticsportslab.com', 'active');
 
 -- ── Seed: services_seed.sql ───────────────────────────────────────────────
 -- Seed: services

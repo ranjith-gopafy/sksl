@@ -28,7 +28,7 @@ final class Seo
             'changefreq'  => 'weekly',
         ],
         '/services' => [
-            'description' => 'Recovery modalities and GST-inclusive pricing at Sara Kinetic Sports Lab, Bengaluru: ice bath, sauna, steam, hot bath, hydrotherapy, endless pool, lap pool, cycle, treadmill and walker sessions.',
+            'description' => 'Recovery modalities and pricing at Sara Kinetic Sports Lab, Bengaluru. Card prices are before GST; 18% GST is added at checkout.',
             'priority'    => '0.9',
             'changefreq'  => 'weekly',
         ],

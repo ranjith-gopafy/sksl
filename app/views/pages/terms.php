@@ -45,7 +45,7 @@
 
             <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">6. Payments, Cancellations &amp; Refunds</h2>
             <p>
-                Prices are shown in Indian Rupees inclusive of GST and a tax invoice is issued for every paid booking. Payments are processed by Razorpay; SKSL never sees your
+                Prices on the service cards are before GST. 18% GST is added at checkout, and that total is the amount you pay. A tax invoice is issued for every paid booking. Payments are processed by Razorpay; SKSL never sees your
                 card or bank details. Cancellations and refunds are handled by the SKSL team as described in our
                 <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-600 font-semibold hover:underline">Cancellation &amp; Refund Policy</a> &mdash; contact us with your booking reference.
             </p>

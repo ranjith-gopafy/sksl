@@ -23,7 +23,7 @@
 
                 <div>
                     <label for="admin_email" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                        Staff Email Address
+                        Admin Email Address
                     </label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">

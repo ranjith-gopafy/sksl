@@ -89,10 +89,10 @@
                         <div class="flex items-center justify-between md:flex-col md:items-stretch gap-2 pt-1.5 mt-1 border-t border-[#D9DBDA]/60 md:mx-5 md:mb-5 md:pt-4 md:border-[#D9DBDA]/80">
                             <div class="flex items-center justify-between md:mb-1">
                                 <div>
-                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">Base rate</div>
                                     <div class="text-sm md:text-2xl font-extrabold text-slate-900 font-heading">
                                         &#8377;<?= number_format($basePrice, 2) ?>
                                     </div>
+                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">+ 18% GST</div>
                                 </div>
                                 <span class="hidden md:inline-flex text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                                     Available daily

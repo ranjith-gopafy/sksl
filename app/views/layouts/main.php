@@ -108,10 +108,10 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
 
     <!-- Top Facility Info Bar (Desktop & Tablet) -->
     <div class="bg-slate-900 text-slate-200 text-xs py-2 px-4 border-b border-slate-800">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
-            <div class="inline-flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-[#D6981E] animate-pulse"></span>
-                <span>Open Daily: <strong class="text-white">6:00 AM – 10:00 PM </strong> &bull; Sports Science &amp; Athletic Recovery</span>
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2 text-center sm:text-left">
+            <div class="flex items-center justify-center sm:justify-start gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-[#D6981E] animate-pulse shrink-0"></span>
+                <span class="min-w-0">Open Daily: <strong class="text-white">6:00 AM – 10:00 PM</strong> &bull; Sports Science &amp; Athletic Recovery</span>
             </div>
             <div class="flex items-center gap-4 text-slate-300">
                 <span class="inline-flex items-center gap-1.5"><span class="text-[#4A9CC0]">📍</span> Bengaluru, India</span>
@@ -200,7 +200,7 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
     <!-- Main Container -->
     <main id="main-content" class="flex-1" tabindex="-1">
         <!-- Floating Toast Notification Container -->
-        <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm sm:max-w-md w-full px-4 sm:px-0" aria-live="polite">
+        <div id="toast-container" class="fixed top-5 left-4 right-4 sm:left-auto sm:right-5 z-[9999] flex flex-col gap-3 pointer-events-none sm:max-w-md sm:w-full" aria-live="polite">
         </div>
 
         <?php
@@ -226,15 +226,15 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
                 
                 <!-- Brand Info with Official Logo -->
                 <div class="md:col-span-2 space-y-4">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
                         <img 
                             src="<?= asset('images/sksl-logo.png') ?>" 
                             alt="SKSL Logo" 
                             width="500" height="500" loading="lazy" decoding="async"
-                            class="h-12 w-auto object-contain"
+                            class="h-12 w-auto object-contain shrink-0"
                         >
-                        <div>
-                            <span class="font-heading font-extrabold text-lg text-[#075183] tracking-tight block">SARA KINETIC SPORTS LAB</span>
+                        <div class="min-w-0">
+                            <span class="font-heading font-extrabold text-lg text-[#075183] tracking-tight block break-words">SARA KINETIC SPORTS LAB</span>
                             <span class="text-xs font-semibold text-[#BF5B2B] tracking-wider uppercase">Recover &bull; Recharge &bull; Perform</span>
                         </div>
                     </div>

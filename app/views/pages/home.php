@@ -273,10 +273,10 @@ if (empty($bannerSlides)) {
                             </div>
                             <div class="flex items-center justify-between pt-1.5 mt-1 border-t border-[#D9DBDA]/60 md:mx-5 md:mb-5 md:px-0 md:pt-3 md:border-[#D9DBDA]/80">
                                 <div>
-                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">Base rate</div>
                                     <div class="text-sm md:text-xl font-extrabold text-slate-900 font-heading">
                                         &#8377;<?= number_format($basePrice, 2) ?>
                                     </div>
+                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">+ 18% GST</div>
                                 </div>
                                 <a
                                     href="<?= app_url('booking?service_id=' . $srv['id']) ?>"
