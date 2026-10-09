@@ -12,11 +12,25 @@
 
 $modalityImg = service_image($selectedService['image'] ?? null); // allow-listed + escaped
 
-$basePrice = (float) ($selectedService['price'] ?? 0);
-$gstAmount = (float) ($selectedService['pricing']['gst_amount'] ?? ($basePrice * 0.18));
-$totalAmount = (float) ($selectedService['pricing']['total_amount'] ?? ($basePrice + $gstAmount));
-$duration = (int) ($selectedService['duration_minutes'] ?? 30);
+// Catalogue prices are GST-inclusive; the controller already split them (pricing = base + GST = total).
+$basePrice = (float) ($selectedService['pricing']['base_price'] ?? 0);
+$gstAmount = (float) ($selectedService['pricing']['gst_amount'] ?? 0);
+$totalAmount = (float) ($selectedService['pricing']['total_amount'] ?? 0);
+$duration = (int) ($packageCreditMinutes ?? $selectedService['duration_minutes'] ?? 30);
 $capacity = (int) ($selectedService['capacity'] ?? 4);
+
+$initialDurationOptionId = null;
+if (!empty($durationOptions)) {
+    foreach ($durationOptions as $opt) {
+        if ((int)$opt['duration_minutes'] === $duration) {
+            $initialDurationOptionId = (int)$opt['id'];
+            break;
+        }
+    }
+    if (!$initialDurationOptionId && !empty($durationOptions)) {
+        $initialDurationOptionId = (int)$durationOptions[0]['id'];
+    }
+}
 ?>
 
 <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
@@ -37,7 +51,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                 <?= ((int) $srv['id'] === (int) $selectedService['id']) ? 'selected' : '' ?>
                 data-duration="<?= (int) $srv['duration_minutes'] ?>"
                 data-capacity="<?= (int) $srv['capacity'] ?>"
-                data-base="<?= (float) $srv['price'] ?>"
+                data-base="<?= (float) ($srv['pricing']['base_price'] ?? 0) ?>"
                 data-gst="<?= (float) ($srv['pricing']['gst_amount'] ?? 0) ?>"
                 data-total="<?= (float) ($srv['pricing']['total_amount'] ?? 0) ?>"
             >
@@ -51,6 +65,9 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
         id="service_id" 
         value="<?= (int) $selectedService['id'] ?>"
         data-name="<?= h($selectedService['name']) ?>"
+        data-category="<?= h($selectedService['category'] ?? 'modality') ?>"
+        data-pricing-type="<?= h($selectedService['pricing_type'] ?? 'fixed') ?>"
+        data-active-package-id="<?= $activePackage ? (int) $activePackage['id'] : '' ?>"
         data-duration="<?= $duration ?>"
         data-capacity="<?= $capacity ?>"
         data-base="<?= $basePrice ?>"
@@ -118,10 +135,22 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                     </div>
                     <div class="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 gap-2 shrink-0">
                         <div class="text-left sm:text-right">
-                            <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500">Total with 18% GST</div>
-                            <div class="text-base font-extrabold text-[#075183] font-heading leading-none mt-0.5">
-                                &#8377;<?= number_format($totalAmount, 2) ?>
-                            </div>
+                            <?php if (($selectedService['pricing_type'] ?? '') === 'pay_at_centre'): ?>
+                                <div class="text-[10px] uppercase tracking-wider font-bold text-amber-700">Consultation Fee</div>
+                                <div class="text-xs sm:text-sm font-extrabold text-[#075183] font-heading leading-tight mt-0.5">
+                                    Assessed at Centre
+                                </div>
+                            <?php elseif ($activePackage !== null): ?>
+                                <div class="text-[10px] uppercase tracking-wider font-bold text-emerald-700">Prepaid Bundle</div>
+                                <div class="text-xs sm:text-sm font-extrabold text-[#075183] font-heading leading-tight mt-0.5">
+                                    1 Credit
+                                </div>
+                            <?php else: ?>
+                                <div class="text-[10px] uppercase tracking-wider font-bold text-slate-500">Total with 18% GST</div>
+                                <div class="text-base font-extrabold text-[#075183] font-heading leading-none mt-0.5">
+                                    &#8377;<?= number_format($totalAmount, 2) ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <a 
                             href="<?= app_url('services') ?>" 
@@ -134,6 +163,35 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                         </a>
                     </div>
                 </div>
+
+                <?php if ($activePackage === null && !empty($durationOptions) && count($durationOptions) > 1): ?>
+                    <div class="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mr-1">Select Duration:</span>
+                        <div class="flex items-center gap-1.5" id="duration-pills-container">
+                            <?php foreach ($durationOptions as $opt): 
+                                $isOptSelected = ((int)$opt['duration_minutes'] === $duration);
+                                // Option prices are GST-inclusive; split server-side so the page never re-derives GST.
+                                $optPricing = \App\Models\ServiceModel::calculatePricing((float) $opt['price'], (float) ($selectedService['gst_percent'] ?? 18.0));
+                            ?>
+                                <button 
+                                    type="button" 
+                                    class="duration-pill px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer <?= $isOptSelected ? 'bg-[#075183] text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700' ?>"
+                                    aria-pressed="<?= $isOptSelected ? 'true' : 'false' ?>"
+                                    data-id="<?= (int) $opt['id'] ?>"
+                                    data-duration="<?= (int) $opt['duration_minutes'] ?>"
+                                    data-base="<?= $optPricing['base_price'] ?>"
+                                    data-gst="<?= $optPricing['gst_amount'] ?>"
+                                    data-total="<?= $optPricing['total_amount'] ?>"
+                                >
+                                    <?= (int) $opt['duration_minutes'] ?>m
+                                    <?php if (($selectedService['pricing_type'] ?? '') !== 'pay_at_centre'): ?>
+                                        (₹<?= number_format($optPricing['total_amount'], 0) ?> incl. GST)
+                                    <?php endif; ?>
+                                </button>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </section>
 
             <!-- 2. Integrated Interactive Tailwind Calendar & Live Slot Grid Card -->
@@ -216,7 +274,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                                 <div class="text-xs font-bold uppercase tracking-wider text-slate-800">
                                     Available Time Slots
                                 </div>
-                                <div id="slots-count-badge" class="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                <div id="slots-count-badge" role="status" aria-live="polite" class="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
                                     Checking availability...
                                 </div>
                             </div>
@@ -248,7 +306,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
 
                         <!-- Facility Operational Footer -->
                         <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
-                            <div>Facility: <strong class="text-slate-600 font-semibold">06:00 – 22:00 IST</strong></div>
+                            <div>Facility: <strong class="text-slate-600 font-semibold"><?= h(facility_time_label('open')) ?> – <?= h(facility_time_label('close')) ?> IST (Last Slot: <?= h(facility_time_label('last_slot')) ?>)</strong></div>
                             <div>Session: <strong class="text-[#075183] font-semibold"><?= $duration ?> Min</strong></div>
                             <div>Check-in: <strong class="text-slate-600 font-semibold">10 min prior</strong></div>
                         </div>
@@ -286,18 +344,42 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                     </div>
 
                     <div class="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
-                        <div class="flex justify-between text-slate-500">
-                            <span>Base Rate</span>
-                            <span>&#8377;<span id="sum-base"><?= number_format($basePrice, 2) ?></span></span>
-                        </div>
-                        <div class="flex justify-between text-slate-500">
-                            <span>GST (18%)</span>
-                            <span>&#8377;<span id="sum-gst"><?= number_format($gstAmount, 2) ?></span></span>
-                        </div>
-                        <div class="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200 font-heading">
-                            <span>Total Payable</span>
-                            <span class="text-[#075183] font-black">&#8377;<span id="sum-total"><?= number_format($totalAmount, 2) ?></span></span>
-                        </div>
+                        <?php if (($selectedService['pricing_type'] ?? '') === 'pay_at_centre'): ?>
+                            <div class="flex justify-between text-slate-500">
+                                <span>Fee Structure</span>
+                                <span class="font-bold text-amber-700">Clinical Assessment</span>
+                            </div>
+                            <div class="flex justify-between text-slate-500">
+                                <span>Online Payment</span>
+                                <span class="font-bold text-slate-800">Not Required</span>
+                            </div>
+                            <div class="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200 font-heading">
+                                <span>Pay at Facility</span>
+                                <span class="text-[#075183] font-black">Fee set at the centre</span>
+                            </div>
+                        <?php elseif ($activePackage !== null): ?>
+                            <div class="flex justify-between text-slate-500">
+                                <span>Payment Source</span>
+                                <span class="font-bold text-emerald-700 truncate max-w-[150px]"><?= h($activePackage['package_name_snapshot']) ?></span>
+                            </div>
+                            <div class="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200 font-heading">
+                                <span>Total Payable</span>
+                                <span class="text-emerald-700 font-black">1 Credit Redeemed</span>
+                            </div>
+                        <?php else: ?>
+                            <div class="flex justify-between text-slate-500">
+                                <span>Base Rate</span>
+                                <span>&#8377;<span id="sum-base"><?= number_format($basePrice, 2) ?></span></span>
+                            </div>
+                            <div class="flex justify-between text-slate-500">
+                                <span>GST (18%)</span>
+                                <span>&#8377;<span id="sum-gst"><?= number_format($gstAmount, 2) ?></span></span>
+                            </div>
+                            <div class="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200 font-heading">
+                                <span>Total Payable</span>
+                                <span class="text-[#075183] font-black">&#8377;<span id="sum-total"><?= number_format($totalAmount, 2) ?></span></span>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -315,7 +397,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                     </label>
                 </div>
 
-                <!-- 1-Click Proceed to Payment Button -->
+                <!-- Action Button -->
                 <div class="mt-4">
                     <button 
                         type="button" 
@@ -325,13 +407,24 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
                     >
                         Select Time Slot
                     </button>
-                    <p class="text-[10px] text-slate-500 text-center mt-2">
-                        10-min slot hold auto-assigned on gateway launch.
+                    <p id="proceed-btn-sub" class="text-[10px] text-slate-500 text-center mt-2">
+                        <?php if (($selectedService['pricing_type'] ?? '') === 'pay_at_centre'): ?>
+                            No online payment required. Fee collected upon clinical assessment at reception.
+                        <?php elseif ($activePackage !== null): ?>
+                            Redeems 1 session credit from your active combo package.
+                        <?php else: ?>
+                            10-min slot hold auto-assigned on gateway launch.
+                        <?php endif; ?>
                     </p>
                 </div>
 
+                <!-- Strict Cancellation & Rescheduling Notice -->
+                <div class="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 leading-relaxed">
+                    <strong class="text-slate-800">Cancellations &amp; Rescheduling:</strong> You can cancel a confirmed session from My Sessions up to <?= \App\Helpers\BookingRules::cancellationNoticeHours() ?> hours before it starts; a <?= h(rtrim(rtrim(number_format(\App\Helpers\BookingRules::cancellationFeePercent(), 2), '0'), '.')) ?>% cancellation charge applies to online payments and the balance is refunded manually. There is no rescheduling: for any other change contact the centre at <?= config('business.phone') ?> or <?= config('business.support_email') ?>.
+                </div>
+
                 <!-- Error Notice -->
-                <div id="booking-error" class="hidden mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+                <div id="booking-error" role="alert" class="hidden mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
                     <!-- Dynamic error text -->
                 </div>
             </div>
@@ -340,7 +433,7 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
 </div>
 
 <!-- Full-Screen Payment Processing Overlay -->
-<div id="payment-processing-overlay" class="hidden fixed inset-0 z-[99999] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center select-none" aria-modal="true" role="dialog">
+<div id="payment-processing-overlay" class="hidden fixed inset-0 z-[99999] bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center select-none" aria-modal="true" role="alertdialog" aria-labelledby="processing-title" aria-describedby="processing-desc">
     <div class="relative w-20 h-20 mb-6">
         <div class="absolute inset-0 rounded-full border-4 border-white/10"></div>
         <div class="absolute inset-0 rounded-full border-4 border-[#4A9CC0] border-t-transparent animate-spin"></div>
@@ -349,10 +442,10 @@ $capacity = (int) ($selectedService['capacity'] ?? 4);
             <img src="<?= asset('images/sksl-logo.png') ?>" alt="SKSL" class="w-8 h-8 object-contain">
         </div>
     </div>
-    <h3 class="text-xl sm:text-2xl font-black text-white font-heading tracking-wide">
+    <h3 id="processing-title" class="text-xl sm:text-2xl font-black text-white font-heading tracking-wide">
         Confirming Your Reservation...
     </h3>
-    <p class="text-sm text-slate-300 mt-2 max-w-md">
+    <p id="processing-desc" class="text-sm text-slate-300 mt-2 max-w-md">
         Verifying payment and securing your session slot with Sara Kinetic Sports Lab.
     </p>
     <div class="mt-4 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-[#D6981E] tracking-wider uppercase">
@@ -629,6 +722,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let selectedSlot = null;
     let activeHold = null;
+    let selectedDurationOptionId = <?= $initialDurationOptionId ? (int) $initialDurationOptionId : 'null' ?>;
+
+    // Read an API response. A missing session (401/403), rate limit (429) or a non-JSON error page
+    // becomes a message the customer can act on, instead of a vague "connection error".
+    // `unreadable` is true when the server did not give a normal answer at all.
+    async function apiJson(res) {
+        let data = null;
+        try { data = await res.json(); } catch (e) { data = null; }
+        if (data && typeof data === 'object') { return data; }
+        let message = 'The server sent an unexpected response. Please try again.';
+        if (res.status === 401 || res.status === 403) { message = 'Your session has expired. Please sign in again and retry.'; }
+        else if (res.status === 429) { message = 'Too many attempts. Please wait a minute and try again.'; }
+        else if (res.status >= 500) { message = 'The server had a problem. Please try again in a moment.'; }
+        return { success: false, message, unreadable: true };
+    }
+
+    // Only the newest availability request may update the page: with quick date or duration clicks an
+    // older, slower response must not overwrite the slots for what the customer chose last.
+    let availabilityRequest = 0;
 
     // Fetch availability
     async function loadAvailability() {
@@ -646,12 +758,21 @@ document.addEventListener('DOMContentLoaded', () => {
         slotsEmpty.classList.add('hidden');
         slotsLoading.classList.remove('hidden');
         slotsBadge.textContent = 'Checking availability...';
+        const myRequest = ++availabilityRequest;
 
         try {
-            const res = await fetch(`<?= app_url('api/availability') ?>?service_id=${serviceId}&date=${date}`, {
+            let url = `<?= app_url('api/availability') ?>?service_id=${serviceId}&date=${date}`;
+            if (selectedDurationOptionId) {
+                url += `&duration_option_id=${selectedDurationOptionId}`;
+            }
+            if (serviceInput && serviceInput.dataset.activePackageId) {
+                url += `&customer_package_id=${encodeURIComponent(serviceInput.dataset.activePackageId)}`;
+            }
+            const res = await fetch(url, {
                 headers: { 'Accept': 'application/json' }
             });
-            const data = await res.json();
+            const data = await apiJson(res);
+            if (myRequest !== availabilityRequest) { return; } // a newer request is in flight
 
             slotsLoading.classList.add('hidden');
 
@@ -749,6 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
             slotsBadge.textContent = `${availableCount} available / ${slots.length} total`;
 
         } catch (err) {
+            if (myRequest !== availabilityRequest) { return; }
             slotsLoading.classList.add('hidden');
             slotsEmpty.classList.remove('hidden');
             emptyTitle.textContent = 'Connection Error';
@@ -760,19 +882,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSummary() {
         if (!serviceInput) return;
 
+        const isPayAtCentre = (serviceInput.dataset.pricingType === 'pay_at_centre' || serviceInput.dataset.category === 'professional');
+        const isPackage = Boolean(serviceInput.dataset.activePackageId);
+
         sumService.textContent = serviceInput.dataset.name || 'Modality';
         sumDuration.textContent = `${serviceInput.dataset.duration || '30'} Minutes`;
 
         const d = new Date(dateInput.value + 'T00:00:00');
         sumDate.textContent = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        const base = parseFloat(serviceInput.dataset.base || '0');
-        const gst = parseFloat(serviceInput.dataset.gst || '0');
-        const total = parseFloat(serviceInput.dataset.total || '0');
+        // The price lines only exist in the paid-modality summary. Professional appointments and
+        // package-credit bookings render static text instead, so there is nothing to update there.
+        if (!isPayAtCentre && !isPackage && sumBase && sumGst && sumTotal) {
+            const base = parseFloat(serviceInput.dataset.base || '0');
+            const gst = parseFloat(serviceInput.dataset.gst || '0');
+            const total = parseFloat(serviceInput.dataset.total || '0');
 
-        sumBase.textContent = base.toFixed(2);
-        sumGst.textContent = gst.toFixed(2);
-        sumTotal.textContent = total.toFixed(2);
+            sumBase.textContent = base.toFixed(2);
+            sumGst.textContent = gst.toFixed(2);
+            sumTotal.textContent = total.toFixed(2);
+        }
 
         if (selectedSlot) {
             sumTime.textContent = selectedSlot.display_start;
@@ -783,12 +912,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateProceedButton() {
         const isReady = selectedSlot !== null && termsCheck.checked;
+        const isPayAtCentre = (serviceInput?.dataset?.pricingType === 'pay_at_centre' || serviceInput?.dataset?.category === 'professional');
+        const isPackage = Boolean(serviceInput?.dataset?.activePackageId);
         const total = parseFloat(serviceInput?.dataset?.total || '<?= $totalAmount ?>');
 
         if (isReady) {
             proceedBtn.disabled = false;
             proceedBtn.className = 'app-touch-target w-full py-4 px-4 rounded-2xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer';
-            proceedBtn.textContent = `Proceed to Payment • ₹${total.toFixed(2)}`;
+            if (isPayAtCentre) {
+                proceedBtn.textContent = 'Confirm Professional Appointment';
+            } else if (isPackage) {
+                proceedBtn.textContent = 'Confirm with Package Credit';
+            } else {
+                proceedBtn.textContent = `Proceed to Payment • ₹${total.toFixed(2)}`;
+            }
         } else {
             proceedBtn.disabled = true;
             proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-500 font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-not-allowed border border-slate-200';
@@ -851,11 +988,102 @@ document.addEventListener('DOMContentLoaded', () => {
         loadAvailability();
     }
 
-    // 1-Click Streamlined Proceed: Create Hold + Launch Payment Gateway Immediately
+    // 1-Click Streamlined Proceed: Create Hold + Launch Payment Gateway Immediately (or Direct Confirm for Professional/Package)
     proceedBtn.addEventListener('click', async () => {
         if (!selectedSlot || !termsCheck.checked) return;
 
         hideError();
+        const isPayAtCentre = (serviceInput?.dataset?.pricingType === 'pay_at_centre' || serviceInput?.dataset?.category === 'professional');
+        const isPackage = Boolean(serviceInput?.dataset?.activePackageId);
+
+        // Branch 1: Professional Appointment (Pay at centre)
+        if (isPayAtCentre) {
+            proceedBtn.disabled = true;
+            proceedBtn.textContent = 'Confirming Appointment...';
+            if (overlay) overlay.classList.remove('hidden');
+
+            try {
+                const form = new FormData();
+                form.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
+                form.append('service_id', serviceInput.value);
+                form.append('booking_date', dateInput.value);
+                form.append('start_time', selectedSlot.start_time);
+                form.append('health_declared', termsCheck.checked ? '1' : '0');
+                if (selectedDurationOptionId) {
+                    form.append('duration_option_id', selectedDurationOptionId);
+                }
+
+                const res = await fetch('<?= app_url('api/bookings/professional') ?>', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    body: form
+                });
+                const data = await apiJson(res);
+
+                if (!data.success || !data.data) {
+                    if (overlay) overlay.classList.add('hidden');
+                    showError(data.message || 'Unable to confirm appointment.');
+                    proceedBtn.disabled = false;
+                    updateProceedButton();
+                    return;
+                }
+
+                window.location.href = '<?= app_url('booking-confirmation') ?>?ref=' + encodeURIComponent(data.data.booking_reference);
+                return;
+            } catch (err) {
+                if (overlay) overlay.classList.add('hidden');
+                showError('Network error confirming appointment. Please try again.');
+                proceedBtn.disabled = false;
+                updateProceedButton();
+                return;
+            }
+        }
+
+        // Branch 2: Combo Package Credit Booking
+        if (isPackage) {
+            proceedBtn.disabled = true;
+            proceedBtn.textContent = 'Redeeming Package Credit...';
+            if (overlay) overlay.classList.remove('hidden');
+
+            try {
+                const form = new FormData();
+                form.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
+                form.append('service_id', serviceInput.value);
+                form.append('customer_package_id', serviceInput.dataset.activePackageId);
+                form.append('booking_date', dateInput.value);
+                form.append('start_time', selectedSlot.start_time);
+                form.append('health_declared', termsCheck.checked ? '1' : '0');
+                if (selectedDurationOptionId) {
+                    form.append('duration_option_id', selectedDurationOptionId);
+                }
+
+                const res = await fetch('<?= app_url('api/bookings/package') ?>', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    body: form
+                });
+                const data = await apiJson(res);
+
+                if (!data.success || !data.data) {
+                    if (overlay) overlay.classList.add('hidden');
+                    showError(data.message || 'Unable to complete package booking.');
+                    proceedBtn.disabled = false;
+                    updateProceedButton();
+                    return;
+                }
+
+                window.location.href = '<?= app_url('booking-confirmation') ?>?ref=' + encodeURIComponent(data.data.booking_reference);
+                return;
+            } catch (err) {
+                if (overlay) overlay.classList.add('hidden');
+                showError('Network error completing package booking. Please try again.');
+                proceedBtn.disabled = false;
+                updateProceedButton();
+                return;
+            }
+        }
+
+        // Branch 3: Standard Modality Booking (Hold + Gateway Checkout)
         proceedBtn.disabled = true;
         proceedBtn.textContent = 'Initiating Secure Payment...';
 
@@ -867,13 +1095,16 @@ document.addEventListener('DOMContentLoaded', () => {
             holdForm.append('booking_date', dateInput.value);
             holdForm.append('start_time', selectedSlot.start_time);
             holdForm.append('health_declared', termsCheck.checked ? '1' : '0');
+            if (selectedDurationOptionId) {
+                holdForm.append('duration_option_id', selectedDurationOptionId);
+            }
 
             const holdRes = await fetch('<?= app_url('api/bookings/hold') ?>', {
                 method: 'POST',
                 headers: { 'Accept': 'application/json' },
                 body: holdForm
             });
-            const holdData = await holdRes.json();
+            const holdData = await apiJson(holdRes);
 
             if (!holdData.success || !holdData.data) {
                 showError(holdData.message || 'Unable to reserve this slot.');
@@ -895,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Accept': 'application/json' },
                 body: orderForm
             });
-            const orderData = await orderRes.json();
+            const orderData = await apiJson(orderRes);
 
             if (!orderData.success || !orderData.data) {
                 await releaseHoldSilently(activeHold.booking_reference);
@@ -981,13 +1212,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: formData
             });
 
-            const data = await res.json();
+            const data = await apiJson(res);
 
             if (!data.success) {
                 if (overlay) overlay.classList.add('hidden');
-                showError(data.message || 'Payment verification failed.');
-                proceedBtn.disabled = false;
-                updateProceedButton();
+                showPaymentUncertain(reference, data.message || 'Payment verification failed.');
                 return;
             }
 
@@ -996,11 +1225,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (e) {
             if (overlay) overlay.classList.add('hidden');
-            showError('Verification request failed. Please check network.');
-            proceedBtn.disabled = false;
-            updateProceedButton();
+            showPaymentUncertain(reference, 'We could not confirm your payment because the connection was interrupted.');
         }
     }
+
+    // After the gateway has been opened the money may already have left the customer's account, so the
+    // page must not offer to pay again. It points to My Bookings (where a captured payment shows up,
+    // confirmed by the gateway's own notification even if this page lost contact) and keeps the button off.
+    function showPaymentUncertain(reference, reason) {
+        errorNotice.textContent = '';
+        const lead = document.createElement('span');
+        lead.textContent = reason + ' If money was deducted from your account, do NOT pay again: ';
+        const link = document.createElement('a');
+        link.href = '<?= app_url('my-bookings') ?>';
+        link.className = 'underline font-bold';
+        link.textContent = 'check My Bookings';
+        const tail = document.createElement('span');
+        tail.textContent = ' or contact SKSL quoting reference ' + reference + '.';
+        errorNotice.append(lead, link, tail);
+        errorNotice.classList.remove('hidden');
+        proceedBtn.disabled = true;
+        proceedBtn.className = 'w-full py-4 px-4 rounded-2xl bg-slate-100 text-slate-500 font-heading font-bold text-xs uppercase tracking-wider cursor-not-allowed border border-slate-200';
+        proceedBtn.textContent = 'Payment may be processing';
+        if (window.showToast) { window.showToast('Payment status unclear: please check My Bookings before paying again.', 'error'); }
+    }
+
+    // Coming back with the Back button can restore this page from the browser's cache with the
+    // "confirming" overlay still showing; reset it and refresh the slots.
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+            if (overlay) overlay.classList.add('hidden');
+            proceedBtn.disabled = false;
+            updateProceedButton();
+            loadAvailability();
+        }
+    });
 
     // Mock Modal Interactions
     mockSuccessBtn.addEventListener('click', async () => {
@@ -1046,7 +1305,40 @@ document.addEventListener('DOMContentLoaded', () => {
             loadAvailability();
         });
     }
-    termsCheck.addEventListener('change', updateProceedButton);
+    // Duration pills handler
+    const durationPills = document.querySelectorAll('.duration-pill');
+    durationPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            durationPills.forEach(p => {
+                p.setAttribute('aria-pressed', 'false');
+                p.classList.remove('bg-[#075183]', 'text-white', 'shadow-xs');
+                p.classList.add('bg-slate-100', 'hover:bg-slate-200', 'text-slate-700');
+            });
+            pill.classList.remove('bg-slate-100', 'hover:bg-slate-200', 'text-slate-700');
+            pill.classList.add('bg-[#075183]', 'text-white', 'shadow-xs');
+
+            pill.setAttribute('aria-pressed', 'true');
+            selectedDurationOptionId = pill.dataset.id;
+            const newDuration = pill.dataset.duration;
+            if (serviceInput) {
+                serviceInput.dataset.duration = newDuration;
+                if (serviceInput.dataset.pricingType !== 'pay_at_centre' && pill.dataset.total) {
+                    // Server-computed split of the GST-inclusive option price; never recomputed here.
+                    serviceInput.dataset.base = parseFloat(pill.dataset.base || '0').toFixed(2);
+                    serviceInput.dataset.gst = parseFloat(pill.dataset.gst || '0').toFixed(2);
+                    serviceInput.dataset.total = parseFloat(pill.dataset.total || '0').toFixed(2);
+                }
+            }
+
+            updateSummary();
+            updateProceedButton();
+            loadAvailability();
+        });
+    });
+
+    if (termsCheck) {
+        termsCheck.addEventListener('change', updateProceedButton);
+    }
 
     // Initial load
     renderCalendar();

@@ -57,9 +57,11 @@ class InvoiceService
 
         // A tax invoice documents a completed sale. No paid payment => no invoice.
         if (!in_array($booking['booking_status'], ['confirmed', 'completed'], true)
-            || ($booking['payment_status'] ?? '') !== 'paid') {
+            || ($booking['payment_status'] ?? '') !== 'paid'
+            || ($booking['payment_mode'] ?? 'payment_required') !== 'payment_required') {
+            // Free appointments and package-credit sessions are not separate taxable sales.
             throw new InvoiceNotAvailableException(
-                'Tax invoice is only issued for paid, confirmed bookings (booking is ' . $booking['booking_status'] . ').'
+                'Tax invoice is only issued for paid online bookings (booking is ' . $booking['booking_status'] . ').'
             );
         }
 
@@ -75,11 +77,11 @@ class InvoiceService
         $gstPercent = (float) ($booking['gst_percent'] ?? 18.0);
         $halfRate   = round($gstPercent / 2, 2);
         $cgstAmount = round($gstAmount / 2, 2);
-        $sgstAmount = round($gstAmount - $cgstAmount, 2); // Avoid rounding split discrepancy
+        $sgstAmount = round($gstAmount - $cgstAmount, 2); // equal for every amount priced after the even-paise split; older records keep their stored split
         $totalAmount= (float) $booking['total_amount'];
 
-        $invoiceNo  = $this->assignInvoiceNumber($booking);
         $paidTs     = strtotime($payment['paid_at'] ?? $booking['updated_at'] ?? 'now') ?: time();
+        $invoiceNo  = $this->assignInvoiceNumber($booking, 'bookings', $paidTs);
 
         return [
             'invoice_number'       => $invoiceNo,
@@ -112,7 +114,131 @@ class InvoiceService
             'business_state_code'  => $business['state_code'],
             'business_contact'     => $business['contact'],
             'is_specimen'          => $business['is_specimen'],
+            'document_kind'        => 'booking',
+            'details_title'        => 'Appointment Details',
+            'details_lines'        => [
+                'Booking Ref'      => (string) $booking['booking_reference'],
+                'Appointment Date' => date('d-m-Y', strtotime($booking['booking_date'])),
+                'Reserved Window'  => date('h:i A', strtotime($booking['start_time'])) . ' – ' . date('h:i A', strtotime($booking['end_time'])) . ' IST',
+                'Session Duration' => (int) $booking['service_duration_minutes'] . ' Minutes',
+            ],
+            'item_title'           => ($booking['service_name_snapshot'] ?: $booking['service_name']) . ' Recovery Session',
+            'item_subtitle'        => 'Single Athlete Modality Reservation (' . (int) $booking['service_duration_minutes'] . ' mins)',
         ];
+    }
+
+    /**
+     * Compile tax-invoice data for a paid combo-package purchase.
+     *
+     * @return array<string, mixed>
+     */
+    public function getPackageInvoiceData(array $purchase): array
+    {
+        if (($purchase['payment_status'] ?? '') !== 'paid') {
+            throw new InvoiceNotAvailableException('Tax invoice is only issued for paid package purchases.');
+        }
+
+        $payment = $this->paymentModel->findByCustomerPackageId((int) $purchase['id']);
+        if (!$payment || empty($payment['razorpay_payment_id']) || ($payment['status'] ?? '') !== 'paid') {
+            throw new InvoiceNotAvailableException('No settled payment record exists for this package purchase.');
+        }
+
+        $business   = self::businessIdentity();
+        $gstPercent = (float) ($purchase['gst_percent'] ?? 18.0);
+        $gstAmount  = (float) $purchase['gst_amount'];
+        $halfRate   = round($gstPercent / 2, 2);
+        $cgstAmount = round($gstAmount / 2, 2);
+        $sgstAmount = round($gstAmount - $cgstAmount, 2);
+        $paidTs     = strtotime((string) ($payment['paid_at'] ?? $purchase['purchased_at'] ?? 'now')) ?: time();
+        $invoiceNumber = $this->assignInvoiceNumber($purchase, 'customer_packages', $paidTs);
+
+        $sessions = [];
+        foreach ((array) ($purchase['credits'] ?? []) as $credit) {
+            $sessions[] = (int) $credit['allocated_quantity'] . ' × ' . $credit['service_name'];
+        }
+
+        return [
+            'invoice_number'       => $invoiceNumber,
+            'invoice_date'         => date('d-m-Y', $paidTs),
+            'booking_reference'    => $purchase['purchase_reference'],
+            'customer_name'        => $purchase['user_name'],
+            'customer_email'       => $purchase['user_email'],
+            'customer_mobile'      => $purchase['user_mobile'],
+            'sac_code'             => $business['sac_code'],
+            'base_amount'          => (float) $purchase['base_amount'],
+            'gst_percent'          => $gstPercent,
+            'cgst_percent'         => $halfRate,
+            'cgst_amount'          => $cgstAmount,
+            'sgst_percent'         => $halfRate,
+            'sgst_amount'          => $sgstAmount,
+            'total_amount'         => (float) $purchase['total_amount'],
+            'payment_status'       => 'paid',
+            'payment_method'       => 'Razorpay Online Gateway',
+            'razorpay_payment_id'  => $payment['razorpay_payment_id'],
+            'razorpay_order_id'    => $payment['razorpay_order_id'],
+            'business_name'        => $business['legal_name'],
+            'business_tagline'     => $business['tagline'],
+            'business_address'     => $business['address'],
+            'business_gstin'       => $business['gstin'],
+            'business_state'       => $business['state_name'],
+            'business_state_code'  => $business['state_code'],
+            'business_contact'     => $business['contact'],
+            'is_specimen'          => $business['is_specimen'],
+            'document_kind'        => 'package',
+            'details_title'        => 'Package Details',
+            'details_lines'        => [
+                'Purchase Ref' => (string) $purchase['purchase_reference'],
+                'Purchased'    => date('d-m-Y', $paidTs),
+                'Valid Until'  => date('d-m-Y', strtotime((string) $purchase['expires_at'])),
+                'Sessions'     => implode(', ', $sessions),
+            ],
+            'item_title'           => (string) $purchase['package_name_snapshot'],
+            'item_subtitle'        => 'Prepaid combo package — sessions redeemed as booked',
+        ];
+    }
+
+    /**
+     * Generate (or reuse) the PDF tax invoice for a paid package purchase.
+     *
+     * @param array<string, mixed> $purchase  Row from CustomerPackageModel::findById()/findByReference()
+     */
+    public function generatePackageInvoicePdf(array $purchase): string
+    {
+        $data = $this->getPackageInvoiceData($purchase);
+
+        return $this->renderToFile($data, $this->invoicePath((string) $purchase['purchase_reference'], !empty($data['is_specimen'])));
+    }
+
+    /** Stream a package-purchase invoice to its owner. */
+    public function downloadPackageInvoice(string $purchaseReference, int $userId): void
+    {
+        $purchase = (new \App\Models\CustomerPackageModel())->findByReference($purchaseReference);
+        if (!$purchase || (int) $purchase['user_id'] !== $userId) {
+            http_response_code(404);
+            echo 'Invoice not found.';
+            exit;
+        }
+
+        try {
+            $pdfPath = $this->generatePackageInvoicePdf($purchase);
+        } catch (InvoiceNotAvailableException $e) {
+            http_response_code(403);
+            echo 'Tax Invoice is not available for this purchase.';
+            exit;
+        } catch (\Throwable $e) {
+            error_log('Package invoice generation failed for ' . $purchaseReference . ': ' . $e->getMessage());
+            http_response_code(503);
+            echo 'Invoice is temporarily unavailable. Please contact SKSL.';
+            exit;
+        }
+
+        $safeRef = preg_replace('/[^A-Za-z0-9\-]/', '', $purchaseReference);
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="SKSL_Invoice_' . $safeRef . '.pdf"');
+        header('Content-Length: ' . (string) filesize($pdfPath));
+        header('Cache-Control: private, max-age=0, must-revalidate');
+        readfile($pdfPath);
+        exit;
     }
 
     /**
@@ -181,37 +307,51 @@ class InvoiceService
      *
      * @param array<string, mixed> $booking
      */
-    private function assignInvoiceNumber(array $booking): string
+    private function assignInvoiceNumber(array $booking, string $table = 'bookings', ?int $paidTs = null): string
     {
+        if (!in_array($table, ['bookings', 'customer_packages'], true)) {
+            throw new \InvalidArgumentException('Unsupported invoice table.');
+        }
         if (!empty($booking['invoice_number'])) {
             return (string) $booking['invoice_number'];
         }
 
         $prefix = self::businessIdentity()['prefix'];
-        $now    = new \DateTimeImmutable('now');
+        // Financial year of the sale (payment date), not of the day the PDF happens to be generated.
+        $now    = (new \DateTimeImmutable('now'))->setTimestamp($paidTs ?? time());
         $year   = (int) $now->format('Y');
         $fyStart = ((int) $now->format('n') >= 4) ? $year : $year - 1;
         $fy = $fyStart . '-' . substr((string) ($fyStart + 1), -2);
         $like = $prefix . '/' . $fy . '/%';
 
         // Serialize numbering across concurrent requests
-        $this->db->query("SELECT GET_LOCK('sksl_invoice_seq', 5)");
+        $locked = (int) $this->db->query("SELECT GET_LOCK('sksl_invoice_seq', 10)")->fetchColumn();
+        if ($locked !== 1) {
+            // Without the lock two requests could compute the same number; fail and let the caller retry.
+            throw new \RuntimeException('Could not obtain the invoice numbering lock.');
+        }
         try {
+            // One series across booking and package invoices.
             $stmt = $this->db->prepare(
-                'SELECT MAX(CAST(SUBSTRING_INDEX(invoice_number, "/", -1) AS UNSIGNED))
-                 FROM bookings WHERE invoice_number LIKE ?'
+                'SELECT MAX(n) FROM (
+                    SELECT CAST(SUBSTRING_INDEX(invoice_number, "/", -1) AS UNSIGNED) AS n
+                      FROM bookings WHERE invoice_number LIKE ?
+                    UNION ALL
+                    SELECT CAST(SUBSTRING_INDEX(invoice_number, "/", -1) AS UNSIGNED)
+                      FROM customer_packages WHERE invoice_number LIKE ?
+                 ) seq'
             );
-            $stmt->execute([$like]);
+            $stmt->execute([$like, $like]);
             $next = ((int) $stmt->fetchColumn()) + 1;
             $number = sprintf('%s/%s/%06d', $prefix, $fy, $next);
 
             $upd = $this->db->prepare(
-                'UPDATE bookings SET invoice_number = ? WHERE id = ? AND invoice_number IS NULL'
+                "UPDATE {$table} SET invoice_number = ? WHERE id = ? AND invoice_number IS NULL"
             );
             $upd->execute([$number, (int) $booking['id']]);
             if ($upd->rowCount() === 0) {
                 // Another request numbered it first; read back
-                $re = $this->db->prepare('SELECT invoice_number FROM bookings WHERE id = ?');
+                $re = $this->db->prepare("SELECT invoice_number FROM {$table} WHERE id = ?");
                 $re->execute([(int) $booking['id']]);
                 $number = (string) $re->fetchColumn();
             }
@@ -417,11 +557,10 @@ class InvoiceService
                     <td style="width: 4%;"></td>
                     <td style="width: 48%; vertical-align: top;">
                         <div class="meta-box">
-                            <div class="section-title">Appointment Details</div>
-                            <strong>Booking Ref:</strong> <?= htmlspecialchars($data['booking_reference'], ENT_QUOTES, 'UTF-8') ?><br>
-                            <strong>Appointment Date:</strong> <?= htmlspecialchars($data['booking_date'], ENT_QUOTES, 'UTF-8') ?><br>
-                            <strong>Reserved Window:</strong> <?= htmlspecialchars($data['slot_window'], ENT_QUOTES, 'UTF-8') ?><br>
-                            <strong>Session Duration:</strong> <?= (int) $data['duration_minutes'] ?> Minutes
+                            <div class="section-title"><?= htmlspecialchars($data['details_title'], ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php foreach ($data['details_lines'] as $label => $value): ?>
+                                <strong><?= htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') ?>:</strong> <?= htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') ?><br>
+                            <?php endforeach; ?>
                         </div>
                     </td>
                 </tr>
@@ -442,9 +581,9 @@ class InvoiceService
                     <tr>
                         <td class="text-center">1</td>
                         <td>
-                            <strong><?= htmlspecialchars($data['service_name'], ENT_QUOTES, 'UTF-8') ?> Recovery Session</strong><br>
+                            <strong><?= htmlspecialchars($data['item_title'], ENT_QUOTES, 'UTF-8') ?></strong><br>
                             <span style="font-size: 8pt; color: #64748b;">
-                                Single Athlete Modality Reservation (<?= (int) $data['duration_minutes'] ?> mins)
+                                <?= htmlspecialchars($data['item_subtitle'], ENT_QUOTES, 'UTF-8') ?>
                             </span>
                         </td>
                         <td class="text-center"><?= htmlspecialchars($data['sac_code'], ENT_QUOTES, 'UTF-8') ?></td>
@@ -500,8 +639,6 @@ class InvoiceService
      */
     public function generateInvoicePdf(string $bookingReference): string
     {
-        $outputPath = $this->storageDir . '/' . $bookingReference . '.pdf';
-
         // Eligibility is re-checked on every call, even for a cached file, so a booking
         // that was later cancelled/refunded cannot keep serving its old invoice.
         $data = $this->getInvoiceData($bookingReference);
@@ -509,12 +646,31 @@ class InvoiceService
             throw new \RuntimeException('Booking reference not found for invoice generation: ' . $bookingReference);
         }
 
-        // Cache hit: return if already generated (never cache a specimen)
+        return $this->renderToFile($data, $this->invoicePath($bookingReference, !empty($data['is_specimen'])));
+    }
+
+    /**
+     * Where an invoice PDF lives. A specimen (business identity not configured) is written to its
+     * own file name and never reused, so a specimen made before go-live can never be served later
+     * as the real invoice once the identity is configured.
+     */
+    private function invoicePath(string $reference, bool $specimen): string
+    {
+        $safe = preg_replace('/[^A-Za-z0-9\-]/', '', $reference);
+        return $this->storageDir . '/' . $safe . ($specimen ? '.specimen' : '') . '.pdf';
+    }
+
+    /**
+     * Render an invoice to disk (reusing a cached real invoice) and return its path.
+     * The PDF is written to a temp name and renamed, so a concurrent reader never sees half a file.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function renderToFile(array $data, string $outputPath): string
+    {
         if (empty($data['is_specimen']) && file_exists($outputPath) && filesize($outputPath) > 1000) {
             return $outputPath;
         }
-
-        $html = $this->renderHtml($data);
 
         $mpdf = new Mpdf([
             'tempDir'       => $this->tempDir,
@@ -528,8 +684,14 @@ class InvoiceService
 
         $mpdf->SetTitle('Tax Invoice ' . $data['invoice_number']);
         $mpdf->SetAuthor((string) $data['business_name']);
-        $mpdf->WriteHTML($html);
-        $mpdf->Output($outputPath, \Mpdf\Output\Destination::FILE);
+        $mpdf->WriteHTML($this->renderHtml($data));
+
+        $tmpPath = $outputPath . '.' . bin2hex(random_bytes(4)) . '.tmp';
+        $mpdf->Output($tmpPath, \Mpdf\Output\Destination::FILE);
+        if (!@rename($tmpPath, $outputPath)) {
+            @unlink($tmpPath);
+            throw new \RuntimeException('Could not store the invoice PDF.');
+        }
 
         return $outputPath;
     }

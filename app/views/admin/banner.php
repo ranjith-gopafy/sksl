@@ -1,36 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-    <!-- Admin Navigation Header -->
-    <div class="bg-white border border-slate-200/90 rounded-2xl p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-xs">
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold font-heading text-xs shadow-xs">
-                AD
-            </div>
-            <div>
-                <h1 class="text-sm font-extrabold text-slate-900 font-heading">SKSL Control Center</h1>
-                <p class="text-[11px] text-slate-500">Signed in as <?= h($_SESSION['admin_name'] ?? 'Admin') ?> (<?= h($_SESSION['admin_email'] ?? '') ?>)</p>
-            </div>
-        </div>
-
-        <nav class="flex items-center gap-1.5 overflow-x-auto">
-            <a href="<?= app_url('admin/bookings') ?>" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Bookings
-            </a>
-            <a href="<?= app_url('admin/services') ?>" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Modalities
-            </a>
-            <a href="<?= app_url('admin/banner') ?>" class="px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold uppercase tracking-wider">
-                Hero Banners
-            </a>
-            <a href="<?= app_url('admin/closed-dates') ?>" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Closed Dates
-            </a>
-            <form method="POST" action="<?= app_url('admin/logout') ?>" class="inline">
-                <?= \App\Helpers\Csrf::field() ?>
-                <button type="submit" class="px-3 py-1.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer bg-transparent border-0">Sign Out</button>
-            </form>
-        </nav>
-    </div>
+<div class="w-full max-w-7xl mx-auto">
 
     <!-- Page Header & Action Controls -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -44,7 +12,7 @@
             <h2 class="text-2xl font-extrabold text-slate-900 font-heading tracking-tight">
                 Hero Banner Manager
             </h2>
-            <p class="text-xs text-slate-500 mt-0.5">
+            <p class="text-xs text-slate-600 mt-0.5">
                 Manage up to 5 rotating hero slides. Edit headlines, tags, imagery, and target buttons live on the public carousel.
             </p>
         </div>
@@ -62,7 +30,7 @@
                     <span>Add Banner (<?= count($banners) ?>/5)</span>
                 </button>
             <?php else: ?>
-                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 text-xs font-semibold">
+                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold">
                     <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
@@ -89,7 +57,7 @@
             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                 <span>Active Carousel Slides (<?= count($banners) ?> Total)</span>
             </h3>
-            <span class="text-[11px] text-slate-500">Click a slide below to load into editor</span>
+            <span class="text-[11px] text-slate-600">Click a slide below to load into editor</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
@@ -201,7 +169,7 @@
                                 <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
                                 Editing Banner #<?= (int) $selectedBanner['id'] ?>
                             </h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Optimized form controls for fast updates</p>
+                            <p class="text-xs text-slate-600 mt-0.5">Optimized form controls for fast updates</p>
                         </div>
 
                         <!-- Active Toggle inside editor -->
@@ -211,6 +179,7 @@
                                 <input 
                                     type="checkbox" 
                                     id="is_active_input"
+                                    aria-label="Show this slide on the homepage"
                                     name="is_active" 
                                     form="edit-banner-form"
                                     value="1" 
@@ -391,7 +360,7 @@
                             <div class="pt-1.5">
                                 <span 
                                     id="preview-cta" 
-                                    class="inline-block py-1.5 px-3.5 rounded-lg bg-sky-500 text-white text-[11px] font-bold font-heading shadow-xs"
+                                    class="inline-block py-1.5 px-3.5 rounded-lg bg-sky-700 text-white text-[11px] font-bold font-heading shadow-xs"
                                 >
                                     <?= h($selectedBanner['cta_text'] ?? 'Reserve Recovery Session') ?>
                                 </span>

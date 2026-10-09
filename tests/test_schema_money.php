@@ -13,6 +13,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Models\AdminModel;
 use App\Models\BookingModel;
@@ -72,7 +73,7 @@ check(BookingModel::likeTerm('a_b') === '%a\\_b%', '1.2 _ is escaped');
 check(BookingModel::likeTerm('c\\d') === '%c\\\\d%', '1.3 backslash is escaped');
 check(strlen(BookingModel::likeTerm(str_repeat('x', 500))) === 102, '1.4 search term capped at 100 chars');
 
-$spa = $serviceModel->findBySlug('spa');
+$spa = $serviceModel->findBySlug('massages');
 $u1 = $userModel->create('Percent Tester', "pct_{$runId}@sk-sports-lab.test", '9811100001', password_hash('x-y-z-1234', PASSWORD_DEFAULT));
 $u2 = $userModel->create('Plain Tester', "plain_{$runId}@sk-sports-lab.test", '9811100002', password_hash('x-y-z-1234', PASSWORD_DEFAULT));
 $mk = static function (int $uid, string $ref) use ($bookingModel, $spa): int {

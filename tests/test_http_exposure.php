@@ -14,6 +14,7 @@ declare(strict_types=1);
  */
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 echo "===================================================================\n";
 echo "SKSL — HTTP Exposure Tests (H6)\n";
@@ -53,7 +54,7 @@ $denied = [
     '/database/sksl_export.sql', '/database/migrate.php', '/database/migrations/',
     '/storage/', '/storage/logs/', '/storage/logs/app.log', '/storage/invoices/SKSL_Invoice_X.pdf',
     '/tests/', '/tests/test_phase3_auth.php', '/tests/diagnostic/check_credentials.php',
-    '/cron/', '/cron/expire-holds.php', '/docs/AUDIT_REPORT.md', '/vendor/autoload.php', '/src/', '/assets/',
+    '/cron/', '/cron/expire-holds.php', '/docs/development/CODING_STANDARDS.md', '/vendor/autoload.php', '/src/', '/assets/',
     '/coming%20soon.html',
 ];
 foreach ($denied as $path) {

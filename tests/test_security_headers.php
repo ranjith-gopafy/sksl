@@ -16,6 +16,12 @@
 
 declare(strict_types=1);
 
+// Command-line only: never runnable through a web server.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 $baseUrl = rtrim($argv[1] ?? getenv('SKSL_TEST_BASE_URL') ?: 'http://localhost/sksl/public', '/');
 $pass = 0; $fail = 0;
 function check(bool $ok, string $label): void {

@@ -24,10 +24,12 @@ module.exports = defineConfig({
     ['html', { outputFolder: 'playwright-report', open: 'never' }]
   ],
   webServer: {
-    command: 'php -S localhost:8000 -t public',
+    command: 'php -d variables_order=EGPCS -S localhost:8000 -t public',
     url: 'http://localhost:8000/health',
     reuseExistingServer: true,
     timeout: 15000,
+    // Browser tests must never send real email (payments, cancellations and admin alerts all try to).
+    env: { MAIL_DRIVER: 'log' },
   },
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8000',

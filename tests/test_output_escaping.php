@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 echo "===================================================================\n";
 echo "SKSL — Output Escaping & URL Allow-list Tests (H5)\n";
@@ -102,8 +103,12 @@ if (!$banner) {
         };
 
         [, $loginHtml] = $http('GET', $baseUrl . '/admin/login');
-        [, $verifyHtml] = $http('GET', $baseUrl . '/admin/verify-otp?email=' . urlencode($adminEmail));
-        $http('POST', $baseUrl . '/admin/verify-otp', ['_csrf_token' => $csrf($verifyHtml ?: $loginHtml), 'email' => $adminEmail, 'otp' => '246810']);
+        // The code is bound to the browser that requested it: ask for one first, then plant a known code
+        // (the newest valid code is the one that counts).
+        $http('POST', $baseUrl . '/admin/login', ['_csrf_token' => $csrf($loginHtml), 'email' => $adminEmail]);
+        $adminModel->createOtp($adminId, password_hash('246810', PASSWORD_BCRYPT), date('Y-m-d H:i:s', time() + 300));
+        [, $verifyHtml] = $http('GET', $baseUrl . '/admin/verify-otp');
+        $http('POST', $baseUrl . '/admin/verify-otp', ['_csrf_token' => $csrf($verifyHtml ?: $loginHtml), 'otp' => '246810']);
         [$code, $bannerHtml] = $http('GET', $baseUrl . '/admin/banner?edit=' . $banner['id']);
         check($code === 200, '3.1 Logged in to admin banner page (HTTP ' . $code . ')');
         $token = $csrf($bannerHtml);

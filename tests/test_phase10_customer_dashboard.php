@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Models\UserModel;
 use App\Models\ServiceModel;
@@ -32,7 +33,7 @@ assert($userId > 0, 'User creation failed');
 echo "[PASS] 1. Test athlete created (ID: $userId)\n";
 
 // 2. Create an Upcoming Session (> 24 hours in the future)
-$service = $serviceModel->findBySlug('hot-bath');
+$service = $serviceModel->findBySlug('sauna');
 assert($service !== null, 'Service not found');
 
 $upcomingRef = 'SKSL-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
@@ -81,10 +82,11 @@ $upcoming = $bookingModel->findByUser($userId, 'upcoming');
 assert(count($upcoming) >= 1, 'Expected at least 1 upcoming booking');
 echo "[PASS] 4. Upcoming filter returned valid active bookings\n";
 
-// 5. Customers have no self-cancel capability; staff cancel via the state machine
-assert(!method_exists(BookingModel::class, 'checkCancellationEligibility'), 'Customer cancellation helper must be removed');
-assert(!method_exists(\App\Controllers\CustomerBookingController::class, 'cancel'), 'Customer cancel action must be removed');
-echo "[PASS] 5. Customer self-cancellation code removed (cancellations handled by SKSL staff)\n";
+// 5. Customers cancel through BookingService (rules in BookingRules); the old model-level helper stays gone
+assert(!method_exists(BookingModel::class, 'checkCancellationEligibility'), 'Old customer cancellation helper must stay removed');
+assert(method_exists(\App\Controllers\CustomerBookingController::class, 'cancel'), 'Customer cancel action must exist');
+assert(method_exists(\App\Services\BookingService::class, 'cancelByCustomer'), 'BookingService::cancelByCustomer must exist');
+echo "[PASS] 5. Customer self-cancellation goes through BookingService::cancelByCustomer (see test_cancellation.php)\n";
 
 $upcomingBooking = $bookingModel->findById($upcomingBookingId);
 $check = BookingModel::checkAdminTransition($upcomingBooking, 'cancelled');

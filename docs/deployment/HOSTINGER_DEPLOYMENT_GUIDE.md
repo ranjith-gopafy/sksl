@@ -88,6 +88,9 @@ vendor/
 3. Click **Import** → choose `database/sksl_export.sql`
 4. Click **Go**
 
+> [!IMPORTANT]
+> `sksl_export.sql` is generated from the migrations and seeds. If you changed anything in `database/migrations/` or `database/seeds/` since it was last built, rebuild it first with `php database/build-export.php` on your computer. After importing, you can also run `php database/migrate.php` over SSH: it applies only migrations that are not yet recorded, so it is safe to run.
+
 **Verify tables were created:**
 
 ```sql
@@ -305,9 +308,9 @@ This runs every 5 minutes to expire stale booking holds.
 chmod 755 public_html/public
 chmod 755 public_html/public/css
 chmod 755 public_html/public/images
-chmod 777 public_html/storage
-chmod 777 public_html/storage/logs
-chmod 777 public_html/storage/invoices
+chmod 750 public_html/storage
+chmod 750 public_html/storage/logs
+chmod 750 public_html/storage/invoices
 ```
 
 ---
@@ -348,15 +351,24 @@ php public_html/tests/diagnostic/check_credentials.php
 # 2. Send test email
 php public_html/tests/diagnostic/test_smtp_send.php
 
-# 3. Test PHP test suites
-php public_html/tests/test_phase3_auth.php
-php public_html/tests/test_phase7_payment.php
+# 3. Full go-live safety check (APP_ENV, debug, https APP_URL, Razorpay + webhook secret, SMTP, GSTIN...)
+php public_html/tests/diagnostic/check_credentials.php --production
 ```
+
+### Server settings the application cannot change
+
+Two hardening items live in the web server's own configuration, not in `.htaccess`. If Hostinger lets you (or support can), set them; otherwise they are low risk:
+
+- `TraceEnable Off`: the HTTP TRACE method should not answer.
+- `ServerTokens Prod`: hides the Apache version in the `Server:` header.
+
+> [!WARNING]
+> Do **not** run the PHP test suites (`tests/test_*.php`) on the live server. They create test customers, admins and bookings and would write them into your live database. They now refuse to run when `APP_ENV=production`. Run them on your own computer against a development database. It is best not to upload the `tests/` folder at all.
 
 **Browser checks:**
 
 - [ ] Visit `https://www.yourdomain.com` — homepage loads
-- [ ] Visit `https://www.yourdomain.com/services` — all 10 modalities
+- [ ] Visit `https://www.yourdomain.com/services` — all 9 modalities
 - [ ] Register a new customer account
 - [ ] Complete a booking with Razorpay test card `4111 1111 1111 1111`
 - [ ] Verify confirmation email received
@@ -375,7 +387,8 @@ Before switching to LIVE Razorpay keys:
 - [ ] Confirmation emails delivered to real inbox
 - [ ] Invoice PDFs generated correctly with correct GSTIN/address
 - [ ] Admin OTP login working
-- [ ] All 14 PHP test suites passing
+- [ ] All PHP test suites passing (run on your development machine, never on the live server)
+- [ ] `php tests/diagnostic/check_credentials.php --production` reports no failures
 - [ ] HTTPS active with valid SSL certificate
 - [ ] Cron job running (`*/5 * * * *` for expire-holds.php)
 - [ ] `APP_DEBUG=false` in production `.env`
@@ -394,7 +407,7 @@ Before switching to LIVE Razorpay keys:
 | Database connection failed | Verify `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` in `.env` |
 | Emails not sending | Query `SELECT * FROM email_logs ORDER BY id DESC LIMIT 20` — every attempt is recorded with status `sent`/`failed` and the SMTP error (never the body). Also check `MAIL_FROM_ADDRESS` is set, then run `test_smtp_send.php` |
 | Razorpay payment fails | Verify keys are correct mode (test vs live), check webhook URL |
-| Invoice PDF not generating | Ensure `storage/invoices/` is writable (`chmod 777`) |
+| Invoice PDF not generating | Ensure `storage/invoices/` is writable by the web user (`chmod 750`, owned by your hosting account) |
 | OTP not arriving | Check `email_logs` for `email_type = 'admin_otp'` rows and their error, verify SMTP credentials (the code is only in the email body, never in logs) |
 | CSS not loading | Check `public/css/app.css` was uploaded; run `npm run build` locally first |
 | File upload fails | Check `UPLOAD_MAX_SIZE_BYTES` and `upload_max_filesize` in `php.ini` |

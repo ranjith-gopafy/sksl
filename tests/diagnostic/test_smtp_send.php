@@ -14,6 +14,12 @@
 
 declare(strict_types=1);
 
+// Command-line only: never runnable through a web server.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 $projectRoot = dirname(__DIR__, 2);
 require_once $projectRoot . '/vendor/autoload.php';
 

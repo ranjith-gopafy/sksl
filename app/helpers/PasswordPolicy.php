@@ -40,6 +40,9 @@ final class PasswordPolicy
         if ($len > self::MAX_LENGTH) {
             return 'Password must be no longer than ' . self::MAX_LENGTH . ' characters.';
         }
+        if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $password)) {
+            return 'Password must not contain control characters.';
+        }
         if (!preg_match('/\p{L}/u', $password) || !preg_match('/\d/', $password)) {
             return 'Password must include at least one letter and one number.';
         }

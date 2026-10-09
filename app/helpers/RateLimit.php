@@ -201,6 +201,44 @@ class RateLimit
         return max(1, self::remainingSeconds($ipKey), self::remainingSeconds($idKey));
     }
 
+    /**
+     * Run $fn while holding a named database lock, so concurrent requests for the same key are
+     * handled one after another. Failure counters are read-then-written, so without this a burst of
+     * parallel guesses could all pass the "not locked yet" check before any failure is recorded.
+     * Returns null (and does not run $fn) if the lock cannot be obtained, so callers fail closed.
+     *
+     * @template T
+     * @param callable():T $fn
+     * @return T|null
+     */
+    public static function serialize(string $key, callable $fn): mixed
+    {
+        $db = self::db();
+        if ($db === null) {
+            return $fn(); // no database: the session-based fallback is per browser anyway
+        }
+
+        $name = 'sksl:' . substr(hash('sha256', $key), 0, 40);
+        try {
+            $got = (int) $db->query('SELECT GET_LOCK(' . $db->quote($name) . ', 5)')->fetchColumn();
+        } catch (\PDOException $e) {
+            error_log('RateLimit: lock failed: ' . $e->getMessage());
+            return null;
+        }
+        if ($got !== 1) {
+            return null;
+        }
+        try {
+            return $fn();
+        } finally {
+            try {
+                $db->query('SELECT RELEASE_LOCK(' . $db->quote($name) . ')');
+            } catch (\PDOException $e) {
+                error_log('RateLimit: unlock failed: ' . $e->getMessage());
+            }
+        }
+    }
+
     /** Test/ops helper: remove every counter for a scope prefix. */
     public static function clearScope(string $scope): void
     {

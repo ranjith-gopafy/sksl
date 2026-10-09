@@ -36,8 +36,23 @@ class AvailabilityController
         }
 
         $currentUserId = !empty($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+        $durationOptionId = !empty($_GET['duration_option_id']) ? (int) $_GET['duration_option_id'] : null;
 
-        $result = $this->availabilityService->getAvailableSlots($serviceId, $date, $currentUserId);
+        // Redeeming a package credit books the session length the package was sold with (e.g. 10 min),
+        // which can differ from the service's normal length. Only the owner's own active package counts.
+        $creditMinutes = null;
+        $packageId = !empty($_GET['customer_package_id']) ? (int) $_GET['customer_package_id'] : 0;
+        if ($packageId > 0 && $currentUserId !== null) {
+            $package = (new \App\Models\CustomerPackageModel())->findActiveForUser($currentUserId, $packageId);
+            foreach (($package['credits'] ?? []) as $credit) {
+                if ((int) $credit['service_id'] === $serviceId) {
+                    $creditMinutes = (int) $credit['duration_minutes'];
+                    break;
+                }
+            }
+        }
+
+        $result = $this->availabilityService->getAvailableSlots($serviceId, $date, $currentUserId, $durationOptionId, $creditMinutes);
 
         if (!$result['success']) {
             Response::error($result['message'] ?? 'Unable to fetch availability.', [], 422);

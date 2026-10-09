@@ -1,36 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-    <!-- Admin Navigation Header -->
-    <div class="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-5 mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-xs">
-        <div class="flex items-center gap-3.5">
-            <div class="w-10 h-10 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold font-heading text-sm shadow-xs">
-                AD
-            </div>
-            <div>
-                <h1 class="text-base font-extrabold text-slate-900 font-heading">SKSL Control Center</h1>
-                <p class="text-xs text-slate-500">Signed in as <?= h($_SESSION['admin_name'] ?? 'Admin') ?> (<?= h($_SESSION['admin_email'] ?? '') ?>)</p>
-            </div>
-        </div>
-
-        <nav class="flex items-center gap-1.5 overflow-x-auto">
-            <a href="<?= app_url('admin/bookings') ?>" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Bookings
-            </a>
-            <a href="<?= app_url('admin/services') ?>" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Modalities
-            </a>
-            <a href="<?= app_url('admin/banner') ?>" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Hero Banner
-            </a>
-            <a href="<?= app_url('admin/closed-dates') ?>" class="px-3.5 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold uppercase tracking-wider">
-                Closed Dates
-            </a>
-            <form method="POST" action="<?= app_url('admin/logout') ?>" class="inline">
-                <?= \App\Helpers\Csrf::field() ?>
-                <button type="submit" class="px-3.5 py-2 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer bg-transparent border-0">Sign Out</button>
-            </form>
-        </nav>
-    </div>
-
+<div class="w-full max-w-7xl mx-auto">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         <!-- Left: Add Closed Date Form -->
@@ -59,6 +27,7 @@
                         <input 
                             type="date" 
                             id="closed_date" 
+                            aria-label="Closure date (pick it in the calendar below)"
                             name="closed_date" 
                             min="<?= date('Y-m-d') ?>" 
                             required 
@@ -167,10 +136,10 @@
 
                 <?php if (empty($closedDates)): ?>
                     <div class="text-center py-16 text-slate-500 text-xs">
-                        No closed dates recorded. The recovery facility operates normally 7 days a week (06:00 – 22:00 IST).
+                        No closed dates recorded. The recovery facility operates normally 7 days a week (06:00 – 21:00 IST, last slot 20:00).
                     </div>
                 <?php else: ?>
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Closed dates (scrolls sideways)">
                         <table class="w-full text-left text-xs text-slate-700">
                             <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
                                 <tr>
@@ -306,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (window.showToast) {
                         window.showToast(`Facility is already marked closed on ${dateStr}.`, 'info');
                     } else {
-                        alert(`Facility is already marked closed on ${dateStr}.`);
+                        (window.showToast || alert)(`Facility is already marked closed on ${dateStr}.`, 'error');
                     }
                 });
             } else if (isSelected) {
@@ -390,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (window.showToast) {
                     window.showToast('Please select a closure date from the calendar first.', 'warning');
                 } else {
-                    alert('Please select a closure date from the calendar first.');
+                    (window.showToast || alert)('Please select a closure date from the calendar first.', 'error');
                 }
             }
         });

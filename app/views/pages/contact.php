@@ -10,12 +10,13 @@ $bizAddress = array_filter([
 $bizPhone   = (string) ($biz['phone'] ?? '');
 $bizEmail   = (string) ($biz['support_email'] ?? '');
 $facility   = (array) config('app.facility', []);
-$openLabel  = date('g:i A', strtotime($facility['open'] ?? '06:00'));
-$closeLabel = date('g:i A', strtotime($facility['close'] ?? '22:00'));
+$openLabel     = date('g:i A', strtotime($facility['open'] ?? '06:00'));
+$closeLabel    = date('g:i A', strtotime($facility['close'] ?? '21:00'));
+$lastSlotLabel = date('g:i A', strtotime($facility['last_slot'] ?? '20:00'));
 ?>
 <div class="max-w-4xl mx-auto w-full min-w-0 px-4 py-8 sm:py-12">
     <div class="text-center max-w-2xl mx-auto mb-12">
-        <span class="text-xs font-bold uppercase tracking-widest text-sky-600">Visit Our Facility</span>
+        <span class="text-xs font-bold uppercase tracking-widest text-sky-700">Visit Our Facility</span>
         <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 font-heading mt-2">Contact &amp; Location</h1>
         <p class="text-slate-600 text-sm mt-3">We are here to answer your questions and assist with athletic recovery protocols.</p>
     </div>
@@ -61,7 +62,7 @@ $closeLabel = date('g:i A', strtotime($facility['close'] ?? '22:00'));
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Operating Hours</h3>
                     <p class="text-sm text-slate-800 mt-1">
                         <strong>Daily:</strong> <?= h($openLabel) ?> – <?= h($closeLabel) ?> IST<br>
-                        <span class="text-xs text-slate-500">Open all 7 days for athlete appointments.</span>
+                        <span class="text-xs text-slate-500">Last bookable slot for all modalities: <?= h($lastSlotLabel) ?>.</span>
                     </p>
                 </div>
             </div>
@@ -76,18 +77,18 @@ $closeLabel = date('g:i A', strtotime($facility['close'] ?? '22:00'));
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Phone, Email &amp; Support</h3>
                     <p class="text-sm text-slate-800 mt-1 space-y-0.5">
                         <?php if ($bizPhone !== ''): ?>
-                            <a href="tel:<?= h(preg_replace('/[^0-9+]/', '', $bizPhone)) ?>" class="block text-sky-700 font-semibold hover:underline"><?= h($bizPhone) ?></a>
+                            <a href="tel:<?= h(preg_replace('/[^0-9+]/', '', $bizPhone)) ?>" class="block py-1 text-sky-700 font-semibold hover:underline"><?= h($bizPhone) ?></a>
                         <?php endif; ?>
                         <?php if ($bizEmail !== ''): ?>
-                            <a href="mailto:<?= h($bizEmail) ?>" class="block break-all text-sky-700 font-semibold hover:underline"><?= h($bizEmail) ?></a>
+                            <a href="mailto:<?= h($bizEmail) ?>" class="block py-1 break-all text-sky-700 font-semibold hover:underline"><?= h($bizEmail) ?></a>
                         <?php endif; ?>
                         <?php if ($bizPhone === '' && $bizEmail === ''): ?>
                             <span class="text-slate-500">Contact details will be published shortly. Please speak to reception.</span>
                         <?php endif; ?>
                     </p>
                     <p class="text-xs text-slate-500 mt-2">
-                        For cancellations or refunds, contact us with your booking reference. See the
-                        <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-600 font-semibold hover:underline">Cancellation &amp; Refund Policy</a>.
+                        You can cancel a session yourself from My Sessions up to <?= \App\Helpers\BookingRules::cancellationNoticeHours() ?> hours before it starts. For anything else, contact us with your booking reference. See the
+                        <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-700 font-semibold hover:underline">Cancellation &amp; Refund Policy</a>.
                     </p>
                 </div>
             </div>

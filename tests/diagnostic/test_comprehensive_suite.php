@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../bootstrap.php';
+assert_cli_only(true);
 
 echo "=======================================================================\n";
 echo "SKSL — Comprehensive Step-by-Step Scenarios Test Suite (User & Admin)\n";
@@ -40,11 +41,15 @@ report(!str_contains($homeContent, 'Metric Counters') && !str_contains($homeCont
 // 1.3 Recovery Modalities Catalog
 $serviceModel = new \App\Models\ServiceModel($db);
 $services = $serviceModel->getAllActive();
-report(count($services) === 10, "1.3 All 10 recovery modalities active in catalog");
+report(count($services) === 9, "1.3 Active recovery modalities in catalog (count: 9, hot bath removed)");
 
-// 1.4 Pricing calculation (Base + 18% GST)
-$pricing = \App\Models\ServiceModel::calculatePricing(1000.0, 18.0);
-report($pricing['base_price'] === 1000.0 && $pricing['gst_amount'] === 180.0 && $pricing['total_amount'] === 1180.0, "1.4 Pricing formula correctly calculates Base (₹1000) + 18% GST (₹180) = ₹1180");
+// 1.4 Pricing calculation: catalogue prices are GST-inclusive; the total is exactly the listed price
+$pricing = \App\Models\ServiceModel::calculatePricing(1180.0, 18.0);
+report($pricing['base_price'] === 1000.0 && $pricing['gst_amount'] === 180.0 && $pricing['total_amount'] === 1180.0, "1.4 ₹1180 inclusive splits into Base ₹1000 + 18% GST ₹180");
+foreach ([599, 450, 399, 175, 499, 999, 1499, 1799, 1399, 1299] as $listed) {
+    $p = \App\Models\ServiceModel::calculatePricing((float) $listed, 18.0);
+    report($p['total_amount'] === (float) $listed && abs($p['base_price'] + $p['gst_amount'] - $listed) < 0.001, "1.4b ₹{$listed} listed price is charged exactly (base {$p['base_price']} + GST {$p['gst_amount']})");
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCENARIO 2: Availability Engine & .env Buffer Minutes
@@ -117,6 +122,7 @@ $bookingModel = new \App\Models\BookingModel($db);
 $pendingBooking = $bookingModel->findByReference($confirmedRef);
 if ($pendingBooking) {
     $bookingModel->updateStatus((int) $pendingBooking['id'], 'confirmed', 'paid');
+    $db->prepare("UPDATE payments SET status = 'paid', razorpay_payment_id = 'pay_test_diag_" . time() . "', paid_at = NOW() WHERE booking_id = ?")->execute([(int) $pendingBooking['id']]);
 }
 $savedBooking = $bookingModel->findByReference($confirmedRef);
 report($savedBooking !== null && $savedBooking['booking_status'] === 'confirmed', "3.5 Booking status updated to 'confirmed' and 'paid' in database");

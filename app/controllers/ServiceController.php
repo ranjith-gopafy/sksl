@@ -74,4 +74,16 @@ class ServiceController
             'data'    => $service,
         ]);
     }
+
+    /**
+     * Show public professional consultations page (Physiotherapy & Sports Psychology).
+     */
+    public function consultations(): void
+    {
+        $services = $this->serviceModel->getProfessionalServices();
+
+        $title = 'Physiotherapy & Sports Psychology — Sara Kinetic Sports Lab';
+        $viewFile = dirname(__DIR__) . '/views/pages/consultations.php';
+        require dirname(__DIR__) . '/views/layouts/main.php';
+    }
 }

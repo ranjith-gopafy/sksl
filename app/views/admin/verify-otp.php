@@ -1,4 +1,4 @@
-<div class="min-h-[75vh] flex items-center justify-center px-4 py-12">
+<div class="w-full flex items-center justify-center">
     <div class="w-full max-w-md">
         
         <!-- Header -->

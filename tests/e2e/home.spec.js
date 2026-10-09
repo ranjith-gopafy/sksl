@@ -70,11 +70,11 @@ test.describe('Homepage & Hero Carousel', () => {
     expect(Math.abs((afterBox?.y ?? 0) - (beforeBox?.y ?? 0))).toBeLessThan(5);
   });
 
-  test('service modality cards are rendered (minimum 10)', async ({ page }) => {
+  test('service modality cards are rendered (minimum 9)', async ({ page }) => {
     // Count .modality-card elements
     const cards = page.locator('.modality-card');
     const count = await cards.count();
-    expect(count).toBeGreaterThanOrEqual(10);
+    expect(count).toBeGreaterThanOrEqual(9);
   });
 
   test('category filter tabs filter modality cards', async ({ page }) => {
@@ -100,5 +100,51 @@ test.describe('Homepage & Hero Carousel', () => {
     await servicesLink.click();
     await page.waitForURL(/services/, { timeout: 10000 });
     await expect(page).toHaveURL(/services/);
+  });
+});
+
+test.describe('Navigation and slideshow controls', () => {
+  test('every public page is reachable from the menu on a phone and on desktop', async ({ page, isMobile }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    if (isMobile) {
+      await page.locator('summary[aria-label="Open menu"]').click();
+      const menu = page.locator('nav[aria-label="Menu"]');
+      for (const label of ['Modalities', 'Combo Packages', 'Physio & Psychology', 'Contact']) {
+        await expect(menu.getByRole('link', { name: label })).toBeVisible();
+      }
+    } else {
+      const nav = page.locator('nav[aria-label="Primary"]');
+      for (const label of ['Modalities', 'Combo Packages', 'Physio & Psychology', 'Contact']) {
+        await expect(nav.getByRole('link', { name: label })).toBeVisible();
+      }
+    }
+  });
+
+  test('the hero slideshow can be paused and resumed', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const toggle = page.locator('#carousel-toggle');
+    if ((await toggle.count()) === 0) { test.skip(); return; } // a single banner has nothing to pause
+    await expect(toggle).toHaveAttribute('aria-label', /Pause slideshow|Play slideshow/);
+    const before = await toggle.getAttribute('aria-label');
+    await toggle.click();
+    const after = await toggle.getAttribute('aria-label');
+    expect(after).not.toEqual(before);
+  });
+
+  test('slides that are not showing cannot be tabbed to', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const hidden = page.locator('.carousel-slide[aria-hidden="true"]');
+    const count = await hidden.count();
+    for (let i = 0; i < count; i++) {
+      await expect(hidden.nth(i)).toHaveAttribute('inert', '');
+    }
+  });
+
+  test('packages and consultations are public pages', async ({ page }) => {
+    for (const path of ['/packages', '/consultations']) {
+      const res = await page.goto(path, { waitUntil: 'domcontentloaded' });
+      expect(res.status()).toBe(200);
+      await expect(page.locator('h1').first()).toBeVisible();
+    }
   });
 });

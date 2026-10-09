@@ -41,8 +41,8 @@ class AuthService
     {
         $errors = [];
 
-        $name = trim((string) ($input['name'] ?? ''));
-        $email = strtolower(trim((string) ($input['email'] ?? '')));
+        $name = trim(input_str($input['name'] ?? ''));
+        $email = strtolower(trim(input_str($input['email'] ?? '')));
 
         // Rate limit: 10 attempts per email and 20 per IP, per hour (DB-backed).
         $wait = RateLimit::throttle('cust_register', $email !== '' ? $email : RateLimit::clientIp(), 10, 20, 3600);
@@ -52,9 +52,9 @@ class AuthService
                 'message' => 'Too many registration attempts. Please try again in ' . (int) ceil($wait / 60) . ' minute(s).',
             ];
         }
-        $mobile = preg_replace('/\D/', '', (string) ($input['mobile'] ?? ''));
-        $password = (string) ($input['password'] ?? '');
-        $passwordConfirmation = (string) ($input['password_confirmation'] ?? '');
+        $mobile = normalize_mobile(input_str($input['mobile'] ?? ''));
+        $password = input_str($input['password'] ?? '');
+        $passwordConfirmation = input_str($input['password_confirmation'] ?? '');
 
         // Validation
         if ($name === '' || mb_strlen($name) < 2 || mb_strlen($name) > 100) {
@@ -127,6 +127,21 @@ class AuthService
      */
     public function login(string $email, string $password): array
     {
+        // One login attempt per account at a time, so a burst of parallel guesses cannot all slip
+        // past the failure counter before the first failure has been recorded.
+        $result = RateLimit::serialize('cust_login:' . strtolower(trim($email)), fn () => $this->attemptLogin($email, $password));
+
+        return $result ?? [
+            'success' => false,
+            'message' => 'The server is busy. Please try again in a moment.',
+        ];
+    }
+
+    /**
+     * @return array{success: bool, message: string, user?: array}
+     */
+    private function attemptLogin(string $email, string $password): array
+    {
         $normalizedEmail = strtolower(trim($email));
         $rateLimitKey = RateLimit::key('cust_login', $normalizedEmail);
 
@@ -143,7 +158,8 @@ class AuthService
 
         $user = $this->userModel->findByEmail($normalizedEmail);
 
-        if ($user === null || !password_verify($password, $user['password_hash'])) {
+        // bcrypt stops reading at a NUL byte, so such a "password" could match a shorter real one
+        if ($user === null || str_contains($password, "\0") || !password_verify($password, $user['password_hash'])) {
             RateLimit::recordFailure('cust_login', $normalizedEmail, 5, 30, 900);
             return [
                 'success' => false,
@@ -229,8 +245,8 @@ class AuthService
             $plainToken = bin2hex(random_bytes(32));
             $tokenHash  = hash('sha256', $plainToken);
 
-            // Clean up older unused/expired tokens for this user
-            $this->resetModel->deleteOldForUser((int) $user['id']);
+            // Only the newest link works: every earlier one (even unexpired and unused) is revoked
+            $this->resetModel->revokeAllForUser((int) $user['id']);
 
             // Store token hash valid for 1 hour
             $expiresAt = new \DateTime('+1 hour');
@@ -303,9 +319,9 @@ class AuthService
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         $this->userModel->updatePassword((int) $reset['user_id'], $passwordHash);
 
-        // Mark token as used (one-time use enforcement) and burn any siblings
+        // One-time use: consume this token and revoke every other link for the account
         $this->resetModel->markUsed((int) $reset['id']);
-        $this->resetModel->deleteOldForUser((int) $reset['user_id']);
+        $this->resetModel->revokeAllForUser((int) $reset['user_id']);
 
         return [
             'success' => true,
@@ -318,8 +334,8 @@ class AuthService
      */
     public function updateProfile(int $userId, array $data): array
     {
-        $name = trim((string) ($data['name'] ?? ''));
-        $mobile = preg_replace('/\D/', '', (string) ($data['mobile'] ?? ''));
+        $name = trim(input_str($data['name'] ?? ''));
+        $mobile = normalize_mobile(input_str($data['mobile'] ?? ''));
 
         if ($name === '' || mb_strlen($name) < 2 || mb_strlen($name) > 100) {
             return ['success' => false, 'message' => 'Full name must be between 2 and 100 characters.'];
@@ -352,12 +368,20 @@ class AuthService
             return ['success' => false, 'message' => 'New passwords do not match.'];
         }
 
+        // Anyone holding a signed-in session (a shared or stolen device) could otherwise guess the
+        // current password without limit: 5 wrong guesses per account in 15 minutes, then a pause.
+        $wait = RateLimit::retryAfter('cust_pwchange', (string) $userId);
+        if ($wait > 0) {
+            return ['success' => false, 'message' => 'Too many incorrect attempts. Please try again in ' . (int) ceil($wait / 60) . ' minute(s).'];
+        }
+
         // Fetch user from DB including password hash
         $stmt = getDb()->prepare('SELECT id, name, email, password_hash FROM users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
         if (!$user || !password_verify($currentPassword, $user['password_hash'])) {
+            RateLimit::recordFailure('cust_pwchange', (string) $userId, 5, 30, 900);
             return ['success' => false, 'message' => 'Current password is incorrect.'];
         }
 
@@ -370,6 +394,8 @@ class AuthService
 
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
         $this->userModel->updatePassword($userId, $newHash);
+        // A password the owner just chose must not be overridable with an older reset email
+        $this->resetModel->revokeAllForUser($userId);
 
         // Other sessions are now invalid (auth_at < password_changed_at); keep this one.
         $_SESSION['auth_at'] = time() + 1;

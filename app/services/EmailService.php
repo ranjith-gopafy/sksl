@@ -213,6 +213,9 @@ HTML;
         $footerLine = htmlspecialchars(trim(($business['trade_name'] ?? 'Sara Kinetic Sports Lab') . ' • ' . ($business['city'] ?? 'Bengaluru') . ', ' . ($business['state_name'] ?? 'Karnataka') . ', India'), ENT_QUOTES, 'UTF-8');
 
         $subject = "Confirmed: Your {$serviceRaw} Session on {$date} ({$refRaw})";
+        $invoiceSentence = $invoicePdfPath
+            ? 'Your official GST Tax Invoice is attached to this email for your records.'
+            : 'Your GST Tax Invoice will be sent to you separately shortly.';
 
         $htmlBody = <<<HTML
 <!DOCTYPE html>
@@ -282,7 +285,7 @@ HTML;
             <div class="badge"><span class="badge-dot"></span> Session Confirmed &amp; Paid</div>
             <h1 class="heading">Get Ready to Recover, {$toName}!</h1>
             <p class="subtext">
-                Your recovery session has been successfully confirmed and payment received. Your official GST Tax Invoice is attached to this email for your records.
+                Your recovery session has been successfully confirmed and payment received. {$invoiceSentence}
             </p>
 
             <!-- Session Details Table -->
@@ -468,6 +471,65 @@ HTML;
      * username when that is itself an email address. No made-up fallback domain:
      * an unverifiable sender is the fastest way to land in spam or be rejected.
      */
+    /**
+     * Plain alert to the admin mailbox (payment problems that need a human).
+     *
+     * @param array<string, string> $rows label => value
+     */
+    public function sendAdminAlert(string $subject, string $heading, string $intro, array $rows, string $emailType): bool
+    {
+        $adminEmail = trim((string) ($this->config['admin_email'] ?? ''));
+        if ($adminEmail === '') {
+            error_log('EmailService: ADMIN_EMAIL not configured; alert not sent: ' . $subject);
+            return false;
+        }
+        return $this->sendNotice($adminEmail, 'SKSL Admin', $subject, $heading, $intro, $rows, $emailType);
+    }
+
+    /**
+     * Compact transactional notice (appointment / package confirmations that
+     * have no tax invoice attached). All interpolated values are escaped.
+     *
+     * @param array<string, string> $rows label => value
+     */
+    public function sendNotice(
+        string $toEmail,
+        string $toName,
+        string $subject,
+        string $heading,
+        string $intro,
+        array $rows,
+        string $emailType,
+        ?int $bookingId = null,
+        ?string $attachmentPath = null
+    ): bool {
+        $e = static fn(string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+        $business = (array) config('business', []);
+        $footer  = $e(trim(($business['trade_name'] ?? 'Sara Kinetic Sports Lab') . ' • ' . ($business['city'] ?? '')));
+
+        $tableRows = '';
+        $altRows   = '';
+        foreach ($rows as $label => $value) {
+            $tableRows .= '<tr><td style="padding:8px 12px;color:#64748b;border-bottom:1px solid #e2e8f0;">' . $e((string) $label)
+                . '</td><td style="padding:8px 12px;font-weight:700;text-align:right;border-bottom:1px solid #e2e8f0;">' . $e((string) $value) . '</td></tr>';
+            $altRows .= "{$label}: {$value}\n";
+        }
+
+        $htmlBody = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>' . $e($heading) . '</title></head>'
+            . '<body style="font-family:Arial,Helvetica,sans-serif;background:#f1f5f9;color:#1e293b;padding:24px 12px;">'
+            . '<div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">'
+            . '<div style="background:#053d63;color:#fff;padding:20px 24px;font-weight:800;letter-spacing:.5px;">SARA KINETIC SPORTS LAB</div>'
+            . '<div style="padding:24px;"><h1 style="font-size:20px;margin:0 0 8px;">' . $e($heading) . '</h1>'
+            . '<p style="font-size:13px;color:#475569;line-height:1.6;">' . $e($intro) . '</p>'
+            . '<table style="width:100%;border-collapse:collapse;font-size:13px;margin:16px 0;">' . $tableRows . '</table>'
+            . '<p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:24px;">' . $footer . '</p></div></div></body></html>';
+
+        $altBody = $heading . "\n\n" . $intro . "\n\n" . $altRows;
+
+        $attachmentName = $attachmentPath !== null ? 'SKSL_Tax_Invoice.pdf' : null;
+        return $this->send($toEmail, $toName, $subject, $htmlBody, $altBody, $attachmentPath, $attachmentName, $emailType, $bookingId);
+    }
+
     public function fromAddress(): string
     {
         $from = trim((string) ($this->config['from_address'] ?? ''));

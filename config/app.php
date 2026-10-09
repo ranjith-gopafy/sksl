@@ -8,7 +8,12 @@
  */
 
 return [
-    'env'      => $_ENV['APP_ENV']      ?? 'production',
+    // Normalised and whitelisted: "Production", "prod" or a typo must never switch on dev-only
+    // behaviour, so anything that is not a known non-production name is treated as production.
+    'env'      => (static function (): string {
+        $env = strtolower(trim((string) ($_ENV['APP_ENV'] ?? 'production')));
+        return in_array($env, ['local', 'testing'], true) ? $env : 'production';
+    })(),
     'debug'    => filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN),
     'url'      => $_ENV['APP_URL']      ?? '',
     'timezone' => $_ENV['APP_TIMEZONE'] ?? 'Asia/Kolkata',
@@ -16,8 +21,9 @@ return [
 
     // Facility operating hours (Asia/Kolkata)
     'facility' => [
-        'open'  => $_ENV['FACILITY_OPEN']  ?? '06:00',
-        'close' => $_ENV['FACILITY_CLOSE'] ?? '22:00',
+        'open'      => $_ENV['FACILITY_OPEN']      ?? '06:00',
+        'close'     => $_ENV['FACILITY_CLOSE']     ?? '21:00',
+        'last_slot' => $_ENV['FACILITY_LAST_SLOT'] ?? '20:00',
     ],
 
     // Booking rules (confirmed values only)

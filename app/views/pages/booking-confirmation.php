@@ -12,15 +12,25 @@
                 </svg>
             </div>
             <div class="text-center sm:text-left flex-1">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold tracking-wider uppercase mb-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Booking Confirmed &amp; Paid
+<?php
+$isPayAtCentre = ($booking['payment_mode'] ?? '') === 'payment_not_required';
+$isPackage     = ($booking['payment_mode'] ?? '') === 'package_credit';
+?>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full <?= $isPayAtCentre ? 'bg-sky-50 border border-sky-200 text-sky-800' : 'bg-emerald-50 border border-emerald-200 text-emerald-700' ?> text-xs font-bold tracking-wider uppercase mb-2">
+                    <span class="w-2 h-2 rounded-full <?= $isPayAtCentre ? 'bg-sky-500' : 'bg-emerald-500 animate-pulse' ?>"></span>
+                    <?= $isPayAtCentre ? 'Appointment Confirmed &bull; Pay at Centre' : ($isPackage ? 'Session Confirmed &bull; Package Credit' : 'Booking Confirmed &amp; Paid') ?>
                 </div>
                 <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-                    Your Recovery Session is Confirmed!
+                    <?= $isPayAtCentre ? 'Your Consultation is Confirmed!' : 'Your Recovery Session is Confirmed!' ?>
                 </h1>
                 <p class="text-sm text-slate-600 mt-1">
-                    Thank you for choosing Sara Kinetic Sports Lab. A confirmation voucher and tax invoice have been generated for your records.
+                    <?php if ($isPayAtCentre): ?>
+                        Thank you for scheduling with Sara Kinetic Sports Lab. Your appointment has been secured; fee will be assessed and settled at our front desk.
+                    <?php elseif ($isPackage): ?>
+                        Thank you for booking with Sara Kinetic Sports Lab. 1 package credit has been redeemed from your active bundle.
+                    <?php else: ?>
+                        Thank you for choosing Sara Kinetic Sports Lab. Your booking confirmation is below<?= (!$isPayAtCentre && !$isPackage) ? ' and your GST tax invoice is ready to download' : '' ?>.
+                    <?php endif; ?>
                 </p>
             </div>
         </div>
@@ -137,7 +147,7 @@
                     </li>
                     <li class="flex items-start gap-2.5">
                         <div class="w-1.5 h-1.5 rounded-full bg-sky-600 mt-1.5 shrink-0"></div>
-                        <span><strong>Cancellations:</strong> To cancel or request a refund, contact SKSL with your booking reference at least 2 hours in advance. <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-600 font-semibold hover:underline">Policy</a></span>
+                        <span><strong>Cancellations:</strong> You can cancel from My Sessions up to <?= \App\Helpers\BookingRules::cancellationNoticeHours() ?> hours before your session. A <?= h(rtrim(rtrim(number_format(\App\Helpers\BookingRules::cancellationFeePercent(), 2), '0'), '.')) ?>% cancellation charge applies and the rest is refunded manually by SKSL. <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-600 font-semibold hover:underline">Policy</a></span>
                     </li>
                 </ul>
             </div>
@@ -151,47 +161,72 @@
                 </h3>
 
                 <div class="space-y-3 text-xs">
-                    <div class="flex justify-between text-slate-500">
-                        <span>Base Rate</span>
-                        <span class="text-slate-800 font-medium">&#8377;<?= number_format((float) $booking['base_amount'], 2) ?></span>
-                    </div>
-
-                    <div class="flex justify-between text-slate-500">
-                        <span>GST (18%)</span>
-                        <span class="text-slate-800 font-medium">&#8377;<?= number_format((float) $booking['gst_amount'], 2) ?></span>
-                    </div>
-
-                    <?php if ((float) ($booking['convenience_fee'] ?? 0) > 0): ?>
+                    <?php if ($isPayAtCentre): ?>
+                        <div class="p-3 rounded-xl bg-sky-50 border border-sky-100 text-sky-900">
+                            <span class="block font-bold text-xs mb-1">Fee Settled at Centre</span>
+                            <span class="text-[11px] leading-relaxed block text-sky-800">
+                                This consultation does not require advance online payment. Your session fee will be calculated based on clinical assessment and collected at SKSL reception.
+                            </span>
+                        </div>
+                    <?php elseif ($isPackage): ?>
+                        <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-900">
+                            <span class="block font-bold text-xs mb-1">Combo Package Credit</span>
+                            <span class="text-[11px] leading-relaxed block text-emerald-800">
+                                1 Session credit was deducted from your prepaid combo package. No further payment required.
+                            </span>
+                        </div>
+                    <?php else: ?>
                         <div class="flex justify-between text-slate-500">
-                            <span>Convenience Fee</span>
-                            <span class="text-slate-800 font-medium">&#8377;<?= number_format((float) $booking['convenience_fee'], 2) ?></span>
+                            <span>Base Rate</span>
+                            <span class="text-slate-800 font-medium">&#8377;<?= number_format((float) $booking['base_amount'], 2) ?></span>
+                        </div>
+
+                        <div class="flex justify-between text-slate-500">
+                            <span>GST (18%)</span>
+                            <span class="text-slate-800 font-medium">&#8377;<?= number_format((float) $booking['gst_amount'], 2) ?></span>
+                        </div>
+
+                        <?php if ((float) ($booking['convenience_fee'] ?? 0) > 0): ?>
+                            <div class="flex justify-between text-slate-500">
+                                <span>Convenience Fee</span>
+                                <span class="text-slate-800 font-medium">&#8377;<?= number_format((float) $booking['convenience_fee'], 2) ?></span>
+                            </div>
+                        <?php endif; ?>
+
+                        <div class="pt-3 border-t border-slate-100 flex justify-between text-sm font-extrabold text-slate-900 font-heading">
+                            <span>Total Paid</span>
+                            <span class="text-emerald-600 font-bold">&#8377;<?= number_format((float) $booking['total_amount'], 2) ?></span>
                         </div>
                     <?php endif; ?>
-
-                    <div class="pt-3 border-t border-slate-100 flex justify-between text-sm font-extrabold text-slate-900 font-heading">
-                        <span>Total Paid</span>
-                        <span class="text-emerald-600 font-bold">&#8377;<?= number_format((float) $booking['total_amount'], 2) ?></span>
-                    </div>
                 </div>
 
                 <!-- Transaction Audit Info -->
                 <div class="mt-6 pt-5 border-t border-slate-100 space-y-2.5 text-[11px] text-slate-500">
-                    <div>
-                        <span class="block text-[10px] uppercase font-bold text-slate-500">Razorpay Payment ID</span>
-                        <span class="font-mono text-slate-800 break-all font-semibold">
-                            <?= h($payment['razorpay_payment_id'] ?? 'PAID-ON-FILE') ?>
-                        </span>
-                    </div>
+                    <?php if (!$isPayAtCentre && !$isPackage): ?>
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-slate-500">Razorpay Payment ID</span>
+                            <span class="font-mono text-slate-800 break-all font-semibold">
+                                <?= h($payment['razorpay_payment_id'] ?? 'PAID-ON-FILE') ?>
+                            </span>
+                        </div>
+
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-slate-500">Razorpay Order ID</span>
+                            <span class="font-mono text-slate-800 break-all font-semibold">
+                                <?= h($payment['razorpay_order_id'] ?? 'N/A') ?>
+                            </span>
+                        </div>
+                    <?php else: ?>
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-slate-500">Billing Mode</span>
+                            <span class="font-semibold text-slate-800">
+                                <?= $isPayAtCentre ? 'Consultation (Pay at Facility)' : 'Prepaid Bundle Credit' ?>
+                            </span>
+                        </div>
+                    <?php endif; ?>
 
                     <div>
-                        <span class="block text-[10px] uppercase font-bold text-slate-500">Razorpay Order ID</span>
-                        <span class="font-mono text-slate-800 break-all font-semibold">
-                            <?= h($payment['razorpay_order_id'] ?? 'N/A') ?>
-                        </span>
-                    </div>
-
-                    <div>
-                        <span class="block text-[10px] uppercase font-bold text-slate-500">Billed Athlete</span>
+                        <span class="block text-[10px] uppercase font-bold text-slate-500">Athlete Name</span>
                         <span class="text-slate-800 font-semibold">
                             <?= h($booking['user_name']) ?> (<?= h($booking['user_email']) ?>)
                         </span>
@@ -200,7 +235,7 @@
 
                 <!-- Actions -->
                 <div class="mt-6 pt-5 border-t border-slate-100 space-y-3">
-                    <?php if (($booking['booking_status'] ?? '') !== 'cancelled' && ($booking['booking_status'] ?? '') !== 'pending'): ?>
+                    <?php if (!$isPayAtCentre && !$isPackage && ($booking['booking_status'] ?? '') !== 'cancelled' && ($booking['booking_status'] ?? '') !== 'pending'): ?>
                         <a 
                             href="<?= app_url('bookings/' . h($booking['booking_reference']) . '/invoice') ?>" 
                             class="w-full py-3 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"

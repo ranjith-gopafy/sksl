@@ -72,7 +72,7 @@
         <?php endif; ?>
 
         <div class="mt-8 pt-6 border-t border-slate-100 text-center text-sm text-slate-600">
-            <a href="<?= app_url('login') ?>" class="text-sky-600 hover:text-sky-700 font-bold transition-colors">
+            <a href="<?= app_url('login') ?>" class="text-sky-700 hover:text-sky-800 font-bold transition-colors">
                 Back to Sign In
             </a>
         </div>

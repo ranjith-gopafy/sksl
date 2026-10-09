@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Helpers\Flash;
 use App\Models\BookingModel;
+use App\Services\BookingService;
 use App\Middleware\CustomerAuth;
 
 /**
  * Customer Booking Controller
  *
- * Handles the customer dashboard and booking history. Customers cannot cancel
- * online — cancellations and refunds are requested from SKSL staff (see the
- * Cancellation & Refund Policy) and applied by an admin.
+ * Handles the customer dashboard, booking history and self-service cancellation
+ * (up to the notice period before the session; paid bookings are refunded manually
+ * by SKSL minus the cancellation charge, see the Cancellation & Refund Policy).
  */
 class CustomerBookingController
 {
@@ -62,5 +64,50 @@ class CustomerBookingController
         $title = 'My Recovery Sessions — Sara Kinetic Sports Lab';
         $viewFile = dirname(__DIR__) . '/views/pages/my-bookings.php';
         require dirname(__DIR__) . '/views/layouts/main.php';
+    }
+
+    /**
+     * POST /my-bookings/{ref}/cancel
+     * Cancel one of the signed-in customer's own confirmed sessions (see BookingRules::cancellationQuote).
+     *
+     * @param array<string, string> $params
+     */
+    public function cancel(array $params = []): void
+    {
+        CustomerAuth::handle();
+
+        $userId = (int) $_SESSION['user_id'];
+        $ref    = trim((string) ($params['ref'] ?? ''));
+
+        $service = new BookingService();
+        $notice  = null;
+        if (!\App\Helpers\RateLimit::attempt(\App\Helpers\RateLimit::key('booking_cancel', (string) $userId), 20, 3600)) {
+            Flash::set('error', 'Too many cancellation attempts. Please try again later or contact SKSL.');
+        } else {
+            $result = $service->cancelByCustomer($userId, $ref, false);
+            Flash::set($result['success'] ? 'success' : 'error', $result['message']);
+            $notice = $result['data']['notice'] ?? null;
+        }
+
+        // Answer the customer first; the confirmation emails (seconds over SMTP) go out afterwards.
+        ignore_user_abort(true);
+        session_write_close();
+        header('Location: ' . app_url('my-bookings?tab=cancelled'));
+        header('Content-Length: 1');
+        header('Connection: close');
+        while (ob_get_level() > 0) {
+            ob_end_flush();
+        }
+        echo ' ';
+        flush();
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } elseif (function_exists('litespeed_finish_request')) {
+            litespeed_finish_request();
+        }
+        if ($notice !== null) {
+            $service->sendCancellationNotices(...$notice);
+        }
+        exit;
     }
 }

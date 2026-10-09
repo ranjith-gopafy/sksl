@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 echo "===================================================================\n";
 echo "SKSL — Phase 14: Hero Banner, Service Images & Light Theme Tests\n";
@@ -38,7 +39,7 @@ echo "\n--- Section 2: All 10 Services Photography Verification ---\n";
 $serviceModel = new \App\Models\ServiceModel();
 $services = $serviceModel->getAllActive();
 
-assertBanner(count($services) === 10, "2.1 All 10 recovery modalities are active");
+assertBanner(count($services) === 9, "2.1 All 9 recovery modalities are active");
 
 $allImagesValid = true;
 foreach ($services as $s) {
@@ -49,7 +50,7 @@ foreach ($services as $s) {
         echo "    Missing or tiny image for service {$s['name']} (ID: {$s['id']}): {$imgRel}\n";
     }
 }
-assertBanner($allImagesValid, "2.2 All 10 services have photorealistic JPG assets in public/images/services/");
+assertBanner($allImagesValid, "2.2 All 9 services have photorealistic JPG assets in public/images/services/");
 
 // 3. HeroBannerModel Operations
 echo "\n--- Section 3: Hero Banner Database & Model Operations ---\n";

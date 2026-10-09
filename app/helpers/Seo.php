@@ -32,6 +32,16 @@ final class Seo
             'priority'    => '0.9',
             'changefreq'  => 'weekly',
         ],
+        '/packages' => [
+            'description' => 'Combo recovery packages at Sara Kinetic Sports Lab, Bengaluru: prepaid sauna, steam, ice bath, massage and hydrotherapy bundles with session credits.',
+            'priority'    => '0.8',
+            'changefreq'  => 'weekly',
+        ],
+        '/consultations' => [
+            'description' => 'Book physiotherapy and sports psychology consultations at Sara Kinetic Sports Lab, Bengaluru. Reserve online; the consultation fee is settled at the centre.',
+            'priority'    => '0.8',
+            'changefreq'  => 'weekly',
+        ],
         '/contact' => [
             'description' => 'Visit Sara Kinetic Sports Lab in Bengaluru. Facility address, opening hours, phone and email for bookings, cancellations and support.',
             'priority'    => '0.7',
@@ -48,7 +58,7 @@ final class Seo
             'changefreq'  => 'yearly',
         ],
         '/cancellation-refund' => [
-            'description' => 'Cancellation and refund policy for Sara Kinetic Sports Lab bookings. Contact the facility with your booking reference to cancel or request a refund.',
+            'description' => 'Cancellation and refund policy for Sara Kinetic Sports Lab bookings: cancel up to 24 hours before your session from My Sessions; a 10% cancellation charge applies and the balance is refunded.',
             'priority'    => '0.3',
             'changefreq'  => 'yearly',
         ],
@@ -107,7 +117,7 @@ final class Seo
     /** Paths that must never be crawled (private, transactional or admin). */
     public static function disallowedPaths(): array
     {
-        return ['/admin', '/api', '/booking', '/booking-confirmation', '/bookings', '/my-bookings', '/profile', '/health', '/forgot-password', '/reset-password'];
+        return ['/admin', '/api', '/booking', '/booking-confirmation', '/bookings', '/my-bookings', '/my-packages', '/profile', '/health', '/forgot-password', '/reset-password'];
     }
 
     /**
@@ -136,7 +146,7 @@ final class Seo
                 '@type'     => 'OpeningHoursSpecification',
                 'dayOfWeek' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
                 'opens'     => (string) ($facility['open'] ?? '06:00'),
-                'closes'    => (string) ($facility['close'] ?? '22:00'),
+                'closes'    => (string) ($facility['close'] ?? '21:00'),
             ]],
         ];
 

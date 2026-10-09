@@ -111,12 +111,12 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2 text-center sm:text-left">
             <div class="flex items-center justify-center sm:justify-start gap-2 min-w-0">
                 <span class="w-2 h-2 rounded-full bg-[#D6981E] animate-pulse shrink-0"></span>
-                <span class="min-w-0">Open Daily: <strong class="text-white">6:00 AM – 10:00 PM</strong> &bull; Sports Science &amp; Athletic Recovery</span>
+                <span class="min-w-0">Open Daily: <strong class="text-white"><?= h(facility_time_label('open')) ?> – <?= h(facility_time_label('close')) ?> (Last Slot: <?= h(facility_time_label('last_slot')) ?>)</strong> &bull; Sports Science &amp; Athletic Recovery</span>
             </div>
             <div class="flex items-center gap-4 text-slate-300">
                 <span class="inline-flex items-center gap-1.5"><span class="text-[#4A9CC0]">📍</span> Bengaluru, India</span>
                 <?php if (!empty($_SESSION['admin_id'])): ?>
-                    <a href="<?= app_url('admin/bookings') ?>" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#075183]/40 text-[#4A9CC0] border border-[#4A9CC0]/40 hover:bg-[#075183]/60 font-semibold transition">
+                    <a href="<?= app_url('admin/dashboard') ?>" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#075183]/40 text-[#4A9CC0] border border-[#4A9CC0]/40 hover:bg-[#075183]/60 font-semibold transition">
                         <span class="w-1.5 h-1.5 rounded-full bg-[#4A9CC0]"></span> Admin Control Center
                     </a>
                 <?php endif; ?>
@@ -130,51 +130,60 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
             <div class="flex items-center justify-between h-20">
                 
                 <!-- Brand Logo & Client Name in Two Lines -->
-                <a href="<?= app_url('') ?>" class="flex items-center gap-2.5 sm:gap-3.5 group">
+                <a href="<?= app_url('') ?>" class="flex items-center gap-2.5 sm:gap-3.5 group shrink-0">
                     <img 
                         src="<?= asset('images/sksl-logo.png') ?>" 
                         alt="Sara Kinetic Sports Lab" 
-                        width="500" height="500" decoding="async"
+                        width="192" height="192" decoding="async"
                         class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]"
                     >
-                    <div class="border-l border-[#D9DBDA] pl-2.5 sm:pl-3 leading-none">
+                    <div class="border-l border-[#D9DBDA] pl-2.5 sm:pl-3 leading-none whitespace-nowrap">
                         <div class="font-heading font-extrabold text-xs sm:text-sm uppercase tracking-wider text-[#075183]">
                             Sara Kinetic
                         </div>
-                        <div class="font-heading font-bold text-[10px] sm:text-xs uppercase tracking-widest text-[#BF5B2B] mt-0.5">
+                        <div class="font-heading font-bold text-[10px] sm:text-xs uppercase tracking-widest text-[#B8541F] mt-0.5">
                             Sports Lab
                         </div>
                     </div>
                 </a>
 
                 <!-- Desktop Navigation Links -->
-                <nav aria-label="Primary" class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
+                <nav aria-label="Primary" class="hidden lg:flex items-center gap-4 xl:gap-8 text-sm font-semibold text-slate-600 whitespace-nowrap">
                     <a href="<?= app_url('') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/' ? ' aria-current="page"' : '' ?>>Home</a>
-                    <a href="<?= app_url('services') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/services' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/services' ? ' aria-current="page"' : '' ?>>Services &amp; Pricing</a>
+                    <a href="<?= app_url('services') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/services' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/services' ? ' aria-current="page"' : '' ?>>Modalities</a>
+                    <a href="<?= app_url('packages') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/packages' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/packages' ? ' aria-current="page"' : '' ?>>Combo Packages</a>
+                    <a href="<?= app_url('consultations') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/consultations' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/consultations' ? ' aria-current="page"' : '' ?>>Physio &amp; Psychology</a>
                     <a href="<?= app_url('contact') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/contact' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/contact' ? ' aria-current="page"' : '' ?>>Contact</a>
                     <?php if (!empty($_SESSION['admin_id'])): ?>
                         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-                            <a href="<?= app_url('admin/bookings') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Bookings</a>
+                            <a href="<?= app_url('admin/dashboard') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Bookings</a>
                             <a href="<?= app_url('admin/services') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Modalities</a>
-                            <a href="<?= app_url('admin/banner') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Hero Banner</a>
+                            <a href="<?= app_url('admin/packages') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Packages</a>
+                            <a href="<?= app_url('admin/banner') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Banners</a>
                         </div>
                     <?php endif; ?>
                 </nav>
 
                 <!-- Desktop Auth & Booking Buttons -->
-                <div class="hidden md:flex items-center gap-3">
+                <div class="hidden lg:flex items-center gap-2 xl:gap-3 whitespace-nowrap">
                     <?php if (!empty($_SESSION['user_id'])): ?>
-                        <a href="<?= app_url('my-bookings') ?>" class="text-sm font-semibold text-slate-700 hover:text-[#075183] px-3 py-2 rounded-xl hover:bg-slate-100 transition-all">
-                            My Bookings
-                        </a>
-                        <a href="<?= app_url('profile') ?>" class="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 px-3.5 py-2 rounded-xl transition-all">
-                            <span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
-                            <?= h($_SESSION['user_name'] ?? 'Account') ?>
-                        </a>
-                        <form method="POST" action="<?= app_url('logout') ?>" class="inline">
-                            <?= \App\Helpers\Csrf::field() ?>
-                            <button type="submit" class="text-xs font-semibold text-rose-600 hover:text-rose-700 px-2 py-1 cursor-pointer bg-transparent border-0">Sign Out</button>
-                        </form>
+                        <!-- Account menu: plain <details>, no script needed -->
+                        <details class="relative">
+                            <summary class="list-none cursor-pointer inline-flex items-center gap-2 text-sm font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 px-3.5 py-2 rounded-xl transition-all [&::-webkit-details-marker]:hidden" aria-label="Account menu">
+                                <span class="w-2 h-2 rounded-full bg-[#10B981]" aria-hidden="true"></span>
+                                <span class="max-w-[9rem] truncate"><?= h($_SESSION['user_name'] ?? 'Account') ?></span>
+                                <svg class="w-3.5 h-3.5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
+                            </summary>
+                            <div class="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-sm font-semibold text-slate-700">
+                                <a href="<?= app_url('my-bookings') ?>" class="block px-4 py-2.5 hover:bg-slate-50"<?= $seoPath === '/my-bookings' ? ' aria-current="page"' : '' ?>>My Bookings</a>
+                                <a href="<?= app_url('my-packages') ?>" class="block px-4 py-2.5 hover:bg-slate-50"<?= $seoPath === '/my-packages' ? ' aria-current="page"' : '' ?>>My Packages</a>
+                                <a href="<?= app_url('profile') ?>" class="block px-4 py-2.5 hover:bg-slate-50"<?= $seoPath === '/profile' ? ' aria-current="page"' : '' ?>>Profile</a>
+                                <form method="POST" action="<?= app_url('logout') ?>" class="border-t border-slate-100 mt-1 pt-1">
+                                    <?= \App\Helpers\Csrf::field() ?>
+                                    <button type="submit" class="w-full text-left px-4 py-2.5 text-rose-700 hover:bg-rose-50 cursor-pointer bg-transparent border-0 font-semibold">Sign Out</button>
+                                </form>
+                            </div>
+                        </details>
                     <?php else: ?>
                         <a href="<?= app_url('login') ?>" class="text-sm font-semibold text-slate-700 hover:text-[#075183] px-3.5 py-2 rounded-xl hover:bg-slate-100 transition-colors">
                             Sign In
@@ -186,12 +195,44 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
                 </div>
 
                 <!-- Mobile Top Bar Right (Notifications / Profile quick link) -->
-                <div class="flex items-center gap-2 md:hidden">
-                    <a href="<?= !empty($_SESSION['user_id']) ? app_url('profile') : app_url('login') ?>" class="p-2 rounded-xl text-slate-700 hover:bg-slate-100">
-                        <svg class="w-6 h-6 text-[#075183]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="flex items-center gap-1 lg:hidden">
+                    <a href="<?= !empty($_SESSION['user_id']) ? app_url('profile') : app_url('login') ?>" class="p-2 rounded-xl text-slate-700 hover:bg-slate-100" aria-label="<?= !empty($_SESSION['user_id']) ? 'Your profile' : 'Sign in' ?>">
+                        <svg class="w-6 h-6 text-[#075183]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                     </a>
+                    <!-- Menu: every public page, plus the account pages, reachable on a phone. Plain <details>, so it needs no script. -->
+                    <details class="relative group">
+                        <summary class="list-none p-2 rounded-xl text-slate-700 hover:bg-slate-100 cursor-pointer [&::-webkit-details-marker]:hidden" aria-label="Open menu">
+                            <svg class="w-6 h-6 text-[#075183]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 12h16M4 17h16" />
+                            </svg>
+                        </summary>
+                        <nav aria-label="Menu" class="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-sm font-semibold text-slate-700">
+                            <a href="<?= app_url('') ?>" class="block px-4 py-2.5 hover:bg-slate-50">Home</a>
+                            <a href="<?= app_url('services') ?>" class="block px-4 py-2.5 hover:bg-slate-50">Modalities</a>
+                            <a href="<?= app_url('packages') ?>" class="block px-4 py-2.5 hover:bg-slate-50">Combo Packages</a>
+                            <a href="<?= app_url('consultations') ?>" class="block px-4 py-2.5 hover:bg-slate-50">Physio &amp; Psychology</a>
+                            <a href="<?= app_url('contact') ?>" class="block px-4 py-2.5 hover:bg-slate-50">Contact</a>
+                            <div class="my-1 border-t border-slate-100"></div>
+                            <?php if (!empty($_SESSION['user_id'])): ?>
+                                <a href="<?= app_url('my-bookings') ?>" class="block px-4 py-2.5 hover:bg-slate-50">My Bookings</a>
+                                <a href="<?= app_url('my-packages') ?>" class="block px-4 py-2.5 hover:bg-slate-50">My Packages</a>
+                                <a href="<?= app_url('profile') ?>" class="block px-4 py-2.5 hover:bg-slate-50">Profile</a>
+                                <form method="POST" action="<?= app_url('logout') ?>">
+                                    <?= \App\Helpers\Csrf::field() ?>
+                                    <button type="submit" class="w-full text-left px-4 py-2.5 text-rose-700 hover:bg-rose-50 cursor-pointer bg-transparent border-0 font-semibold">Sign Out</button>
+                                </form>
+                            <?php else: ?>
+                                <a href="<?= app_url('login') ?>" class="block px-4 py-2.5 hover:bg-slate-50">Sign In</a>
+                                <a href="<?= app_url('register') ?>" class="block px-4 py-2.5 hover:bg-slate-50">Create Account</a>
+                            <?php endif; ?>
+                            <?php if (!empty($_SESSION['admin_id'])): ?>
+                                <div class="my-1 border-t border-slate-100"></div>
+                                <a href="<?= app_url('admin/dashboard') ?>" class="block px-4 py-2.5 hover:bg-slate-50 text-[#075183]">Admin Control Center</a>
+                            <?php endif; ?>
+                        </nav>
+                    </details>
                 </div>
             </div>
         </div>
@@ -199,15 +240,6 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
 
     <!-- Main Container -->
     <main id="main-content" class="flex-1" tabindex="-1">
-        <!-- Floating Toast Notification Container -->
-        <div id="toast-container" class="fixed top-5 left-4 right-4 sm:left-auto sm:right-5 z-[9999] flex flex-col gap-3 pointer-events-none sm:max-w-md sm:w-full" aria-live="polite">
-        </div>
-
-        <?php
-        $flashSuccess = \App\Helpers\Flash::get('success');
-        $flashError   = \App\Helpers\Flash::get('error');
-        $flashInfo    = \App\Helpers\Flash::get('info');
-        ?>
 
         <!-- Page View File Content -->
         <?php
@@ -230,19 +262,19 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
                         <img 
                             src="<?= asset('images/sksl-logo.png') ?>" 
                             alt="SKSL Logo" 
-                            width="500" height="500" loading="lazy" decoding="async"
+                            width="192" height="192" loading="lazy" decoding="async"
                             class="h-12 w-auto object-contain shrink-0"
                         >
                         <div class="min-w-0">
                             <span class="font-heading font-extrabold text-lg text-[#075183] tracking-tight block break-words">SARA KINETIC SPORTS LAB</span>
-                            <span class="text-xs font-semibold text-[#BF5B2B] tracking-wider uppercase">Recover &bull; Recharge &bull; Perform</span>
+                            <span class="text-xs font-semibold text-[#B8541F] tracking-wider uppercase">Recover &bull; Recharge &bull; Perform</span>
                         </div>
                     </div>
                     <p class="text-sm text-slate-600 max-w-md leading-relaxed">
                         Science-backed sports recovery facility providing athletes, runners, and fitness enthusiasts with cold immersion, heat therapy, underwater treadmill conditioning, and specialized recovery protocols.
                     </p>
                     <div class="inline-flex items-center gap-3 pt-2 text-xs font-medium text-slate-500">
-                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#10B981]"></span> 10 Certified Modalities</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#10B981]"></span> Certified Recovery Modalities</span>
                         <span>&bull;</span>
                         <span>Razorpay Encrypted Payments</span>
                         <span>&bull;</span>
@@ -278,7 +310,7 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
 
             <div class="mt-12 pt-8 border-t border-[#D9DBDA]/60 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
                 <div>&copy; <?= date('Y') ?> Sara Kinetic Sports Lab. All rights reserved.</div>
-                <div>Statutory GST: 18% &bull; Facility Hours: 06:00 AM – 10:00 PM &bull; Bengaluru, Karnataka</div>
+                <div>Statutory GST: 18% &bull; Facility Hours: <?= h(facility_time_label('open')) ?> – <?= h(facility_time_label('close')) ?> (Last Slot: <?= h(facility_time_label('last_slot')) ?>) &bull; Bengaluru, Karnataka</div>
             </div>
         </div>
     </footer>
@@ -338,116 +370,6 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
 
     </nav>
 
-    <!-- Global Toast Notification Script -->
-    <script nonce="<?= csp_nonce() ?>">
-    (function() {
-        const toastContainer = document.getElementById('toast-container');
-
-        window.showToast = function(message, type = 'success', duration = 4500) {
-            if (!toastContainer || !message) return;
-
-            const toast = document.createElement('div');
-            toast.className = 'pointer-events-auto transform translate-x-10 opacity-0 transition-all duration-300 ease-out bg-white rounded-2xl shadow-xl border overflow-hidden relative flex flex-col';
-
-            let borderClass = 'border-emerald-500/80';
-            let iconSvg = '';
-            let titleText = 'Success';
-            let barColor = 'bg-emerald-500';
-
-            if (type === 'error') {
-                borderClass = 'border-rose-500/80';
-                titleText = 'Attention';
-                barColor = 'bg-rose-500';
-                iconSvg = `<svg class="w-5 h-5 text-rose-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>`;
-            } else if (type === 'info') {
-                borderClass = 'border-[#075183]/80';
-                titleText = 'Notification';
-                barColor = 'bg-[#075183]';
-                iconSvg = `<svg class="w-5 h-5 text-[#075183] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>`;
-            } else {
-                iconSvg = `<svg class="w-5 h-5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>`;
-            }
-
-            toast.classList.add(borderClass);
-
-            toast.innerHTML = `
-                <div class="p-4 flex items-start gap-3">
-                    <div class="mt-0.5">${iconSvg}</div>
-                    <div class="flex-1 min-w-0 pr-2">
-                        <div class="text-xs font-bold font-heading uppercase tracking-wider text-slate-800">${titleText}</div>
-                        <div class="toast-message text-xs text-slate-600 mt-0.5 break-words font-medium"></div>
-                    </div>
-                    <button type="button" class="text-slate-500 hover:text-slate-700 p-1 -mr-1 rounded-lg transition-colors cursor-pointer" aria-label="Close">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div class="h-1 w-full bg-slate-100 overflow-hidden">
-                    <div class="toast-progress h-full ${barColor} transition-all duration-[${duration}ms] ease-linear w-full"></div>
-                </div>
-            `;
-
-            // Message is always inserted as text — never as HTML — so a flash that
-            // echoes user or database content cannot inject markup.
-            const messageEl = toast.querySelector('.toast-message');
-            if (messageEl) messageEl.textContent = String(message);
-
-            toastContainer.appendChild(toast);
-
-            // Animate In
-            requestAnimationFrame(() => {
-                toast.classList.remove('translate-x-10', 'opacity-0');
-                toast.classList.add('translate-x-0', 'opacity-100');
-            });
-
-            // Progress bar animation
-            const progressBar = toast.querySelector('.toast-progress');
-            if (progressBar) {
-                requestAnimationFrame(() => {
-                    progressBar.style.transition = `width ${duration}ms linear`;
-                    progressBar.style.width = '0%';
-                });
-            }
-
-            let dismissed = false;
-            const dismiss = () => {
-                if (dismissed) return;
-                dismissed = true;
-                toast.classList.remove('translate-x-0', 'opacity-100');
-                toast.classList.add('translate-x-10', 'opacity-0');
-                setTimeout(() => {
-                    toast.remove();
-                }, 300);
-            };
-
-            const closeBtn = toast.querySelector('button');
-            if (closeBtn) closeBtn.addEventListener('click', dismiss);
-
-            const timer = setTimeout(dismiss, duration);
-            toast.addEventListener('mouseenter', () => clearTimeout(timer));
-        };
-
-        // Render any pending PHP Flash messages as Toasts
-        document.addEventListener('DOMContentLoaded', () => {
-            <?php $jsFlags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE; ?>
-            <?php if (!empty($flashSuccess)): ?>
-                window.showToast(<?= json_encode((string) $flashSuccess, $jsFlags) ?>, 'success');
-            <?php endif; ?>
-            <?php if (!empty($flashError)): ?>
-                window.showToast(<?= json_encode((string) $flashError, $jsFlags) ?>, 'error');
-            <?php endif; ?>
-            <?php if (!empty($flashInfo)): ?>
-                window.showToast(<?= json_encode((string) $flashInfo, $jsFlags) ?>, 'info');
-            <?php endif; ?>
-        });
-    })();
-    </script>
+    <?php require __DIR__ . '/_toasts.php'; ?>
 </body>
 </html>

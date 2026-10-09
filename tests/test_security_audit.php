@@ -35,6 +35,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 require_once __DIR__ . '/support/payment_support.php';
 
 use App\Models\UserModel;
@@ -245,16 +246,19 @@ $payIdB = 'pay_mock_' . bin2hex(random_bytes(4));
 $validVerify = $paymentService->verifyPayment($customerBId, $bookingRefB, $orderId, $payIdB, sksl_test_sign($orderId, $payIdB));
 assert($validVerify['success'] === true, 'Customer B payment successfully verified');
 
-// 3.4 Customers cannot cancel online at all: the self-cancel route must be gone (404 / method not allowed)
+// 3.4 Self-cancellation exists (POST only) but must reject anonymous and cross-account requests
 $bookingB = $bookingModel->findByReference($bookingRefB);
 $routes = file_get_contents(dirname(__DIR__) . '/public/index.php');
-assert(!str_contains($routes, '/cancel\''), 'No customer cancel route may be registered');
-assert(!method_exists(\App\Controllers\CustomerBookingController::class, 'cancel'), 'CustomerBookingController::cancel must be removed');
+assert(str_contains($routes, "\$router->post('/my-bookings/{ref}/cancel'"), 'Customer cancel route must be POST-only');
+assert(!str_contains($routes, "\$router->get('/my-bookings/{ref}/cancel'"), 'Cancelling must never be reachable by GET');
 $noCookies = '';
 $selfCancel = httpRequest('POST', $baseUrl . '/my-bookings/' . $bookingRefB . '/cancel', [], ['_csrf_token' => 'x'], $noCookies);
-assert(in_array($selfCancel['code'], [302, 403, 404, 405], true), 'Self-cancel must be rejected (CSRF redirect or 404), got HTTP ' . $selfCancel['code']);
-assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking untouched by removed route');
-echo "[PASS] 3.4 Customer self-cancellation removed (route + controller gone, HTTP {$selfCancel['code']}); cancellations are staff-only\n";
+assert(in_array($selfCancel['code'], [302, 403, 404, 405], true), 'Anonymous self-cancel must be rejected (login/CSRF redirect), got HTTP ' . $selfCancel['code']);
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking untouched by an anonymous cancel request');
+$wrongOwner = (new \App\Services\BookingService())->cancelByCustomer($customerAId, $bookingRefB);
+assert($wrongOwner['success'] === false, "Customer A must not be able to cancel customer B's booking");
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking untouched by another customer cancel attempt');
+echo "[PASS] 3.4 Self-cancellation is POST-only, rejects anonymous callers (HTTP {$selfCancel['code']}) and other customers\n";
 
 // 3.5 Customer A attempts to download Customer B's invoice -> must fail
 $invoiceService = new InvoiceService($db, $bookingModel, $paymentModel);

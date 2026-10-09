@@ -94,6 +94,7 @@ echo "   [PASS] Protected profile accessed successfully!\n";
 
 // 6. Cleanup
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 $db = getDb();
 $db->exec("DELETE FROM users WHERE email = '{$testEmail}'");
 @unlink($cookieJar);

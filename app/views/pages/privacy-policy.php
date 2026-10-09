@@ -14,7 +14,7 @@ $policyUpdated = '26 September 2026';
 ?>
 <div class="max-w-4xl mx-auto px-4 py-12">
     <div class="bg-white border border-slate-200/90 rounded-3xl p-8 md:p-12 shadow-xs">
-        <span class="text-xs font-bold uppercase tracking-widest text-sky-600">Legal Document</span>
+        <span class="text-xs font-bold uppercase tracking-widest text-sky-700">Legal Document</span>
         <h1 class="text-3xl font-extrabold text-slate-900 font-heading mt-2 mb-2">Privacy Policy</h1>
         <p class="text-xs text-slate-500 mb-8">Last updated: <?= h($policyUpdated) ?></p>
 
@@ -81,7 +81,7 @@ $policyUpdated = '26 September 2026';
             <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">7. Your rights and choices</h2>
             <p>
                 You can view and correct your name and mobile number and change your password at any time from
-                <a href="<?= app_url('profile') ?>" class="text-sky-600 font-semibold hover:underline">My Profile</a>. You may also ask us to:
+                <a href="<?= app_url('profile') ?>" class="text-sky-700 font-semibold hover:underline">My Profile</a>. You may also ask us to:
             </p>
             <ul class="list-disc pl-5 space-y-1.5 text-slate-600">
                 <li>provide a copy of the personal data we hold about you;</li>
@@ -109,12 +109,12 @@ $policyUpdated = '26 September 2026';
             <p>
                 <?= h($bizLegal) ?><?php if ($bizAddr !== ''): ?>, <?= h($bizAddr) ?><?php endif; ?>.
                 <?php if ($bizEmail !== ''): ?>
-                    Email: <a href="mailto:<?= h($bizEmail) ?>" class="text-sky-600 font-semibold hover:underline"><?= h($bizEmail) ?></a>.
+                    Email: <a href="mailto:<?= h($bizEmail) ?>" class="text-sky-700 font-semibold hover:underline"><?= h($bizEmail) ?></a>.
                 <?php endif; ?>
                 <?php if ($bizPhone !== ''): ?>
-                    Phone: <a href="tel:<?= h(preg_replace('/[^0-9+]/', '', $bizPhone)) ?>" class="text-sky-600 font-semibold hover:underline"><?= h($bizPhone) ?></a>.
+                    Phone: <a href="tel:<?= h(preg_replace('/[^0-9+]/', '', $bizPhone)) ?>" class="text-sky-700 font-semibold hover:underline"><?= h($bizPhone) ?></a>.
                 <?php endif; ?>
-                You can also reach us through <a href="<?= app_url('contact') ?>" class="text-sky-600 font-semibold hover:underline">our contact page</a>.
+                You can also reach us through <a href="<?= app_url('contact') ?>" class="text-sky-700 font-semibold hover:underline">our contact page</a>.
             </p>
         </div>
     </div>

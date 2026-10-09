@@ -71,6 +71,7 @@
                             type="text" 
                             id="name" 
                             name="name" 
+                            autocomplete="name"
                             required 
                             value="<?= h($user['name'] ?? '') ?>"
                             class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm"
@@ -101,8 +102,9 @@
                                 type="tel" 
                                 id="mobile" 
                                 name="mobile" 
+                                autocomplete="tel"
                                 required 
-                                maxlength="10"
+                                maxlength="16"
                                 value="<?= h($user['mobile'] ?? '') ?>"
                                 class="w-full pl-14 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm"
                             >
@@ -145,6 +147,7 @@
                             type="password" 
                             id="current_password" 
                             name="current_password" 
+                            autocomplete="current-password"
                             required 
                             class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm"
                         >

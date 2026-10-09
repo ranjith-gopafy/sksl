@@ -104,6 +104,8 @@ Suggested:
 - `payment_status`
 - `invoice_number` nullable (migration 012; assigned once when paid)
 - `health_declared_at` nullable (migration 012; copied from the hold, see §7)
+- `cancelled_at`, `cancelled_by` (`customer`/`admin`), `cancellation_fee`, `refund_amount` nullable (migration 024;
+  the charge kept and the amount SKSL must refund manually for online-paid cancellations)
 - `created_at`
 - `updated_at`
 

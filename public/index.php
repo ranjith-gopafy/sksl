@@ -28,6 +28,13 @@ use App\Controllers\ProfileController;
 use App\Middleware\CsrfMiddleware;
 
 // ─── CSRF Protection ──────────────────────────────────────────────────────
+// Nested form/query values ("name[]=x") are dropped before any controller sees them; the only real
+// list fields are the combo-package form's rows.
+$listFields = request_path() === '/admin/packages' ? ['service_id', 'quantity', 'duration_minutes'] : [];
+$_GET     = scalar_input($_GET);
+$_POST    = scalar_input($_POST, $listFields);
+$_REQUEST = scalar_input($_REQUEST, $listFields);
+
 CsrfMiddleware::handle();
 
 // ─── Router ───────────────────────────────────────────────────────────────
@@ -40,6 +47,8 @@ $router->get('/privacy-policy', [HomeController::class, 'privacy']);
 $router->get('/terms', [HomeController::class, 'terms']);
 $router->get('/cancellation-refund', [HomeController::class, 'cancellation']);
 $router->get('/contact', [HomeController::class, 'contact']);
+$router->get('/consultations', [ServiceController::class, 'consultations']);
+$router->get('/professional-services', [ServiceController::class, 'consultations']);
 
 // ─── Crawler files (generated so URLs follow APP_URL / deployment path) ────
 $router->get('/robots.txt', function () {
@@ -99,6 +108,16 @@ $router->get('/api/availability', [\App\Controllers\AvailabilityController::clas
 $router->get('/booking', [\App\Controllers\BookingController::class, 'showBooking']);
 $router->post('/api/bookings/hold', [\App\Controllers\BookingController::class, 'createHold']);
 $router->post('/api/bookings/hold/release', [\App\Controllers\BookingController::class, 'releaseHold']);
+$router->post('/api/bookings/professional', [\App\Controllers\BookingController::class, 'bookProfessional']);
+$router->post('/api/bookings/package', [\App\Controllers\BookingController::class, 'bookPackage']);
+
+// ─── Combo Packages Routes ───────────────────────────────────────────────
+$router->get('/packages', [\App\Controllers\PackageController::class, 'index']);
+$router->get('/api/packages', [\App\Controllers\PackageController::class, 'apiIndex']);
+$router->get('/my-packages', [\App\Controllers\PackageController::class, 'myPackages']);
+$router->get('/my-packages/{ref}/invoice', [\App\Controllers\PackageController::class, 'downloadInvoice']);
+$router->post('/api/packages/{id}/purchase', [\App\Controllers\PackageController::class, 'purchase']);
+$router->post('/api/packages/verify', [\App\Controllers\PackageController::class, 'verifyPurchase']);
 
 // ─── Payment & Checkout Routes ────────────────────────────────────────────
 $router->post('/api/payment/create-order', [\App\Controllers\PaymentController::class, 'createOrder']);
@@ -109,6 +128,7 @@ $router->get('/bookings/{ref}/invoice', [\App\Controllers\PaymentController::cla
 
 // ─── Customer Dashboard & Booking Management ──────────────────────────────
 $router->get('/my-bookings', [\App\Controllers\CustomerBookingController::class, 'index']);
+$router->post('/my-bookings/{ref}/cancel', [\App\Controllers\CustomerBookingController::class, 'cancel']);
 // ─── Admin Authentication Routes ──────────────────────────────────────────
 $router->get('/admin/login', [\App\Controllers\AdminAuthController::class, 'showLogin']);
 $router->post('/admin/login', [\App\Controllers\AdminAuthController::class, 'sendOtp']);
@@ -117,12 +137,31 @@ $router->post('/admin/verify-otp', [\App\Controllers\AdminAuthController::class,
 $router->post('/admin/logout', [\App\Controllers\AdminAuthController::class, 'logout']); // POST only (CSRF-protected)
 
 // ─── Admin Management Operations ──────────────────────────────────────────
+$router->get('/admin', [\App\Controllers\AdminDashboardController::class, 'index']);
+$router->get('/admin/dashboard', [\App\Controllers\AdminDashboardController::class, 'index']);
 $router->get('/admin/bookings', [\App\Controllers\AdminBookingController::class, 'index']);
 $router->post('/admin/bookings/{id}/status', [\App\Controllers\AdminBookingController::class, 'updateStatus']);
+$router->post('/admin/bookings/{id}/visit', [\App\Controllers\AdminBookingController::class, 'markVisited']);
+$router->post('/admin/bookings/{id}/no-show', [\App\Controllers\AdminBookingController::class, 'markNoShow']);
 
 $router->get('/admin/services', [\App\Controllers\AdminServiceController::class, 'index']);
 $router->post('/admin/services/{id}/toggle', [\App\Controllers\AdminServiceController::class, 'toggle']);
 $router->post('/admin/services/{id}/update', [\App\Controllers\AdminServiceController::class, 'update']);
+$router->post('/admin/services/{id}/duration-options', [\App\Controllers\AdminServiceController::class, 'addDurationOption']);
+$router->post('/admin/services/duration-options/{id}/delete', [\App\Controllers\AdminServiceController::class, 'deleteDurationOption']);
+
+$router->get('/admin/availability', [\App\Controllers\AdminAvailabilityController::class, 'index']);
+$router->post('/admin/availability', [\App\Controllers\AdminAvailabilityController::class, 'create']);
+$router->post('/admin/availability/{id}/delete', [\App\Controllers\AdminAvailabilityController::class, 'delete']);
+
+$router->get('/admin/manual-blocks', [\App\Controllers\AdminManualBlockController::class, 'index']);
+$router->post('/admin/manual-blocks', [\App\Controllers\AdminManualBlockController::class, 'create']);
+$router->post('/admin/manual-blocks/{id}/delete', [\App\Controllers\AdminManualBlockController::class, 'delete']);
+
+$router->get('/admin/packages', [\App\Controllers\AdminPackageController::class, 'index']);
+$router->get('/admin/package-purchases', [\App\Controllers\AdminPackageController::class, 'purchases']);
+$router->post('/admin/packages',[\App\Controllers\AdminPackageController::class, 'create']);
+$router->post('/admin/packages/{id}/toggle', [\App\Controllers\AdminPackageController::class, 'toggle']);
 
 $router->get('/admin/closed-dates', [\App\Controllers\AdminClosedDateController::class, 'index']);
 $router->post('/admin/closed-dates', [\App\Controllers\AdminClosedDateController::class, 'create']);
@@ -138,19 +177,14 @@ $router->get('/health', function () {
     header('Content-Type: application/json');
     header('Cache-Control: no-store');
     $configured = (string) ($_ENV['HEALTH_CHECK_TOKEN'] ?? '');
-    $presented  = (string) ($_SERVER['HTTP_X_HEALTH_TOKEN'] ?? ($_GET['token'] ?? ''));
+    $presented  = (string) ($_SERVER['HTTP_X_HEALTH_TOKEN'] ?? ''); // header only: a ?token= value would be written to access logs
     $detailed   = $configured !== '' && $presented !== '' && hash_equals($configured, $presented);
 
     $dbOk = false;
     try {
-        $config = require dirname(__DIR__) . '/config/database.php';
-        $pdo = new PDO(
-            sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $config['host'], $config['port'], $config['database'], $config['charset']),
-            $config['username'],
-            $config['password'],
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 3]
-        );
-        $pdo->query('SELECT 1');
+        // The shared connection is reused, so a monitor polling /health does not open a new
+        // database connection per hit (shared hosts cap simultaneous connections).
+        getDb()->query('SELECT 1');
         $dbOk = true;
     } catch (Throwable $e) {
         error_log('Health check: database unreachable: ' . $e->getMessage());

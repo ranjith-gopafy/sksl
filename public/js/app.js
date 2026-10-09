@@ -58,6 +58,38 @@
     }
   });
 
+  // Double-submit protection: once a form is on its way, its submit buttons are switched off so a
+  // second tap (slow connection, impatient double click) cannot send it twice. Forms that must stay
+  // usable opt out with data-no-lock. The buttons come back on if the page is restored from the
+  // browser's back/forward cache, and after 15 seconds in case the request never completes.
+  var lockedButtons = [];
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form || !form.querySelectorAll || form.hasAttribute('data-no-lock')) { return; }
+    // Run after every other submit listener (the confirm dialog above may cancel the submit).
+    setTimeout(function () {
+      if (event.defaultPrevented) { return; }
+      Array.prototype.forEach.call(form.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type])'), function (btn) {
+        if (btn.disabled) { return; }
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        lockedButtons.push(btn);
+      });
+      setTimeout(unlockButtons, 15000);
+    }, 0);
+  });
+
+  function unlockButtons() {
+    lockedButtons.forEach(function (btn) {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+    });
+    lockedButtons = [];
+  }
+  window.addEventListener('pageshow', function (event) {
+    if (event.persisted) { unlockButtons(); }
+  });
+
   function bindFallbacks(root) {
     var imgs = (root || document).querySelectorAll('img[data-fallback-src]');
     Array.prototype.forEach.call(imgs, function (img) {

@@ -32,12 +32,9 @@ class CsrfMiddleware
         }
 
         // Check if path is exempt
-        $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-        $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/');
-        if ($base !== '' && str_starts_with($uri, $base)) {
-            $uri = substr($uri, strlen($base));
-        }
-        $uri = '/' . ltrim($uri, '/');
+        // Same normalisation as the router, so the exemption also matches when the app is served from a
+        // sub-folder (/sksl/api/payment/webhook) and Razorpay's POST is not rejected as a CSRF failure.
+        $uri = request_path();
 
         foreach (self::EXEMPT_PATHS as $exempt) {
             if ($uri === $exempt) {

@@ -33,7 +33,7 @@ class AdminClosedDateController
 
         $title = 'Facility Closed Dates — SKSL Admin';
         $viewFile = dirname(__DIR__) . '/views/admin/closed-dates.php';
-        require dirname(__DIR__) . '/views/layouts/main.php';
+        require dirname(__DIR__) . '/views/layouts/admin.php';
     }
 
     /**
@@ -44,9 +44,9 @@ class AdminClosedDateController
         AdminAuth::handle();
 
         $date   = trim((string) ($_POST['closed_date'] ?? ''));
-        $reason = trim((string) ($_POST['reason'] ?? ''));
+        $reason = mb_substr(trim((string) ($_POST['reason'] ?? '')), 0, 255);
 
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        if (\App\Helpers\AdminInput::date($date) === null) {
             Flash::set('error', 'Invalid date format (YYYY-MM-DD required).');
             header('Location: ' . app_url('admin/closed-dates'));
             exit;
@@ -59,6 +59,14 @@ class AdminClosedDateController
         }
 
         $this->closedDateModel->add($date, $reason ?: null);
+
+        // Closing a day cancels nothing by itself: tell staff who is already booked on it.
+        $clashes = (new \App\Models\BookingModel())->countConfirmedInWindow(null, $date, null, '00:00:00', '23:59:59');
+        if ($clashes > 0) {
+            Flash::set('info', "Facility closed on {$date}, but {$clashes} confirmed booking(s) already exist that day. Contact those athletes or cancel the bookings from Bookings.");
+            header('Location: ' . app_url('admin/closed-dates'));
+            exit;
+        }
 
         Flash::set('success', "Facility marked closed on {$date}. All slots on this date are now blocked.");
         header('Location: ' . app_url('admin/closed-dates'));

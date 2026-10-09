@@ -1,4 +1,4 @@
-<div class="min-h-[75vh] flex items-center justify-center px-4 py-12">
+<div class="w-full flex items-center justify-center">
     <div class="w-full max-w-md">
         
         <!-- Header badge & title -->
@@ -35,6 +35,7 @@
                             type="email" 
                             id="admin_email" 
                             name="email" 
+                            autocomplete="email"
                             required 
                             placeholder="admin@sk-sports-lab.com"
                             class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm transition-all"

@@ -29,17 +29,21 @@ class PaymentModel
     {
         $stmt = $this->db->prepare(
             'INSERT INTO payments (
-                booking_id, razorpay_order_id, amount, currency, status
+                payment_source, booking_id, customer_package_id,
+                razorpay_order_id, amount, currency, status
              ) VALUES (
-                :booking_id, :order_id, :amount, :currency, :status
+                :source, :booking_id, :customer_package_id,
+                :order_id, :amount, :currency, :status
              )'
         );
         $stmt->execute([
-            'booking_id' => $data['booking_id'],
-            'order_id'   => $data['razorpay_order_id'],
-            'amount'     => $data['amount'],
-            'currency'   => $data['currency'] ?? 'INR',
-            'status'     => $data['status'] ?? 'pending',
+            'source'              => $data['payment_source'] ?? 'booking',
+            'booking_id'          => $data['booking_id'] ?? null,
+            'customer_package_id' => $data['customer_package_id'] ?? null,
+            'order_id'            => $data['razorpay_order_id'],
+            'amount'              => $data['amount'],
+            'currency'            => $data['currency'] ?? 'INR',
+            'status'              => $data['status'] ?? 'pending',
         ]);
         return (int) $this->db->lastInsertId();
     }
@@ -81,6 +85,18 @@ class PaymentModel
     }
 
     /**
+     * Find payment record by customer package ID.
+     */
+    public function findByCustomerPackageId(int $customerPackageId): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT * FROM payments WHERE customer_package_id = ? ORDER BY id DESC LIMIT 1'
+        );
+        $stmt->execute([$customerPackageId]);
+        return $stmt->fetch() ?: null;
+    }
+
+    /**
      * Mark payment as paid. Idempotent: a row that is already paid is never
      * overwritten, so a late duplicate callback cannot replace the payment id.
      */
@@ -95,7 +111,9 @@ class PaymentModel
                  gateway_response    = ?
              WHERE id = ? AND status != 'paid'"
         );
-        return $stmt->execute([$paymentId, $signature, $gatewayResponse, $id]);
+        $stmt->execute([$paymentId, $signature, $gatewayResponse, $id]);
+        // true only for the call that actually flipped the row, so callers can act exactly once
+        return $stmt->rowCount() === 1;
     }
 
     /**

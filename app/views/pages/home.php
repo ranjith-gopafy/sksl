@@ -61,7 +61,7 @@ if (empty($bannerSlides)) {
                 role="group"
                 aria-roledescription="slide"
                 aria-label="<?= $idx + 1 ?> of <?= count($bannerSlides) ?>"
-                <?= $isActive ? '' : 'aria-hidden="true"' ?>
+                <?= $isActive ? '' : 'aria-hidden="true" inert' ?>
             >
                 <!-- Full-Bleed Background Photography with Ken Burns effect -->
                 <!-- width/height reserve the aspect ratio (no layout shift); only the first slide loads eagerly -->
@@ -113,7 +113,7 @@ if (empty($bannerSlides)) {
                                 href="<?= app_url('services') ?>" 
                                 class="app-touch-target inline-flex items-center justify-center font-heading font-semibold text-sm px-5 py-3 sm:px-6 sm:py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-[#D9DBDA]/40 hover:border-white transition-all"
                             >
-                                Explore 10 Modalities
+                                Explore <?= count($services) ?> Modalities
                             </a>
                         </div>
 
@@ -154,11 +154,17 @@ if (empty($bannerSlides)) {
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 flex items-center justify-between">
             
             <!-- Slide Dots / Active Pill Indicators -->
-            <div class="flex items-center gap-2 pointer-events-auto bg-slate-900/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10" id="carousel-indicators">
+            <div class="flex items-center gap-4 pointer-events-auto bg-slate-900/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10" id="carousel-indicators">
+                <?php if (count($bannerSlides) > 1): ?>
+                    <button type="button" id="carousel-toggle" class="inline-flex items-center justify-center w-6 h-6 -ml-1 mr-1 rounded-full text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white cursor-pointer" aria-label="Pause slideshow">
+                        <svg id="carousel-toggle-pause" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+                        <svg id="carousel-toggle-play" class="w-3.5 h-3.5 hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                <?php endif; ?>
                 <?php foreach ($bannerSlides as $idx => $slide): ?>
                     <button 
                         type="button" 
-                        class="carousel-indicator-dot transition-all duration-300 rounded-full h-2 <?= ($idx === 0) ? 'w-8 bg-[#D6981E]' : 'w-2 bg-white/40 hover:bg-white/70' ?>" 
+                        class="carousel-indicator-dot relative before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] transition-all duration-300 rounded-full h-2 <?= ($idx === 0) ? 'w-8 bg-[#D6981E]' : 'w-2 bg-white/40 hover:bg-white/70' ?>" 
                         data-target-index="<?= $idx ?>"
                         aria-label="Go to slide <?= $idx + 1 ?>"
                     ></button>
@@ -168,7 +174,7 @@ if (empty($bannerSlides)) {
             <!-- Slide Counter & Mobile Swipe Hint -->
             <div class="hidden sm:flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-bold text-white">
                 <span class="text-[#4A9CC0] font-mono tracking-wider"><span id="carousel-current-index">01</span> / <span id="carousel-total-count"><?= sprintf('%02d', count($bannerSlides)) ?></span></span>
-                <span class="text-slate-500 font-normal border-l border-white/20 pl-2.5">Auto-advance 5s</span>
+                <span class="text-slate-400 font-normal border-l border-white/20 pl-2.5">Slides change every 5s</span>
             </div>
         </div>
     </div>
@@ -197,7 +203,7 @@ if (empty($bannerSlides)) {
         <!-- Mobile App Experience: Interactive Category Filter Bar (Smooth Horizontal Scroll on Mobile) -->
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-4 mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
             <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-bold bg-[#075183] text-white shadow-xs whitespace-nowrap transition-all" data-category="all">
-                All Protocols (10)
+                All Protocols (<?= count($services) ?>)
             </button>
             <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="cryo">
                 Cold &amp; Cryo Immersion
@@ -259,7 +265,7 @@ if (empty($bannerSlides)) {
                             <div class="md:p-5 md:pb-3">
                                 <div class="md:hidden border-l-2 border-[#D6981E] pl-2 leading-none mb-1">
                                     <div class="font-heading font-extrabold text-[10px] tracking-wider text-[#075183] uppercase">Sara Kinetic</div>
-                                    <div class="font-heading font-bold text-[9px] tracking-widest text-[#BF5B2B] uppercase mt-0.5">Sports Lab</div>
+                                    <div class="font-heading font-bold text-[9px] tracking-widest text-[#B8541F] uppercase mt-0.5">Sports Lab</div>
                                 </div>
                                 <h3 class="text-sm md:text-xl font-extrabold font-heading text-slate-900 leading-snug truncate">
                                     <?= h($srv['name']) ?>
@@ -274,9 +280,9 @@ if (empty($bannerSlides)) {
                             <div class="flex items-center justify-between pt-1.5 mt-1 border-t border-[#D9DBDA]/60 md:mx-5 md:mb-5 md:px-0 md:pt-3 md:border-[#D9DBDA]/80">
                                 <div>
                                     <div class="text-sm md:text-xl font-extrabold text-slate-900 font-heading">
-                                        &#8377;<?= number_format($basePrice, 2) ?>
+                                        &#8377;<?= number_format($basePrice, $basePrice == floor($basePrice) ? 0 : 2) ?>
                                     </div>
-                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">+ 18% GST</div>
+                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">Incl. 18% GST</div>
                                 </div>
                                 <a
                                     href="<?= app_url('booking?service_id=' . $srv['id']) ?>"
@@ -315,7 +321,7 @@ if (empty($bannerSlides)) {
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 font-heading">Select Protocol &amp; Live Slot</h3>
                 <p class="text-sm text-slate-600 mt-2 leading-relaxed">
-                    Choose from 10 certified sports modalities and view live slot capacity between 6:00 AM and 10:00 PM IST.
+                    Choose from <?= count($services) ?> certified sports modalities and view live slot capacity between <?= h(facility_time_label('open')) ?> and <?= h(facility_time_label('close')) ?> IST.
                 </p>
             </div>
 
@@ -332,7 +338,7 @@ if (empty($bannerSlides)) {
 
             <!-- Step 3: Tax Invoice (#BF5B2B) -->
             <div class="bg-white border border-[#D9DBDA] rounded-3xl p-7 shadow-xs hover:shadow-md transition-shadow relative">
-                <div class="w-12 h-12 rounded-2xl bg-[#BF5B2B]/10 text-[#BF5B2B] font-heading font-extrabold text-xl flex items-center justify-center mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-[#BF5B2B]/10 text-[#B8541F] font-heading font-extrabold text-xl flex items-center justify-center mb-5">
                     03
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 font-heading">Automated GST Tax Invoice</h3>
@@ -386,7 +392,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentIndex = 0;
     let autoPlayTimer = null;
-    let isPaused = false;
+    let isPaused = false;          // temporary: pointer or keyboard focus is on the carousel
+    // Moving content must be stoppable (WCAG 2.2.2), and visitors who asked their device for less
+    // motion never get auto-advance unless they start it themselves.
+    let userStopped = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const toggleBtn = document.getElementById('carousel-toggle');
+    const pauseIcon = document.getElementById('carousel-toggle-pause');
+    const playIcon  = document.getElementById('carousel-toggle-play');
+
+    function syncToggle() {
+        if (!toggleBtn) return;
+        toggleBtn.setAttribute('aria-label', userStopped ? 'Play slideshow' : 'Pause slideshow');
+        if (pauseIcon) pauseIcon.classList.toggle('hidden', userStopped);
+        if (playIcon) playIcon.classList.toggle('hidden', !userStopped);
+    }
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => { userStopped = !userStopped; syncToggle(); });
+    }
+    syncToggle();
 
     function goToSlide(index) {
         if (index < 0) {
@@ -402,18 +425,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 slide.classList.remove('opacity-0', 'z-0', 'pointer-events-none');
                 slide.classList.add('opacity-100', 'z-10', 'pointer-events-auto', 'active');
                 slide.removeAttribute('aria-hidden');
+                slide.removeAttribute('inert');
             } else {
                 slide.classList.remove('opacity-100', 'z-10', 'pointer-events-auto', 'active');
                 slide.classList.add('opacity-0', 'z-0', 'pointer-events-none');
                 slide.setAttribute('aria-hidden', 'true');
+                slide.setAttribute('inert', '');
             }
         });
 
         dots.forEach((dot, idx) => {
             if (idx === currentIndex) {
-                dot.className = 'carousel-indicator-dot transition-all duration-300 rounded-full h-2 w-8 bg-[#D6981E]';
+                dot.className = 'carousel-indicator-dot relative before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[\'\'] transition-all duration-300 rounded-full h-2 w-8 bg-[#D6981E]';
             } else {
-                dot.className = 'carousel-indicator-dot transition-all duration-300 rounded-full h-2 w-2 bg-white/40 hover:bg-white/70';
+                dot.className = 'carousel-indicator-dot relative before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[\'\'] transition-all duration-300 rounded-full h-2 w-2 bg-white/40 hover:bg-white/70';
             }
         });
 
@@ -446,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (totalCount <= 1) return;
         stopTimer();
         autoPlayTimer = setInterval(() => {
-            if (!isPaused) {
+            if (!isPaused && !userStopped) {
                 nextSlide();
             }
         }, 5000);
@@ -468,6 +493,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (carouselContainer) {
         carouselContainer.addEventListener('mouseenter', () => { isPaused = true; });
         carouselContainer.addEventListener('mouseleave', () => { isPaused = false; });
+        // Keyboard and screen-reader users: never rotate while focus is inside the carousel.
+        carouselContainer.addEventListener('focusin', () => { isPaused = true; });
+        carouselContainer.addEventListener('focusout', () => { isPaused = false; });
 
         // Mobile Touch Swipe Handling
         let touchStartX = 0;
@@ -497,16 +525,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Keyboard Arrow navigation
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') {
-            prevSlide();
-            resetTimer();
-        } else if (e.key === 'ArrowRight') {
-            nextSlide();
-            resetTimer();
-        }
-    });
+    // Keyboard Arrow navigation: only while focus is inside the carousel, so the arrow keys keep
+    // their normal job (scrolling, moving through form fields) everywhere else on the page.
+    if (carouselContainer) {
+        carouselContainer.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                prevSlide();
+                resetTimer();
+            } else if (e.key === 'ArrowRight') {
+                nextSlide();
+                resetTimer();
+            }
+        });
+    }
 
     startTimer();
 

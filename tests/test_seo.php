@@ -13,6 +13,7 @@ declare(strict_types=1);
  */
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Helpers\Seo;
 
@@ -61,7 +62,7 @@ check(strlen(Seo::descriptionFor('/')) <= 200 && strlen(Seo::descriptionFor('/se
 check(Seo::descriptionFor('/does-not-exist') === Seo::DEFAULT_DESCRIPTION, '2.5 unknown route falls back to default description');
 $entries = Seo::sitemapEntries();
 $locs = array_column($entries, 'loc');
-check(count($entries) === 6, '2.6 sitemap lists the six public pages (' . count($entries) . ')');
+check(count($entries) === 8, '2.6 sitemap lists the eight public pages (home, services, packages, consultations, contact and the three policies) (' . count($entries) . ')');
 check(!in_array(app_url('login'), $locs, true) && !in_array(app_url('booking'), $locs, true), '2.7 sitemap excludes login/booking');
 check($locs[0] === app_url(''), '2.8 sitemap starts at the site root');
 foreach (Seo::disallowedPaths() as $p) {
@@ -106,7 +107,7 @@ if ($probe === 0) {
     [$code, $headers, $body] = $get($base . '/sitemap.xml');
     check($code === 200 && stripos($headers, 'Content-Type: application/xml') !== false, '3.5 /sitemap.xml is served as XML');
     $xml = @simplexml_load_string($body);
-    check($xml !== false && count($xml->url) === 6, '3.6 sitemap parses and has six URLs');
+    check($xml !== false && count($xml->url) === 8, '3.6 sitemap parses and has eight URLs');
     check(!str_contains($body, '/booking<') && !str_contains($body, '/admin'), '3.7 sitemap excludes booking/admin');
 
     [$code, , $body] = $get($base . '/services');

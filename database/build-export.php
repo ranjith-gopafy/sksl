@@ -12,6 +12,11 @@
 
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 $root       = __DIR__;
 $migrations = glob($root . '/migrations/*.sql') ?: [];
 $seeds      = glob($root . '/seeds/*.sql') ?: [];

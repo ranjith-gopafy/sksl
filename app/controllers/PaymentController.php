@@ -44,8 +44,7 @@ class PaymentController
         $bookingReference = trim((string) ($_POST['booking_reference'] ?? ''));
 
         if ($bookingReference === '') {
-            $raw = file_get_contents('php://input');
-            $json = json_decode($raw, true);
+            $json = request_json();
             if (is_array($json)) {
                 $bookingReference = trim((string) ($json['booking_reference'] ?? ''));
             }
@@ -83,8 +82,7 @@ class PaymentController
         $signature        = trim((string) ($_POST['razorpay_signature'] ?? ''));
 
         if ($bookingReference === '' || $orderId === '' || $paymentId === '') {
-            $raw = file_get_contents('php://input');
-            $json = json_decode($raw, true);
+            $json = request_json();
             if (is_array($json)) {
                 $bookingReference = $bookingReference ?: trim((string) ($json['booking_reference'] ?? ''));
                 $orderId          = $orderId ?: trim((string) ($json['razorpay_order_id'] ?? ''));
@@ -165,12 +163,12 @@ class PaymentController
      */
     public function downloadInvoice(array $params = []): void
     {
-        $isAdmin    = !empty($_SESSION['admin_id']);
-        $isCustomer = !empty($_SESSION['user_id']);
+        $isAdmin = !empty($_SESSION['admin_id']);
 
-        if (!$isAdmin && !$isCustomer) {
+        if (!$isAdmin) {
+            // Full customer check (account active, session newer than the last password change); it
+            // redirects to login and exits when the session is missing or stale.
             CustomerAuth::handle();
-            return;
         }
 
         $reference = trim((string) ($params['ref'] ?? $_GET['ref'] ?? ''));

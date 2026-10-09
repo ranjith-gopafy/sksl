@@ -44,7 +44,7 @@ class AdminBannerController
 
         $title = 'Manage Hero Banners — SKSL Admin';
         $viewFile = dirname(__DIR__) . '/views/admin/banner.php';
-        require dirname(__DIR__) . '/views/layouts/main.php';
+        require dirname(__DIR__) . '/views/layouts/admin.php';
     }
 
     /**
@@ -143,7 +143,8 @@ class AdminBannerController
                 header('Location: ' . app_url('admin/banner?edit=' . $newId));
                 exit;
             } catch (\Throwable $e) {
-                Flash::set('error', 'Error creating banner: ' . $e->getMessage());
+                error_log('AdminBannerController::create failed: ' . $e->getMessage());
+                Flash::set('error', 'The banner could not be saved. Please check the fields and try again.');
                 header('Location: ' . app_url('admin/banner'));
                 exit;
             }
@@ -174,6 +175,12 @@ class AdminBannerController
             // Fallback: pick first banner ID if none specified
             $first = $this->bannerModel->getAll();
             $id = !empty($first) ? (int) $first[0]['id'] : 1;
+        }
+
+        if (!$this->bannerModel->getById($id)) {
+            Flash::set('error', 'Banner not found.');
+            header('Location: ' . app_url('admin/banner'));
+            exit;
         }
 
         $success = $this->bannerModel->updateById($id, [

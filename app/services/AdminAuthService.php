@@ -84,6 +84,16 @@ class AdminAuthService
      */
     public function verifyOtp(string $email, string $otp): array
     {
+        $result = RateLimit::serialize('admin_otp_verify:' . strtolower(trim($email)), fn () => $this->attemptVerifyOtp($email, $otp));
+
+        return $result ?? ['success' => false, 'message' => 'The server is busy. Please try again in a moment.'];
+    }
+
+    /**
+     * @return array{success: bool, message: string}
+     */
+    private function attemptVerifyOtp(string $email, string $otp): array
+    {
         $cleanEmail = strtolower(trim($email));
         $cleanOtp   = trim($otp);
 
@@ -91,15 +101,17 @@ class AdminAuthService
             return ['success' => false, 'message' => 'Verification code must be exactly 6 digits.'];
         }
 
-        // Failed verifications: 10 per email and 20 per IP lock for 15 minutes,
-        // on top of the 5-attempt cap stored on each OTP row.
-        if (RateLimit::retryAfter('admin_otp_verify', $cleanEmail) > 0) {
+        // Failed verifications: 10 per (email + IP) and 20 per IP lock for 15 minutes, on top of the
+        // 5-guess cap on each OTP row. Keyed on email AND IP so a stranger who knows the admin's
+        // address can lock out only themselves, never the real administrator.
+        $lockId = $cleanEmail . '|' . RateLimit::clientIp();
+        if (RateLimit::retryAfter('admin_otp_verify', $lockId) > 0) {
             return ['success' => false, 'message' => 'Too many verification attempts. Please wait 15 minutes and request a new code.'];
         }
 
         $admin = $this->adminModel->findByEmail($cleanEmail);
         if (!$admin) {
-            RateLimit::recordFailure('admin_otp_verify', $cleanEmail, 10, 20, 900);
+            RateLimit::recordFailure('admin_otp_verify', $lockId, 10, 20, 900);
             return ['success' => false, 'message' => 'Invalid or expired verification code.'];
         }
 
@@ -108,21 +120,23 @@ class AdminAuthService
             return ['success' => false, 'message' => 'Verification code has expired or was not found. Please request a new code.'];
         }
 
-        // Lock out after 5 incorrect attempts
-        if ((int) $otpRecord['attempts'] >= 5) {
-            $this->adminModel->markOtpUsed((int) $otpRecord['id']);
+        // Spend one of the 5 guesses atomically BEFORE comparing, so parallel requests cannot
+        // collectively try more than 5 codes against one OTP.
+        if (!$this->adminModel->reserveOtpAttempt((int) $otpRecord['id'])) {
+            $this->adminModel->consumeOtp((int) $otpRecord['id']);
             return ['success' => false, 'message' => 'Maximum verification attempts exceeded. Please request a new code.'];
         }
 
         if (!password_verify($cleanOtp, $otpRecord['otp_hash'])) {
-            $this->adminModel->incrementAttempts((int) $otpRecord['id']);
-            RateLimit::recordFailure('admin_otp_verify', $cleanEmail, 10, 20, 900);
+            RateLimit::recordFailure('admin_otp_verify', $lockId, 10, 20, 900);
             return ['success' => false, 'message' => 'Incorrect verification code. Please check and try again.'];
         }
 
-        // Consume OTP (single use) and reset the per-account verify counter
-        $this->adminModel->markOtpUsed((int) $otpRecord['id']);
-        RateLimit::clear(RateLimit::key('admin_otp_verify', $cleanEmail));
+        // Consume the OTP (single use). Only one of several parallel correct submissions wins.
+        if (!$this->adminModel->consumeOtp((int) $otpRecord['id'])) {
+            return ['success' => false, 'message' => 'This verification code was already used. Please request a new code.'];
+        }
+        RateLimit::clear(RateLimit::key('admin_otp_verify', $lockId));
 
         // Establish admin session (fresh id + CSRF token; drop any customer identity —
         // a browser is either an administrator or a customer, never both)

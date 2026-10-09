@@ -473,10 +473,25 @@ Request field: `status` — the target booking status. Only the transitions in
 | `cancelled` | — (terminal)              |
 | `expired`   | — (terminal)              |
 
-Cancellation is **admin-only**: customers do not cancel online. They contact SKSL
-with their booking reference (see `/cancellation-refund`). Refunds, if any, are
-processed manually in the Razorpay dashboard by SKSL; this application never
-issues a refund itself and does not invent refund rules.
+### Customer cancellation — `POST /my-bookings/{ref}/cancel`
+
+A signed-in customer may cancel their own **confirmed** booking up to
+`CANCELLATION_NOTICE_HOURS` (default 24) before it starts. CSRF-protected, POST only,
+rate limited (20 per hour per customer), and the booking must belong to the caller.
+The response is a redirect to `/my-bookings?tab=cancelled` with a flash message.
+
+- Paid online: `cancellation_fee` = `CANCELLATION_FEE_PERCENT` (default 10) % of
+  `total_amount` (incl. GST, rounded to paise), `refund_amount` = the rest. The payment
+  stays `paid`; SKSL refunds `refund_amount` manually in the Razorpay dashboard. The
+  customer and the admin address are emailed (sent after the redirect is delivered).
+- Package-credit session: the credit is returned, no amounts.
+- Pay-at-centre appointment: nothing to refund.
+- Refused when less than the notice period remains, when the session was attended or
+  marked no-show, or when the booking is not `confirmed`.
+
+Admin cancellation (`POST /admin/bookings/{id}/status`) records `cancelled_by = admin`
+and sets `refund_amount` to the full amount for online-paid bookings. The application
+never issues a refund itself.
 
 ---
 

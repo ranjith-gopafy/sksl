@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 require_once __DIR__ . '/support/payment_support.php';
 
 use App\Models\UserModel;
@@ -37,9 +38,9 @@ $userId = $userModel->create(
 assert($userId > 0, 'Failed to create test user.');
 echo "[PASS] 1. Test customer created: ID $userId\n";
 
-// 2. Select a service (e.g., Spa, base 999 + 18% GST = 1178.82)
-$service = $serviceModel->findBySlug('spa');
-assert($service !== null, 'Service "spa" not found.');
+// 2. Select a service (e.g., Spa, base 846.61 + 18% GST = 999.00)
+$service = $serviceModel->findBySlug('massages');
+assert($service !== null, 'Service "massages" not found.');
 $serviceId = (int) $service['id'];
 $testDate = date('Y-m-d', strtotime('+3 days'));
 // Holds must sit on the published slot grid (open + n × (duration + buffer)),
@@ -59,8 +60,8 @@ $orderRes = $paymentSvc->createOrder($userId, $bookingRef);
 assert($orderRes['success'] === true, 'Failed to create payment order: ' . ($orderRes['message'] ?? ''));
 $orderData = $orderRes['data'];
 echo "[PASS] 3. Payment order created: Order ID {$orderData['razorpay_order_id']}\n";
-assert($orderData['amount_paise'] === 117882, "Expected 117882 paise, got {$orderData['amount_paise']}");
-echo "[PASS] 4. Integer paise calculated correctly: {$orderData['amount_paise']} paise (₹1,178.82)\n";
+assert($orderData['amount_paise'] === 99900, "Expected 99900 paise, got {$orderData['amount_paise']}");
+echo "[PASS] 4. Integer paise calculated correctly: {$orderData['amount_paise']} paise (₹999.00)\n";
 
 // 5. Test Order Idempotency
 $orderRes2 = $paymentSvc->createOrder($userId, $bookingRef);
@@ -128,7 +129,7 @@ $webhookPayload = json_encode([
             'entity' => [
                 'id' => $mockPaymentId,
                 'order_id' => $orderData['razorpay_order_id'],
-                'amount' => 117882,
+                'amount' => 99900,
                 'currency' => 'INR',
                 'status' => 'captured',
             ]
@@ -159,7 +160,7 @@ echo "[PASS] 11c. Signed webhook processed idempotently (code: {$webhookRes['cod
 // 11. A paid/confirmed booking must not get a second gateway order
 $holdModel->create([
     'booking_reference' => $bookingRef, 'user_id' => $userId, 'service_id' => $serviceId,
-    'booking_date' => $testDate, 'start_time' => '10:00:00', 'end_time' => $confirmedBooking['end_time'],
+    'booking_date' => $testDate, 'start_time' => $confirmedBooking['start_time'], 'end_time' => $confirmedBooking['end_time'],
     'expires_at' => date('Y-m-d H:i:s', time() + 600),
 ]);
 $reorder = $paymentSvc->createOrder($userId, $bookingRef);

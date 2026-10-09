@@ -11,6 +11,7 @@ declare(strict_types=1);
  */
 
 require_once dirname(__DIR__, 2) . '/bootstrap.php';
+assert_cli_only(true);
 
 if (config('app.env') === 'production') {
     fwrite(STDERR, "Refusing to reset rate limits in production.\n");

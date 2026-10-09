@@ -106,6 +106,45 @@ class AdminModel
     }
 
     /**
+     * Delete one-time codes that expired more than $days ago (they are single-use and short-lived).
+     *
+     * @return int rows deleted
+     */
+    public function purgeExpiredOtps(int $days): int
+    {
+        $stmt = $this->db->prepare('DELETE FROM admin_otps WHERE expires_at < (NOW() - INTERVAL :d DAY)');
+        $stmt->bindValue('d', max(1, $days), \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Atomically spend one of an OTP's 5 guesses BEFORE the code is compared. A conditional
+     * UPDATE means parallel requests cannot all pass a read-then-check and guess more than 5 times.
+     * Returns false when no guess is left.
+     */
+    public function reserveOtpAttempt(int $otpId): bool
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE admin_otps SET attempts = attempts + 1
+             WHERE id = ? AND used_at IS NULL AND attempts < 5'
+        );
+        $stmt->execute([$otpId]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Consume an OTP exactly once. True only for the single request that used it, so a correct
+     * code replayed in parallel cannot open two sessions.
+     */
+    public function consumeOtp(int $otpId): bool
+    {
+        $stmt = $this->db->prepare('UPDATE admin_otps SET used_at = NOW() WHERE id = ? AND used_at IS NULL');
+        $stmt->execute([$otpId]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
      * Increment attempts count for an OTP.
      */
     public function incrementAttempts(int $otpId): bool

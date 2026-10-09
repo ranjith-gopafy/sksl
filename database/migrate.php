@@ -16,6 +16,7 @@ declare(strict_types=1);
 
 // Load bootstrap (env + DB connection)
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only();
 
 // ── CLI argument parsing ──────────────────────────────────────────────────
 $args     = $argv ?? [];

@@ -83,10 +83,12 @@ class BookingModel
     public function findById(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT b.*, s.name as service_name, s.slug as service_slug, u.name as user_name, u.email as user_email, u.mobile as user_mobile
+            'SELECT b.*, s.name as service_name, s.slug as service_slug, u.name as user_name, u.email as user_email, u.mobile as user_mobile,
+                    cpc.customer_package_id
              FROM bookings b
              JOIN services s ON b.service_id = s.id
              JOIN users u ON b.user_id = u.id
+             LEFT JOIN customer_package_credits cpc ON b.package_credit_id = cpc.id
              WHERE b.id = ? LIMIT 1'
         );
         $stmt->execute([$id]);
@@ -99,10 +101,12 @@ class BookingModel
     public function findByReference(string $reference): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT b.*, s.name as service_name, s.slug as service_slug, u.name as user_name, u.email as user_email, u.mobile as user_mobile
+            'SELECT b.*, s.name as service_name, s.slug as service_slug, u.name as user_name, u.email as user_email, u.mobile as user_mobile,
+                    cpc.customer_package_id
              FROM bookings b
              JOIN services s ON b.service_id = s.id
              JOIN users u ON b.user_id = u.id
+             LEFT JOIN customer_package_credits cpc ON b.package_credit_id = cpc.id
              WHERE b.booking_reference = ? LIMIT 1'
         );
         $stmt->execute([$reference]);
@@ -128,40 +132,47 @@ class BookingModel
 
         $stmt = $this->db->prepare(
             'INSERT INTO bookings (
-                booking_reference, user_id, service_id, booking_date,
+                booking_reference, user_id, service_id, booking_type, payment_mode,
+                duration_option_id, package_credit_id, booking_date,
                 start_time, end_time,
                 service_name_snapshot, service_duration_minutes,
                 checkin_buffer_minutes, checkout_buffer_minutes,
                 base_amount, gst_percent, gst_amount, convenience_fee, total_amount,
-                booking_status, payment_status, health_declared_at
+                booking_status, payment_status, visit_status, health_declared_at
              ) VALUES (
-                :ref, :user_id, :service_id, :booking_date,
+                :ref, :user_id, :service_id, :booking_type, :payment_mode,
+                :duration_option_id, :package_credit_id, :booking_date,
                 :start_time, :end_time,
                 :service_name, :duration,
                 :checkin_buf, :checkout_buf,
                 :base_amount, :gst_percent, :gst_amount, :conv_fee, :total_amount,
-                :b_status, :p_status, :health_declared_at
+                :b_status, :p_status, :visit_status, :health_declared_at
              )'
         );
 
         $stmt->execute([
-            'ref'          => $data['booking_reference'],
-            'user_id'      => $data['user_id'],
-            'service_id'   => $data['service_id'],
-            'booking_date' => $data['booking_date'],
-            'start_time'   => $data['start_time'],
-            'end_time'     => $data['end_time'],
-            'service_name' => mb_substr($serviceName, 0, 150),
-            'duration'     => $data['service_duration_minutes'],
-            'checkin_buf'  => $data['checkin_buffer_minutes'] ?? 0,
-            'checkout_buf' => $data['checkout_buffer_minutes'] ?? 0,
-            'base_amount'  => $data['base_amount'],
-            'gst_percent'  => $data['gst_percent'] ?? 18.00,
-            'gst_amount'   => $data['gst_amount'],
-            'conv_fee'     => $data['convenience_fee'] ?? 0.00,
-            'total_amount' => $data['total_amount'],
-            'b_status'     => $data['booking_status'] ?? 'pending',
-            'p_status'     => $data['payment_status'] ?? 'pending',
+            'ref'                => $data['booking_reference'],
+            'user_id'            => $data['user_id'],
+            'service_id'         => $data['service_id'],
+            'booking_type'       => $data['booking_type'] ?? 'standard',
+            'payment_mode'       => $data['payment_mode'] ?? 'payment_required',
+            'duration_option_id' => $data['duration_option_id'] ?? null,
+            'package_credit_id'  => $data['package_credit_id'] ?? null,
+            'booking_date'       => $data['booking_date'],
+            'start_time'         => $data['start_time'],
+            'end_time'           => $data['end_time'],
+            'service_name'       => mb_substr($serviceName, 0, 150),
+            'duration'           => $data['service_duration_minutes'],
+            'checkin_buf'        => $data['checkin_buffer_minutes'] ?? 0,
+            'checkout_buf'       => $data['checkout_buffer_minutes'] ?? 0,
+            'base_amount'        => $data['base_amount'],
+            'gst_percent'        => $data['gst_percent'] ?? 18.00,
+            'gst_amount'         => $data['gst_amount'],
+            'conv_fee'           => $data['convenience_fee'] ?? 0.00,
+            'total_amount'       => $data['total_amount'],
+            'b_status'           => $data['booking_status'] ?? 'pending',
+            'p_status'           => $data['payment_status'] ?? 'pending',
+            'visit_status'       => $data['visit_status'] ?? 'pending',
             'health_declared_at' => $data['health_declared_at'] ?? null,
         ]);
 
@@ -339,6 +350,10 @@ class BookingModel
         if ($to === 'completed' && ($booking['payment_status'] ?? '') !== 'paid') {
             return ['allowed' => false, 'reason' => 'Only paid bookings can be marked completed.'];
         }
+        if ($to === 'completed' && ($booking['visit_status'] ?? '') === 'no_show') {
+            return ['allowed' => false, 'reason' => 'This session was marked no-show, so it cannot also be completed.'];
+        }
+
         if (!in_array($to, self::ADMIN_TRANSITIONS[$from], true)) {
             return ['allowed' => false, 'reason' => "Cannot move a {$from} booking to {$to}."];
         }
@@ -353,6 +368,16 @@ class BookingModel
      */
     public function transitionStatus(int $id, string $from, string $to): bool
     {
+        if ($to === 'cancelled') {
+            // Record who and when. An admin cancellation refunds the whole payment (any charge is the owner's call).
+            $stmt = $this->db->prepare(
+                "UPDATE bookings SET booking_status = 'cancelled', cancelled_at = ?, cancelled_by = 'admin',
+                        refund_amount = CASE WHEN payment_mode = 'payment_required' AND payment_status = 'paid' THEN total_amount ELSE NULL END
+                 WHERE id = ? AND booking_status = ?"
+            );
+            $stmt->execute([TimeHelper::now()->format('Y-m-d H:i:s'), $id, $from]);
+            return $stmt->rowCount() === 1;
+        }
         $stmt = $this->db->prepare(
             'UPDATE bookings SET booking_status = ? WHERE id = ? AND booking_status = ?'
         );
@@ -404,7 +429,9 @@ class BookingModel
          $counts = [
              'all'       => 0,
              'confirmed' => 0,
+             'visited'   => 0,
              'completed' => 0,
+             'no_show'   => 0,
              'cancelled' => 0,
              'pending'   => 0,
              'expired'   => 0,
@@ -417,6 +444,36 @@ class BookingModel
                  $counts[$st] = $c;
              }
              $counts['all'] += $c;
+         }
+
+         // Also retrieve visit_status counts for visited and no_show tabs
+         try {
+             $vsql = "SELECT b.visit_status, COUNT(*) as cnt
+                      FROM bookings b
+                      JOIN services s ON b.service_id = s.id
+                      JOIN users u ON b.user_id = u.id
+                      WHERE b.visit_status IN ('visited', 'no_show')";
+             if (!empty($filters['date'])) {
+                 $vsql .= " AND b.booking_date = :date";
+             }
+             if (!empty($filters['service_id'])) {
+                 $vsql .= " AND b.service_id = :service_id";
+             }
+             if (!empty($filters['search'])) {
+                 $vsql .= " AND (b.booking_reference LIKE :s1 ESCAPE '\\\\' OR u.name LIKE :s2 ESCAPE '\\\\' OR u.email LIKE :s3 ESCAPE '\\\\' OR u.mobile LIKE :s4 ESCAPE '\\\\')";
+             }
+             $vsql .= " GROUP BY b.visit_status";
+             $vstmt = $this->db->prepare($vsql);
+             $vstmt->execute($params);
+             $vrows = $vstmt->fetchAll() ?: [];
+             foreach ($vrows as $vr) {
+                 $vst = (string) $vr['visit_status'];
+                 if (isset($counts[$vst])) {
+                     $counts[$vst] = (int) $vr['cnt'];
+                 }
+             }
+         } catch (\Throwable) {
+             // Fallback safely
          }
 
          return $counts;
@@ -464,8 +521,13 @@ class BookingModel
         }
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
-            $sql .= " AND b.booking_status = :status";
-            $params['status'] = $filters['status'];
+            if ($filters['status'] === 'visited' || $filters['status'] === 'no_show') {
+                $sql .= " AND b.visit_status = :visit_status";
+                $params['visit_status'] = $filters['status'];
+            } else {
+                $sql .= " AND b.booking_status = :status";
+                $params['status'] = $filters['status'];
+            }
         }
 
         if (!empty($filters['search'])) {
@@ -483,5 +545,86 @@ class BookingModel
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * Mark a confirmed, not-yet-attended booking as visited.
+     * Conditional, so a repeat click or a second admin cannot re-apply it.
+     * Returns true only when this call changed the row.
+     */
+    public function markVisited(int $bookingId, int $adminId = 0): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET visit_status = 'visited',
+                 visit_marked_at = NOW(),
+                 visit_marked_by_admin_id = ?
+             WHERE id = ? AND visit_status = 'pending' AND booking_status IN ('confirmed', 'completed')
+               AND TIMESTAMP(booking_date, start_time) <= (NOW() + INTERVAL 30 MINUTE)"
+        );
+        $stmt->execute([$adminId > 0 ? $adminId : null, $bookingId]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Mark a confirmed, not-yet-attended booking as no-show.
+     * Conditional for the same reason as markVisited(); callers restore package
+     * credits only when this returns true, so a credit can never be restored twice.
+     */
+    public function markNoShow(int $bookingId, int $adminId = 0): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET visit_status = 'no_show',
+                 visit_marked_at = NOW(),
+                 visit_marked_by_admin_id = ?
+             WHERE id = ? AND visit_status = 'pending' AND booking_status = 'confirmed'
+               AND TIMESTAMP(booking_date, start_time) <= NOW()"
+        );
+        $stmt->execute([$adminId > 0 ? $adminId : null, $bookingId]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /** Confirmed professional appointments that have not happened yet. */
+    public function countUpcomingProfessionalForUser(int $userId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM bookings
+             WHERE user_id = ? AND booking_type = 'professional' AND booking_status = 'confirmed'
+               AND TIMESTAMP(booking_date, end_time) > NOW()"
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Confirmed bookings that fall inside a window a new admin block or "unavailable"
+     * rule would cover. Used to warn staff, never to refuse the change.
+     *
+     * @param int|null    $serviceId null = every service (facility-wide block)
+     * @param string|null $date      specific Y-m-d, or null to use $weekday (0=Sunday) from today onward
+     */
+    public function countConfirmedInWindow(?int $serviceId, ?string $date, ?int $weekday, string $startTime, string $endTime): int
+    {
+        $sql = "SELECT COUNT(*) FROM bookings
+                WHERE booking_status = 'confirmed'
+                  AND start_time < :end_time AND end_time > :start_time";
+        $params = ['start_time' => $startTime, 'end_time' => $endTime];
+
+        if ($serviceId !== null) {
+            $sql .= ' AND service_id = :service_id';
+            $params['service_id'] = $serviceId;
+        }
+        if ($date !== null) {
+            $sql .= ' AND booking_date = :date';
+            $params['date'] = $date;
+        } else {
+            $sql .= ' AND booking_date >= CURDATE() AND (DAYOFWEEK(booking_date) - 1) = :weekday';
+            $params['weekday'] = (int) $weekday;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
     }
 }

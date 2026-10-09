@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Models\AdminModel;
 use App\Models\UserModel;
@@ -205,9 +206,21 @@ $bHtml = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 assert($httpCode === 200, "Expected 200 for /admin/bookings, got $httpCode");
-assert(str_contains($bHtml, 'SKSL Control Center'), 'Admin layout title missing');
+assert(str_contains($bHtml, 'id="admin-sidebar"') && str_contains($bHtml, 'Bookings Operations'), 'Admin dashboard layout (sidebar and page heading) missing');
+assert(!str_contains($bHtml, 'Open Daily:') && !str_contains($bHtml, '<footer'), 'Admin pages must not carry the public site navigation bar or footer');
 assert(str_contains($bHtml, $bookingRef), "Booking reference $bookingRef missing from admin table");
 echo "[PASS] 12. Authenticated admin access to /admin/bookings confirmed (HTTP 200)\n";
+
+// Test GET /admin/dashboard (the landing page after sign-in)
+$ch = curl_init("$baseUrl/admin/dashboard");
+curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_COOKIEJAR => $cookieFile, CURLOPT_COOKIEFILE => $cookieFile]);
+$dHtml = curl_exec($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert($httpCode === 200, "Expected 200 for /admin/dashboard, got $httpCode");
+assert(str_contains($dHtml, 'Today\'s sessions') && str_contains($dHtml, 'Recent bookings') && str_contains($dHtml, 'id="admin-sidebar"'), 'Dashboard overview content missing');
+echo "[PASS] 12b. Admin dashboard overview renders inside the dashboard layout
+";
 
 // Test GET /admin/services
 $ch = curl_init("$baseUrl/admin/services");

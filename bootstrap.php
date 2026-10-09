@@ -35,6 +35,9 @@ $dbConfig  = require __DIR__ . '/config/database.php';
 // Always report everything; only the *display* differs. error_reporting(0) in
 // production used to hide errors from the log as well (audit).
 error_reporting(E_ALL);
+if (PHP_SAPI !== 'cli') {
+    header_remove('X-Powered-By'); // do not advertise the PHP version
+}
 ini_set('log_errors', '1');
 ini_set('display_errors', $appConfig['debug'] === true ? '1' : '0');
 if (is_dir(__DIR__ . '/storage/logs') && is_writable(__DIR__ . '/storage/logs')) {
@@ -116,6 +119,11 @@ if (!headers_sent() && PHP_SAPI !== 'cli') {
     // vulnerabilities of its own; explicitly disable it and rely on CSP.
     header('X-XSS-Protection: 0');
     header('Referrer-Policy: strict-origin-when-cross-origin');
+    // Pages shown to a signed-in customer or admin carry personal data: never keep them in the
+    // browser cache, or the Back button after logout (on a shared computer) would show them.
+    if (!empty($_SESSION['user_id']) || !empty($_SESSION['admin_id']) || str_starts_with(request_path(), '/admin')) {
+        header('Cache-Control: no-store');
+    }
     header('Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(self "https://api.razorpay.com" "https://checkout.razorpay.com")');
 
     if ($requestIsHttps) {
@@ -129,7 +137,7 @@ if (!headers_sent() && PHP_SAPI !== 'cli') {
         "object-src 'none'",
         "frame-ancestors 'self'",
         "form-action 'self'",
-        "script-src 'self' 'nonce-" . csp_nonce() . "' https://checkout.razorpay.com",
+        "script-src 'self' 'nonce-" . csp_nonce() . "' https://checkout.razorpay.com https://cdn.razorpay.com",
         // Inline style attributes are used throughout the Tailwind markup and by Razorpay Checkout.
         // Fonts are self-hosted from public/fonts, so no font/style origin other than our own.
         "style-src 'self' 'unsafe-inline'",
@@ -241,6 +249,60 @@ function h(string|int|float|null $value): string
 }
 
 /**
+ * Guard for command-line scripts (cron, migrations, seeds, tests).
+ *
+ * Refuses to run when reached over HTTP, so a host that ignores .htaccess can never be made to run
+ * them from a browser. With $blockProduction the script also refuses to run when APP_ENV is
+ * production: test suites create users, admins and bookings and must never touch a live database.
+ * Such scripts also switch email to the log-only driver, so a test run can never send real mail to
+ * customers or the admin address (set SKSL_TEST_REAL_MAIL=1 to opt out deliberately).
+ */
+function assert_cli_only(bool $blockProduction = false): void
+{
+    if (PHP_SAPI !== 'cli') {
+        http_response_code(404);
+        exit;
+    }
+    if ($blockProduction && (string) config('app.env', 'production') === 'production') {
+        fwrite(STDERR, "Refusing to run: APP_ENV is production. This script writes test data and is for local/testing databases only.\n");
+        exit(1);
+    }
+    if ($blockProduction && getenv('SKSL_TEST_REAL_MAIL') !== '1') {
+        $_ENV['MAIL_DRIVER'] = 'log';
+    }
+}
+
+/**
+ * May the fake ("mock") payment gateway be used? Only for local/testing environments AND only on a
+ * local host (or the CLI, for tests). A production site that was deployed with APP_ENV=local by
+ * mistake therefore still cannot hand out free bookings.
+ */
+function payments_mock_allowed(?string $sapi = null, ?string $httpHost = null): bool
+{
+    if (!in_array((string) config('app.env', 'production'), ['local', 'testing'], true)) {
+        return false;
+    }
+    if (($sapi ?? PHP_SAPI) === 'cli') {
+        return true;
+    }
+    $host = strtolower((string) preg_replace('/:\d+$/', '', (string) ($httpHost ?? $_SERVER['HTTP_HOST'] ?? '')));
+    return in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)
+        || str_ends_with($host, '.localhost') || str_ends_with($host, '.test');
+}
+
+/**
+ * Customer-facing opening hours, rendered from the facility settings so copy never drifts
+ * from what the booking engine enforces. $part: 'open', 'close' or 'last_slot'.
+ */
+function facility_time_label(string $part): string
+{
+    $defaults = ['open' => '06:00', 'close' => '21:00', 'last_slot' => '20:00'];
+    $map = ['open' => 'FACILITY_OPEN', 'close' => 'FACILITY_CLOSE', 'last_slot' => 'FACILITY_LAST_SLOT'];
+    $raw = (string) ($_ENV[$map[$part]] ?? $defaults[$part]);
+    return date('g:i A', strtotime($raw) ?: strtotime($defaults[$part]));
+}
+
+/**
  * Resolve the base URL dynamically based on the active HTTP request,
  * falling back to config('app.url') for CLI/background workers.
  */
@@ -248,6 +310,12 @@ function app_base_url(): string
 {
     $configuredUrl = rtrim((string) (config('app.url') ?? ''), '/');
     if ($configuredUrl !== '' && !str_contains($configuredUrl, 'localhost')) {
+        return $configuredUrl;
+    }
+
+    // In production the Host header is attacker-controlled (password-reset and notice links are
+    // built from this), so it is never used: only the configured APP_URL is.
+    if ((string) config('app.env', 'production') === 'production') {
         return $configuredUrl;
     }
 
@@ -263,6 +331,75 @@ function app_base_url(): string
     }
 
     return $configuredUrl !== '' ? $configuredUrl : 'http://localhost';
+}
+
+/**
+ * An Indian mobile number as the 10 digits we store. Accepts what people really type or paste:
+ * "98765 43210", "+91 98765-43210", "919876543210", "09876543210". Anything else is returned as its
+ * digits so validation can refuse it.
+ */
+function normalize_mobile(string $raw): string
+{
+    $digits = preg_replace('/\D/', '', $raw) ?? '';
+    if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
+        return substr($digits, 2);
+    }
+    if (strlen($digits) === 11 && $digits[0] === '0') {
+        return substr($digits, 1);
+    }
+    return $digits;
+}
+
+/**
+ * Keep only plain (text/number) values of a request array. Browsers and scripts can send
+ * "name[]=x" or {"name":{"a":1}}; every controller reads parameters as text, so nested values are
+ * dropped here once instead of producing "Array" strings and PHP warnings all over the code.
+ * Names in $listKeys are genuine list fields (e.g. the package form's service_id[]) and keep a flat
+ * list of plain values.
+ *
+ * @param array<string|int, mixed> $input
+ * @param string[]                 $listKeys
+ * @return array<string|int, mixed>
+ */
+function scalar_input(array $input, array $listKeys = []): array
+{
+    $out = [];
+    foreach ($input as $key => $value) {
+        if (is_array($value)) {
+            if (in_array($key, $listKeys, true)) {
+                $out[$key] = array_values(array_filter($value, 'is_scalar'));
+            }
+            continue;
+        }
+        $out[$key] = $value;
+    }
+    return $out;
+}
+
+/**
+ * The JSON request body as an array of plain values (empty when the body is missing, invalid or not
+ * an object). Read once per request.
+ *
+ * @return array<string, mixed>
+ */
+function request_json(): array
+{
+    static $cache = null;
+    if ($cache === null) {
+        $decoded = json_decode((string) file_get_contents('php://input'), true);
+        $cache = is_array($decoded) ? scalar_input($decoded) : [];
+    }
+    return $cache;
+}
+
+/**
+ * A form/query value as text. Browsers send "email[]=x" as an array; casting that straight to a
+ * string yields the word "Array" plus a PHP warning, so anything that is not a plain scalar is treated
+ * as empty and the normal validation message follows.
+ */
+function input_str(mixed $value): string
+{
+    return is_scalar($value) ? (string) $value : '';
 }
 
 /**

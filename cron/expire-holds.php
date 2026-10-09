@@ -10,7 +10,9 @@
  *    so abandoned checkouts stop cluttering the admin list.
  *    A late Razorpay webhook for such a booking is still recorded and flagged
  *    for staff by PaymentService::settlePayment().
- * 3. Deletes email_logs rows older than EMAIL_LOG_RETENTION_DAYS (default 90).
+ * 3. Cancels package purchases still unpaid after 24 hours.
+ * 4. Deletes email_logs rows older than EMAIL_LOG_RETENTION_DAYS (default 90), and holds, admin
+ *    login codes and password-reset links that expired more than 7 days ago.
  *
  * The admin bookings page runs the same housekeeping on load, so this job is
  * a safety net; schedule it every 5–15 minutes:
@@ -20,6 +22,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only();
 
 use App\Models\BookingHoldModel;
 use App\Models\BookingModel;
@@ -27,11 +30,16 @@ use App\Models\EmailLogModel;
 
 $expiredHolds    = (new BookingHoldModel())->expireStale();
 $expiredBookings = (new BookingModel())->expireStalePending();
-// 3. Retention: email delivery records are kept for 90 days (see Privacy Policy §6).
+$expiredPackages = (new \App\Models\CustomerPackageModel())->expireStalePending();
+// Working data that only matters for minutes: keep a week of history, then delete it.
+$purgedHolds = (new BookingHoldModel())->purgeEndedOlderThan(7);
+$purgedOtps  = (new \App\Models\AdminModel())->purgeExpiredOtps(7);
+$purgedReset = (new \App\Models\PasswordResetModel())->purgeExpired(7);
+// 4. Retention: email delivery records are kept for 90 days (see Privacy Policy §6).
 $purgedEmailLogs = (new EmailLogModel())->purgeOlderThan((int) ($_ENV['EMAIL_LOG_RETENTION_DAYS'] ?? 90));
 
 $timestamp = date('Y-m-d H:i:s');
-$message = "[{$timestamp}] expire-holds cron executed. Expired {$expiredHolds} stale hold(s) and {$expiredBookings} unpaid pending booking(s); purged {$purgedEmailLogs} email log row(s) past retention.\n";
+$message = "[{$timestamp}] expire-holds cron executed. Expired {$expiredHolds} stale hold(s), {$expiredBookings} unpaid pending booking(s) and {$expiredPackages} unpaid package purchase(s); purged {$purgedEmailLogs} email log row(s) past retention, {$purgedHolds} old hold(s), {$purgedOtps} old admin code(s) and {$purgedReset} old reset link(s).\n";
 
 echo $message;
 

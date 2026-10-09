@@ -89,7 +89,7 @@ test.describe('Mobile — Compact Horizontal Modality Cards', () => {
     // Mobile cards exist — the md:hidden container
     const mobileCards = page.locator('.modality-card');
     const count = await mobileCards.count();
-    expect(count).toBeGreaterThanOrEqual(10);
+    expect(count).toBeGreaterThanOrEqual(9);
   });
 
   test('compact mobile card shows service name and Book button', async ({ page }) => {

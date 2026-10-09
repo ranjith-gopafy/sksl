@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 require_once __DIR__ . '/support/payment_support.php';
 
 use App\Models\UserModel;
@@ -83,7 +84,7 @@ $csrfToken = $freshToken;
 
 // 3. Create a hold via HTTP
 $serviceModel = new ServiceModel();
-$spa = $serviceModel->findBySlug('spa');
+$spa = $serviceModel->findBySlug('massages');
 $serviceId = (int) $spa['id'];
 $date = date('Y-m-d', strtotime('+4 days'));
 $startTime = '10:00';

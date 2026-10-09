@@ -15,17 +15,17 @@
         <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-bold bg-[#075183] text-white shadow-xs whitespace-nowrap transition-all" data-category="all">
             All Modalities (<?= count($services) ?>)
         </button>
-        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="cryo">
-            Cold &amp; Cryo Immersion
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="hydro">
+            Hydrotherapy
         </button>
         <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="thermal">
             Thermal &amp; Sauna
         </button>
-        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="aquatic">
-            Aquatic Conditioning
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="cryo">
+            Cold &amp; Cryo Immersion
         </button>
-        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="hydro">
-            Hydrotherapy
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="massages">
+            Massages
         </button>
     </div>
 
@@ -35,15 +35,21 @@
             $imgSrc = service_image($service['image'] ?? null); // allow-listed + escaped
 
             $nameLower = strtolower($service['name']);
-            $cat = 'hydro';
-            if (str_contains($nameLower, 'ice') || str_contains($nameLower, 'cryo') || str_contains($nameLower, 'cold')) {
+            $slugLower = strtolower($service['slug']);
+
+            if (str_contains($nameLower, 'ice') || str_contains($slugLower, 'ice-bath')) {
                 $cat = 'cryo';
-            } elseif (str_contains($nameLower, 'sauna') || str_contains($nameLower, 'steam') || str_contains($nameLower, 'hot')) {
+            } elseif (str_contains($nameLower, 'sauna') || str_contains($nameLower, 'steam')) {
                 $cat = 'thermal';
-            } elseif (str_contains($nameLower, 'treadmill') || str_contains($nameLower, 'pool') || str_contains($nameLower, 'cycle') || str_contains($nameLower, 'walker')) {
-                $cat = 'aquatic';
+            } elseif (str_contains($nameLower, 'massage') || str_contains($slugLower, 'massage') || str_contains($slugLower, 'spa')) {
+                $cat = 'massages';
+            } else {
+                // Endless Pool, Aqua Walker, Aqua Treadmill, Aqua Cycle, Lap Pool
+                $cat = 'hydro';
             }
             $basePrice = (float) $service['price'];
+            $grossPrice = $basePrice; // catalogue price is GST-inclusive
+            $isMassages = ($cat === 'massages');
         ?>
             <div 
                 class="service-item-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"
@@ -74,7 +80,7 @@
                         <div class="md:p-5 md:pb-3">
                             <div class="md:hidden border-l-2 border-[#D6981E] pl-2 leading-none mb-1">
                                 <div class="font-heading font-extrabold text-[10px] tracking-wider text-[#075183] uppercase">Sara Kinetic</div>
-                                <div class="font-heading font-bold text-[9px] tracking-widest text-[#BF5B2B] uppercase mt-0.5">Sports Lab</div>
+                                <div class="font-heading font-bold text-[9px] tracking-widest text-[#B8541F] uppercase mt-0.5">Sports Lab</div>
                             </div>
                             <h2 class="text-sm md:text-xl font-extrabold font-heading text-slate-900 leading-snug truncate">
                                 <?= h($service['name']) ?>
@@ -90,9 +96,9 @@
                             <div class="flex items-center justify-between md:mb-1">
                                 <div>
                                     <div class="text-sm md:text-2xl font-extrabold text-slate-900 font-heading">
-                                        &#8377;<?= number_format($basePrice, 2) ?>
+                                        <?= $isMassages ? '<span class="text-xs md:text-sm font-semibold text-slate-500">From </span>' : '' ?>&#8377;<?= number_format($grossPrice, $grossPrice == floor($grossPrice) ? 0 : 2) ?>
                                     </div>
-                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">+ 18% GST</div>
+                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">Incl. 18% GST</div>
                                 </div>
                                 <span class="hidden md:inline-flex text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                                     Available daily

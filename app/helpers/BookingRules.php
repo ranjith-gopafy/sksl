@@ -21,6 +21,8 @@ namespace App\Helpers;
  *   MAX_ACTIVE_HOLDS_PER_USER   simultaneous unpaid holds per customer  (default 3)
  *   PENDING_BOOKING_EXPIRY_MINUTES  when an unpaid booking row is expired
  *                               (default: hold minutes + 30)
+ *   CANCELLATION_NOTICE_HOURS   a customer may cancel up to this long before the start (default 24)
+ *   CANCELLATION_FEE_PERCENT    share of the amount paid that is kept on a cancellation (default 10)
  */
 final class BookingRules
 {
@@ -58,6 +60,60 @@ final class BookingRules
         return self::envInt('SAME_DAY_CUTOFF_MINUTES', self::DEFAULT_CUTOFF_MINUTES);
     }
 
+    /** Hours before the start of a session until which a customer may cancel it. */
+    public static function cancellationNoticeHours(): int
+    {
+        return max(0, self::envInt('CANCELLATION_NOTICE_HOURS', 24));
+    }
+
+    /** Percentage of the amount paid that SKSL keeps when a paid booking is cancelled (0-100). */
+    public static function cancellationFeePercent(): float
+    {
+        $raw = $_ENV['CANCELLATION_FEE_PERCENT'] ?? getenv('CANCELLATION_FEE_PERCENT');
+        if ($raw === false || $raw === null || trim((string) $raw) === '' || !is_numeric($raw)) {
+            return 10.0;
+        }
+        return min(100.0, max(0.0, (float) $raw));
+    }
+
+    /** The moment the customer may no longer cancel: start of the session minus the notice period. */
+    public static function cancellationDeadline(string $date, string $startTime): ?\DateTimeImmutable
+    {
+        $start = \DateTimeImmutable::createFromFormat('Y-m-d H:i', $date . ' ' . substr($startTime, 0, 5), TimeHelper::now()->getTimezone());
+        return $start === false ? null : $start->modify('-' . self::cancellationNoticeHours() . ' hours');
+    }
+
+    /**
+     * What a customer cancellation of this booking would mean right now.
+     *
+     * @param array<string, mixed> $booking
+     * @return array{allowed: bool, reason: string, paid_online: bool, fee: float, refund: float, deadline: ?\DateTimeImmutable}
+     */
+    public static function cancellationQuote(array $booking): array
+    {
+        $none = ['allowed' => false, 'reason' => '', 'paid_online' => false, 'fee' => 0.0, 'refund' => 0.0, 'deadline' => null];
+        $status = (string) ($booking['booking_status'] ?? '');
+        if ($status === 'cancelled') { return ['reason' => 'This booking is already cancelled.'] + $none; }
+        if ($status !== 'confirmed') { return ['reason' => 'This booking can no longer be cancelled.'] + $none; }
+        if (($booking['visit_status'] ?? 'pending') !== 'pending') { return ['reason' => 'This session has already been attended or marked as a no-show.'] + $none; }
+
+        $deadline = self::cancellationDeadline((string) $booking['booking_date'], (string) $booking['start_time']);
+        $none['deadline'] = $deadline;
+        $hours = self::cancellationNoticeHours();
+        if ($deadline === null || TimeHelper::now() > $deadline) {
+            return ['reason' => "Sessions can only be cancelled online up to {$hours} hours before they start. Please contact SKSL."] + $none;
+        }
+
+        $paid = ($booking['payment_mode'] ?? 'payment_required') === 'payment_required' && ($booking['payment_status'] ?? '') === 'paid';
+        $fee = $refund = 0.0;
+        if ($paid) {
+            $total  = round((float) $booking['total_amount'], 2);
+            $fee    = round($total * self::cancellationFeePercent() / 100, 2);
+            $refund = round($total - $fee, 2);
+        }
+        return ['allowed' => true, 'reason' => '', 'paid_online' => $paid, 'fee' => $fee, 'refund' => $refund, 'deadline' => $deadline];
+    }
+
     /** Turnaround minutes added after every session when laying out the grid. */
     public static function bufferMinutes(): int
     {
@@ -87,12 +143,36 @@ final class BookingRules
         );
     }
 
+    /**
+     * A facility time from .env as minutes since midnight. A malformed value ("24:00", "9pm", "")
+     * falls back to the default instead of silently producing a broken slot grid.
+     */
+    private static function timeEnvMinutes(string $key, string $default): int
+    {
+        $raw = trim((string) ($_ENV[$key] ?? $default));
+        if (!preg_match('/^([01]?\d|2[0-3]):([0-5]\d)$/', $raw, $m)) {
+            $raw = $default;
+            preg_match('/^(\d+):(\d+)$/', $raw, $m);
+        }
+        return ((int) $m[1]) * 60 + (int) $m[2];
+    }
+
     /** @return array{0:int,1:int} facility open/close as minutes since midnight */
     public static function facilityMinutes(): array
     {
-        [$openH, $openM]   = array_map('intval', explode(':', (string) ($_ENV['FACILITY_OPEN'] ?? '06:00')));
-        [$closeH, $closeM] = array_map('intval', explode(':', (string) ($_ENV['FACILITY_CLOSE'] ?? '22:00')));
-        return [$openH * 60 + $openM, $closeH * 60 + $closeM];
+        $open  = self::timeEnvMinutes('FACILITY_OPEN', '06:00');
+        $close = self::timeEnvMinutes('FACILITY_CLOSE', '21:00');
+        if ($close <= $open) {
+            // Closing at or before opening is a configuration mistake; use the standard hours.
+            return [6 * 60, 21 * 60];
+        }
+        return [$open, $close];
+    }
+
+    /** Last permissible slot start time (default 20:00 / 8:00 PM), never later than closing time. */
+    public static function lastSlotMinutes(): int
+    {
+        return min(self::timeEnvMinutes('FACILITY_LAST_SLOT', '20:00'), self::facilityMinutes()[1]);
     }
 
     /** Distance between consecutive slot starts for a service. */
@@ -113,9 +193,10 @@ final class BookingRules
             return [];
         }
         [$open, $close] = self::facilityMinutes();
+        $lastSlotCutoff = self::lastSlotMinutes();
         $step   = self::slotStep($durationMinutes);
         $starts = [];
-        for ($cursor = $open; $cursor + $durationMinutes <= $close; $cursor += $step) {
+        for ($cursor = $open; $cursor <= $lastSlotCutoff && $cursor + $durationMinutes <= $close; $cursor += $step) {
             $starts[] = sprintf('%02d:%02d', intdiv($cursor, 60), $cursor % 60);
         }
         return $starts;
@@ -161,6 +242,13 @@ final class BookingRules
         if ($date > TimeHelper::today()) {
             return false;
         }
-        return substr($startTime, 0, 5) <= self::earliestStartToday();
+        // Compare full date-times: adding the cutoff to "now" can cross midnight, which a plain
+        // HH:MM string comparison would silently get wrong.
+        $now  = TimeHelper::now();
+        $slot = \DateTimeImmutable::createFromFormat('Y-m-d H:i', $date . ' ' . substr($startTime, 0, 5), $now->getTimezone());
+        if ($slot === false) {
+            return true;
+        }
+        return $slot <= $now->modify('+' . self::sameDayCutoffMinutes() . ' minutes');
     }
 }

@@ -18,6 +18,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Helpers\BookingRules;
 use App\Helpers\TimeHelper;
@@ -56,8 +57,8 @@ $uid = $users->create('Rules Tester', "rules_{$stamp}@sk-sports-lab.test", '9000
 $cleanupRefs = [];
 
 $lapPool = $services->findBySlug('lap-pool');   // 45 min, capacity 1
-$iceBath = $services->findBySlug('ice-bath');   // 10 min
-$spa     = $services->findBySlug('spa');        // 30 min
+$iceBath = $services->findBySlug('ice-bath');   // 15 min
+$spa     = $services->findBySlug('massages');        // 30 min
 check($lapPool && $iceBath && $spa, '0. Seed services present (lap-pool, ice-bath, spa)');
 
 // Use a date that is free of other test data: +10 days (inside the 14-day window)
@@ -112,10 +113,11 @@ if ($todayAvail['success']) {
 }
 
 echo "\n--- 4. One athlete, one session at a time (cross-modality) ---\n";
-// Lap pool 06:55–07:40 is held above. Ice bath grid: 06:00, 06:20, 06:40, 07:00 … → 07:00 overlaps.
-$overlap = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, '07:00');
+// Lap pool 06:55–07:40 is held above. Ice bath (15 min + 10 min buffer) grid steps by 25, so pick the first grid start at or after 07:00.
+$pick = static fn (string $from): string => current(array_filter(BookingRules::gridStarts(15), static fn ($t) => $t >= $from));
+$overlap = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, $pick('07:00'));
 check($overlap['success'] === false && str_contains($overlap['message'], 'active payment hold'), '4.1 hold on another modality overlapping own hold is refused');
-$noOverlap = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, '08:00');
+$noOverlap = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, $pick('08:00'));
 check($noOverlap['success'] === true, '4.2 non-overlapping slot on another modality is accepted');
 if ($noOverlap['success']) { $cleanupRefs[] = $noOverlap['data']['booking_reference']; }
 
@@ -129,22 +131,22 @@ $bookingId = $bookings->create([
 ]);
 $iceAvail = $availability->getAvailableSlots((int) $iceBath['id'], $date, $uid);
 $s1020 = null;
-foreach ($iceAvail['slots'] as $s) { if ($s['start_time'] === '10:20') { $s1020 = $s; } }
+foreach ($iceAvail['slots'] as $s) { if ($s['start_time'] === $pick('10:00')) { $s1020 = $s; } }
 check($s1020 !== null && $s1020['available'] === false && $s1020['unavailable_reason'] === 'user_conflict', '4.3 availability flags user_conflict on another modality during a confirmed booking');
 // (free one hold slot first so the refusal below is about the overlap, not the cap tested in section 5)
 $bookingSvc->releaseHold($uid, $cleanupRefs[1]);
-$holdDuring = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, '10:20');
+$holdDuring = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, $pick('10:00'));
 check($holdDuring['success'] === false && str_contains($holdDuring['message'], 'confirmed booking'), '4.4 hold during own confirmed booking (other modality) is refused');
-$reHold = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, '08:00');
+$reHold = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, $pick('08:00'));
 if ($reHold['success']) { $cleanupRefs[1] = $reHold['data']['booking_reference']; }
 
 echo "\n--- 5. Per-customer active hold cap ---\n";
 // user has 2 active holds now (lap pool 06:55, ice bath 08:00); cap is 2
 check($holds->countActiveForUser($uid) === 2, '5.1 countActiveForUser() = 2');
-$third = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, '12:00');
+$third = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, $pick('12:00'));
 check($third['success'] === false && str_contains($third['message'], '2 slots awaiting payment'), '5.2 third simultaneous hold is refused');
 $bookingSvc->releaseHold($uid, $cleanupRefs[1]);
-$afterRelease = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, '12:00');
+$afterRelease = $bookingSvc->createHold($uid, (int) $iceBath['id'], $date, $pick('12:00'));
 check($afterRelease['success'] === true, '5.3 releasing one hold frees the cap');
 if ($afterRelease['success']) { $cleanupRefs[] = $afterRelease['data']['booking_reference']; }
 
@@ -184,7 +186,7 @@ check($bookings->confirmIfPending($pendId) === false, '7.5 a late payment cannot
 ob_start();
 require dirname(__DIR__) . '/cron/expire-holds.php';
 $cron = ob_get_clean();
-check(preg_match('/Expired \d+ stale hold\(s\) and \d+ unpaid pending booking\(s\)/', $cron) === 1, '7.6 cron job reports both holds and pending bookings');
+check(preg_match('/Expired \d+ stale hold\(s\), \d+ unpaid pending booking\(s\)/', $cron) === 1, '7.6 cron job reports both holds and pending bookings');
 
 // ── cleanup ──
 foreach ($cleanupRefs as $ref) { $db->prepare('DELETE FROM booking_holds WHERE booking_reference = ?')->execute([$ref]); }

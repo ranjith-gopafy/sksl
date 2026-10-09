@@ -17,6 +17,7 @@
                     type="text" 
                     id="name" 
                     name="name" 
+                    autocomplete="name"
                     required 
                     value="<?= h($old['name'] ?? '') ?>"
                     placeholder="John Doe"
@@ -32,6 +33,7 @@
                     type="email" 
                     id="email" 
                     name="email" 
+                    autocomplete="email"
                     required 
                     value="<?= h($old['email'] ?? '') ?>"
                     placeholder="athlete@example.com"
@@ -49,8 +51,9 @@
                         type="tel" 
                         id="mobile" 
                         name="mobile" 
+                        autocomplete="tel"
                         required 
-                        maxlength="10"
+                        maxlength="16"
                         value="<?= h($old['mobile'] ?? '') ?>"
                         placeholder="9876543210"
                         class="w-full pl-14 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all text-sm"
@@ -121,7 +124,7 @@
 
         <div class="mt-8 pt-6 border-t border-slate-100 text-center text-sm text-slate-600">
             Already have an account? 
-            <a href="<?= app_url('login') ?>" class="text-sky-600 hover:text-sky-700 font-bold ml-1 transition-colors">
+            <a href="<?= app_url('login') ?>" class="text-sky-700 hover:text-sky-800 font-bold ml-1 transition-colors">
                 Sign in here
             </a>
         </div>
