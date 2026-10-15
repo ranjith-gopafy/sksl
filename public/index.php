@@ -121,6 +121,7 @@ $router->post('/api/packages/verify', [\App\Controllers\PackageController::class
 
 // ─── Payment & Checkout Routes ────────────────────────────────────────────
 $router->post('/api/payment/create-order', [\App\Controllers\PaymentController::class, 'createOrder']);
+$router->post('/api/payment/request-offline', [\App\Controllers\PaymentController::class, 'requestOffline']);
 $router->post('/api/payment/verify', [\App\Controllers\PaymentController::class, 'verify']);
 $router->post('/api/payment/webhook', [\App\Controllers\PaymentController::class, 'webhook']);
 $router->get('/booking-confirmation', [\App\Controllers\PaymentController::class, 'confirmation']);
@@ -141,6 +142,7 @@ $router->get('/admin', [\App\Controllers\AdminDashboardController::class, 'index
 $router->get('/admin/dashboard', [\App\Controllers\AdminDashboardController::class, 'index']);
 $router->get('/admin/bookings', [\App\Controllers\AdminBookingController::class, 'index']);
 $router->post('/admin/bookings/{id}/status', [\App\Controllers\AdminBookingController::class, 'updateStatus']);
+$router->post('/admin/bookings/{id}/approve', [\App\Controllers\AdminBookingController::class, 'approvePayment']);
 $router->post('/admin/bookings/{id}/visit', [\App\Controllers\AdminBookingController::class, 'markVisited']);
 $router->post('/admin/bookings/{id}/no-show', [\App\Controllers\AdminBookingController::class, 'markNoShow']);
 
@@ -160,6 +162,7 @@ $router->post('/admin/manual-blocks/{id}/delete', [\App\Controllers\AdminManualB
 
 $router->get('/admin/packages', [\App\Controllers\AdminPackageController::class, 'index']);
 $router->get('/admin/package-purchases', [\App\Controllers\AdminPackageController::class, 'purchases']);
+$router->post('/admin/package-purchases/{id}/approve', [\App\Controllers\AdminPackageController::class, 'approvePurchase']);
 $router->post('/admin/packages',[\App\Controllers\AdminPackageController::class, 'create']);
 $router->post('/admin/packages/{id}/toggle', [\App\Controllers\AdminPackageController::class, 'toggle']);
 

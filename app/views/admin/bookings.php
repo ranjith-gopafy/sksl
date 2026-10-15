@@ -61,7 +61,7 @@
                         <option value="confirmed" <?= (($filters['status'] ?? 'confirmed') === 'confirmed') ? 'selected' : '' ?>>Confirmed</option>
                         <option value="completed" <?= (($filters['status'] ?? '') === 'completed') ? 'selected' : '' ?>>Completed</option>
                         <option value="cancelled" <?= (($filters['status'] ?? '') === 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
-                        <option value="pending" <?= (($filters['status'] ?? '') === 'pending') ? 'selected' : '' ?>>Pending</option>
+                        <option value="pending" <?= (($filters['status'] ?? '') === 'pending') ? 'selected' : '' ?>>Awaiting payment</option>
                         <option value="expired" <?= (($filters['status'] ?? '') === 'expired') ? 'selected' : '' ?>>Expired (unpaid)</option>
                         <option value="all" <?= (($filters['status'] ?? '') === 'all') ? 'selected' : '' ?>>All Statuses</option>
                     </select>
@@ -107,7 +107,7 @@
                     'completed' => 'Completed',
                     'no_show'   => 'No-Show',
                     'cancelled' => 'Cancelled',
-                    'pending'   => 'Pending',
+                    'pending'   => 'Awaiting payment',
                     'expired'   => 'Expired',
                 ];
                 $currentStatus = $filters['status'] ?? 'confirmed';
@@ -212,13 +212,28 @@
                                                 <?php endif; ?>
                                             </span>
                                         <?php endif; ?>
+                                    <?php elseif (($b['payment_channel'] ?? '') === 'offline' && $b['booking_status'] === 'pending'): ?>
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 border border-amber-200 text-amber-800" data-testid="admin-awaiting-chip">
+                                            Awaiting payment
+                                        </span>
+                                        <span class="block text-[10px] text-slate-500 mt-1">Pay by <?= h(date('d M, g:i A', strtotime((string) $b['payment_due_at']))) ?></span>
+                                    <?php elseif (($b['payment_channel'] ?? '') === 'offline' && $b['booking_status'] === 'expired'): ?>
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+                                            Lapsed unpaid
+                                        </span>
                                     <?php else: ?>
                                         <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
                                             <?= h($b['booking_status']) ?>
                                         </span>
                                     <?php endif; ?>
 
-                                    <?php if (!empty($b['razorpay_payment_id'])): ?>
+                                    <?php if (!empty($b['payment_method'])): ?>
+                                        <span class="block text-[10px] text-slate-500 mt-1 truncate max-w-[140px] mx-auto" title="<?= h((\App\Helpers\OfflinePayment::METHODS[$b['payment_method']] ?? $b['payment_method']) . ' · ' . ($b['payment_reference'] ?? '')) ?>">
+                                            <?= h(\App\Helpers\OfflinePayment::METHODS[$b['payment_method']] ?? $b['payment_method']) ?> &middot; <?= h($b['payment_reference'] ?? '') ?>
+                                        </span>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($b['razorpay_payment_id']) && ($b['payment_channel'] ?? 'online') === 'online'): ?>
                                         <span class="block text-[9px] font-mono text-slate-500 mt-1 truncate max-w-[120px] mx-auto" title="<?= h($b['razorpay_payment_id']) ?>">
                                             <?= h($b['razorpay_payment_id']) ?>
                                         </span>
@@ -226,6 +241,17 @@
                                 </td>
 
                                 <td data-label="Actions" class="col-span-2 block md:table-cell before:content-[attr(data-label)] before:block before:mb-0.5 before:text-[10px] before:font-bold before:uppercase before:tracking-wider before:text-slate-500 before:font-sans md:before:hidden py-1.5 md:py-4 md:px-6 md:text-right">
+                                    <?php if (($b['payment_channel'] ?? '') === 'offline' && ($b['payment_status'] ?? '') === 'pending' && in_array($b['booking_status'], ['pending', 'expired'], true)): ?>
+                                        <button type="button" data-approve-open
+                                                data-action="<?= h(app_url('admin/bookings/' . (int) $b['id'] . '/approve')) ?>"
+                                                data-ref="<?= h($b['booking_reference']) ?>"
+                                                data-customer="<?= h($b['user_name'] . ' · ' . ($b['user_mobile'] ?? '')) ?>"
+                                                data-session="<?= h(($b['service_name_snapshot'] ?: $b['service_name']) . ', ' . date('d M Y', strtotime($b['booking_date'])) . ', ' . date('g:i A', strtotime($b['start_time']))) ?>"
+                                                data-amount="<?= h(number_format((float) $b['total_amount'], 2)) ?>"
+                                                class="mr-2 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold uppercase tracking-wider cursor-pointer align-middle">
+                                            Approve payment
+                                        </button>
+                                    <?php endif; ?>
                                     <div class="relative inline-block text-left" id="action-wrap-<?= (int) $b['id'] ?>">
                                         <!-- 3-Dots Kebab Button -->
                                         <button 
@@ -287,7 +313,7 @@
                                                 <?php
                                                 echo match ($b['booking_status']) {
                                                     'cancelled' => 'Cancelled — final. Athlete must book again.',
-                                                    'expired'   => 'Checkout expired unpaid — final.',
+                                                    'expired'   => ($b['payment_channel'] ?? '') === 'offline' ? 'Request lapsed unpaid. Approve it only if the payment arrived late.' : 'Checkout expired unpaid — final.',
                                                     default     => 'Completed — final.',
                                                 };
                                                 ?>
@@ -595,4 +621,60 @@ document.addEventListener('keydown', function(e) {
         closeAllActionMenus();
     }
 });
+</script>
+
+<!-- Approve an offline payment: staff record how the money arrived, then the booking is confirmed -->
+<dialog id="approve-dialog" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/50" aria-labelledby="approve-title">
+    <form method="POST" id="approve-form" class="p-6 space-y-4">
+        <?= \App\Helpers\Csrf::field() ?>
+        <h2 id="approve-title" class="text-lg font-extrabold font-heading text-slate-900">Approve payment</h2>
+        <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm space-y-1">
+            <div class="flex justify-between gap-3"><span class="text-slate-600">Booking</span><span id="approve-ref" class="font-mono font-bold"></span></div>
+            <div class="flex justify-between gap-3"><span class="text-slate-600">Customer</span><span id="approve-customer" class="font-semibold text-right"></span></div>
+            <div class="flex justify-between gap-3"><span class="text-slate-600">Session</span><span id="approve-session" class="font-semibold text-right"></span></div>
+            <div class="flex justify-between gap-3 border-t border-slate-200 pt-1.5"><span class="font-bold text-slate-800">Amount to have received</span><span id="approve-amount" class="font-extrabold"></span></div>
+        </div>
+        <div>
+            <label for="approve-method" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">How was it paid?</label>
+            <select id="approve-method" name="payment_method" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                <?php foreach (\App\Helpers\OfflinePayment::METHODS as $code => $label): ?>
+                    <option value="<?= h($code) ?>"><?= h($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
+            <label for="approve-reference" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Payment reference</label>
+            <input id="approve-reference" name="payment_reference" type="text" required maxlength="100" autocomplete="off"
+                   placeholder="UPI transaction id, bank reference or receipt number"
+                   class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+            <p class="text-[11px] text-slate-500 mt-1">Required. It is kept on the booking and shown on the invoice.</p>
+        </div>
+        <p class="text-xs text-slate-600">Approving confirms the booking, creates the GST invoice and emails the customer exactly as an online payment would.</p>
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
+            <button type="button" id="approve-cancel" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 font-semibold text-sm hover:bg-slate-50 cursor-pointer">Not yet</button>
+            <button type="submit" class="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm cursor-pointer">Approve &amp; confirm booking</button>
+        </div>
+    </form>
+</dialog>
+<script nonce="<?= csp_nonce() ?>">
+(function () {
+    const dlg = document.getElementById('approve-dialog');
+    if (!dlg || typeof dlg.showModal !== 'function') return;
+    const $ = (id) => document.getElementById(id);
+    document.querySelectorAll('[data-approve-open]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const d = btn.dataset;
+            $('approve-form').action = d.action;
+            $('approve-ref').textContent = d.ref;
+            $('approve-customer').textContent = d.customer;
+            $('approve-session').textContent = d.session;
+            $('approve-amount').textContent = '\u20B9' + d.amount;
+            $('approve-reference').value = '';
+            dlg.showModal();
+            $('approve-reference').focus();
+        });
+    });
+    $('approve-cancel').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+})();
 </script>

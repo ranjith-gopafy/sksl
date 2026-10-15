@@ -132,7 +132,7 @@ class BookingModel
 
         $stmt = $this->db->prepare(
             'INSERT INTO bookings (
-                booking_reference, user_id, service_id, booking_type, payment_mode,
+                booking_reference, user_id, service_id, booking_type, payment_mode, payment_channel, payment_due_at,
                 duration_option_id, package_credit_id, booking_date,
                 start_time, end_time,
                 service_name_snapshot, service_duration_minutes,
@@ -140,7 +140,7 @@ class BookingModel
                 base_amount, gst_percent, gst_amount, convenience_fee, total_amount,
                 booking_status, payment_status, visit_status, health_declared_at
              ) VALUES (
-                :ref, :user_id, :service_id, :booking_type, :payment_mode,
+                :ref, :user_id, :service_id, :booking_type, :payment_mode, :payment_channel, :payment_due_at,
                 :duration_option_id, :package_credit_id, :booking_date,
                 :start_time, :end_time,
                 :service_name, :duration,
@@ -156,6 +156,8 @@ class BookingModel
             'service_id'         => $data['service_id'],
             'booking_type'       => $data['booking_type'] ?? 'standard',
             'payment_mode'       => $data['payment_mode'] ?? 'payment_required',
+            'payment_channel'    => $data['payment_channel'] ?? 'online',
+            'payment_due_at'     => $data['payment_due_at'] ?? null,
             'duration_option_id' => $data['duration_option_id'] ?? null,
             'package_credit_id'  => $data['package_credit_id'] ?? null,
             'booking_date'       => $data['booking_date'],
@@ -257,7 +259,7 @@ class BookingModel
         $nowTime = TimeHelper::now()->format('H:i:s');
 
         if ($filter === 'upcoming') {
-            $sql .= " AND b.booking_status = 'confirmed'
+            $sql .= " AND (b.booking_status = 'confirmed' OR (b.booking_status = 'pending' AND b.payment_channel = 'offline' AND b.payment_due_at > NOW()))
                       AND (b.booking_date > :today OR (b.booking_date = :today2 AND b.end_time > :now_time))";
             $params += ['today' => $today, 'today2' => $today, 'now_time' => $nowTime];
         } elseif ($filter === 'completed') {
@@ -269,7 +271,7 @@ class BookingModel
             $sql .= " AND b.booking_status = 'cancelled'";
         } else {
             // 'all' / default: real bookings only — never abandoned (pending/expired) checkouts
-            $sql .= " AND b.booking_status NOT IN ('pending', 'expired')";
+            $sql .= " AND (b.booking_status NOT IN ('pending', 'expired') OR (b.booking_status = 'pending' AND b.payment_channel = 'offline' AND b.payment_due_at > NOW()))";
         }
 
         $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC";
@@ -313,9 +315,32 @@ class BookingModel
              SET booking_status = 'expired'
              WHERE booking_status = 'pending'
                AND payment_status = 'pending'
+               AND payment_channel = 'online'
                AND created_at < ?"
         );
         $stmt->execute([$cutoff]);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Offline payment requests whose deadline has passed without staff approving them: closed so the
+     * slot is free again. (An approved booking is never touched; staff may still approve a lapsed one
+     * if the money arrived late and the slot is still free.)
+     *
+     * @return int rows expired
+     */
+    public function expireOfflineDue(): int
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET booking_status = 'expired'
+             WHERE booking_status = 'pending'
+               AND payment_status = 'pending'
+               AND payment_channel = 'offline'
+               AND payment_due_at IS NOT NULL
+               AND payment_due_at < ?"
+        );
+        $stmt->execute([TimeHelper::now()->format('Y-m-d H:i:s')]);
         return $stmt->rowCount();
     }
 

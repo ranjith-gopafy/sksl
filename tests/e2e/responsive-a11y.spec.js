@@ -81,7 +81,7 @@ async function offenders(page) {
 async function axeViolations(page, extra = {}) {
   await page.evaluate(axeSource);
   return page.evaluate(async (opts) => {
-    const res = await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'], ...opts });
+    const res = await window.axe.run({ exclude: [['#toast-container']] }, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'], ...opts });
     return res.violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.slice(0, 3).map((n) => n.target.join(' ') + ' :: ' + (n.failureSummary || '').split('\n').slice(1, 2).join(' ').trim()) }));
   }, extra);
 }

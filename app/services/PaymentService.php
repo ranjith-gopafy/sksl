@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Helpers\OfflinePayment;
+use App\Helpers\TimeHelper;
 use App\Models\PaymentModel;
 use App\Models\BookingModel;
 use App\Models\BookingHoldModel;
@@ -118,6 +120,10 @@ class PaymentService
      */
     private function doCreateOrder(int $userId, string $bookingReference): array
     {
+        if (!OfflinePayment::onlineEnabled()) {
+            return ['success' => false, 'message' => 'Online payment is not available right now. Please request the booking and pay as instructed.'];
+        }
+
         if (!$this->mockMode && ($this->keyId === '' || $this->keySecret === '')) {
             error_log('PaymentService: Razorpay keys are not configured; refusing to create order.');
             return [
@@ -162,55 +168,11 @@ class PaymentService
         }
 
         if (!$booking) {
-            $service = $this->serviceModel->findById((int) $hold['service_id']);
-            if (!$service) {
-                return ['success' => false, 'message' => 'Service not found.'];
+            $made = $this->createPendingBooking($hold, $userId, 'online', null);
+            if (!$made['success']) {
+                return $made;
             }
-
-            $durationMinutes  = (int) $service['duration_minutes'];
-            $basePrice        = (float) $service['price'];
-            $durationOptionId = !empty($hold['duration_option_id']) ? (int) $hold['duration_option_id'] : null;
-
-            if ($durationOptionId !== null) {
-                $durationOptionModel = new \App\Models\DurationOptionModel();
-                $option = $durationOptionModel->findById($durationOptionId);
-                if (!$option || (int) $option['service_id'] !== (int) $service['id']) {
-                    // The hold reserved this option's time window; silently falling back to the service's
-                    // default price would bill a longer session at the shorter session's price.
-                    return ['success' => false, 'message' => 'The chosen session length is no longer available. Please select your slot again.'];
-                }
-                $durationMinutes = (int) $option['duration_minutes'];
-                $basePrice       = (float) $option['price'];
-            }
-
-            $gstPercent = (float) ($service['gst_percent'] ?? config('app.booking.gst_rate', 18));
-            $pricing = ServiceModel::calculatePricing($basePrice, $gstPercent);
-
-            $bookingId = $this->bookingModel->create([
-                'booking_reference'        => $bookingReference,
-                'user_id'                  => $userId,
-                'service_id'               => (int) $hold['service_id'],
-                'booking_type'             => 'standard',
-                'payment_mode'             => 'payment_required',
-                'duration_option_id'       => $durationOptionId,
-                'booking_date'             => $hold['booking_date'],
-                'start_time'               => $hold['start_time'],
-                'end_time'                 => $hold['end_time'],
-                'service_name_snapshot'    => (string) $service['name'],
-                'service_duration_minutes' => $durationMinutes,
-                'checkin_buffer_minutes'   => (int) config('app.booking.checkin_buffer_minutes', 0),
-                'checkout_buffer_minutes'  => (int) config('app.booking.checkout_buffer_minutes', 0),
-                'base_amount'              => $pricing['base_price'],
-                'gst_percent'              => $gstPercent,
-                'gst_amount'               => $pricing['gst_amount'],
-                'convenience_fee'          => 0.00,
-                'total_amount'             => $pricing['total_amount'],
-                'booking_status'           => 'pending',
-                'payment_status'           => 'pending',
-                'health_declared_at'       => $hold['health_declared_at'] ?? null,
-            ]);
-
-            $booking = $this->bookingModel->findById($bookingId);
+            $booking = $made['booking'];
         }
 
         // 3. Idempotent check: has a pending payment order already been issued?
@@ -581,9 +543,306 @@ class PaymentService
             ];
         }
 
-        // Post-commit (only the path that confirmed sends these). The invoice, the customer email
-        // and the admin alert are independent: a PDF or business-identity problem must never stop
-        // the customer or staff hearing about a paid booking.
+        // Post-commit (only the path that confirmed sends these).
+        $this->afterBookingConfirmed($updatedBooking, $bookingReference);
+
+        return [
+            'success' => true,
+            'message' => 'Payment successfully verified! Your recovery session is confirmed.',
+            'data'    => [
+                'booking_reference'   => $bookingReference,
+                'service_name'        => $booking['service_name'],
+                'booking_date'        => $booking['booking_date'],
+                'start_time'          => $booking['start_time'],
+                'end_time'            => $booking['end_time'],
+                'amount'              => (float) $booking['total_amount'],
+                'razorpay_payment_id' => $paymentId,
+            ],
+        ];
+    }
+
+
+    /**
+     * Create the pending booking row for an active hold (price snapshot, session length, health
+     * declaration). Shared by the online checkout and the offline payment request.
+     *
+     * @param array<string, mixed> $hold
+     * @return array{success: bool, message?: string, booking?: array<string, mixed>}
+     */
+    private function createPendingBooking(array $hold, int $userId, string $channel, ?string $paymentDueAt): array
+    {
+        $service = $this->serviceModel->findById((int) $hold['service_id']);
+        if (!$service) {
+            return ['success' => false, 'message' => 'Service not found.'];
+        }
+
+        $durationMinutes  = (int) $service['duration_minutes'];
+        $basePrice        = (float) $service['price'];
+        $durationOptionId = !empty($hold['duration_option_id']) ? (int) $hold['duration_option_id'] : null;
+
+        if ($durationOptionId !== null) {
+            $option = (new \App\Models\DurationOptionModel())->findById($durationOptionId);
+            if (!$option || (int) $option['service_id'] !== (int) $service['id']) {
+                // The hold reserved this option's time window; silently falling back to the service's
+                // default price would bill a longer session at the shorter session's price.
+                return ['success' => false, 'message' => 'The chosen session length is no longer available. Please select your slot again.'];
+            }
+            $durationMinutes = (int) $option['duration_minutes'];
+            $basePrice       = (float) $option['price'];
+        }
+
+        $gstPercent = (float) ($service['gst_percent'] ?? config('app.booking.gst_rate', 18));
+        $pricing = ServiceModel::calculatePricing($basePrice, $gstPercent);
+
+        $bookingId = $this->bookingModel->create([
+            'booking_reference'        => (string) $hold['booking_reference'],
+            'user_id'                  => $userId,
+            'service_id'               => (int) $hold['service_id'],
+            'booking_type'             => 'standard',
+            'payment_mode'             => 'payment_required',
+            'payment_channel'          => $channel,
+            'payment_due_at'           => $paymentDueAt,
+            'duration_option_id'       => $durationOptionId,
+            'booking_date'             => $hold['booking_date'],
+            'start_time'               => $hold['start_time'],
+            'end_time'                 => $hold['end_time'],
+            'service_name_snapshot'    => (string) $service['name'],
+            'service_duration_minutes' => $durationMinutes,
+            'checkin_buffer_minutes'   => (int) config('app.booking.checkin_buffer_minutes', 0),
+            'checkout_buffer_minutes'  => (int) config('app.booking.checkout_buffer_minutes', 0),
+            'base_amount'              => $pricing['base_price'],
+            'gst_percent'              => $gstPercent,
+            'gst_amount'               => $pricing['gst_amount'],
+            'convenience_fee'          => 0.00,
+            'total_amount'             => $pricing['total_amount'],
+            'booking_status'           => 'pending',
+            'payment_status'           => 'pending',
+            'health_declared_at'       => $hold['health_declared_at'] ?? null,
+        ]);
+
+        $booking = $this->bookingModel->findById($bookingId);
+        return $booking ? ['success' => true, 'booking' => $booking] : ['success' => false, 'message' => 'The booking could not be created. Please try again.'];
+    }
+
+    /**
+     * Offline mode: turn an active hold into a booking request that waits for payment. The slot stays
+     * reserved until the payment deadline (24 h, never past 2 h before the session). Nothing is charged
+     * online; staff approve the booking once the money (UPI / bank / cash) has arrived.
+     *
+     * @return array{success: bool, message: string, data?: array<string, mixed>}
+     */
+    public function requestOfflineBooking(int $userId, string $bookingReference): array
+    {
+        $result = \App\Helpers\RateLimit::serialize('create_order:' . $bookingReference, fn () => $this->doRequestOfflineBooking($userId, $bookingReference));
+        return $result ?? ['success' => false, 'message' => 'The server is busy. Please try again in a moment.'];
+    }
+
+    /** @return array{success: bool, message: string, data?: array<string, mixed>} */
+    private function doRequestOfflineBooking(int $userId, string $bookingReference): array
+    {
+        if (!OfflinePayment::offlineMode()) {
+            return ['success' => false, 'message' => 'Offline payment requests are not open. Please pay online.'];
+        }
+
+        $existing = $this->bookingModel->findByReference($bookingReference);
+        if ($existing) {
+            if ((int) $existing['user_id'] !== $userId) {
+                return ['success' => false, 'message' => 'Unauthorized booking access.'];
+            }
+            // A repeated click or a second tab: hand back the request that already exists.
+            if ($existing['booking_status'] === 'pending' && ($existing['payment_channel'] ?? '') === 'offline') {
+                return ['success' => true, 'message' => 'Your booking request is waiting for payment.', 'data' => $this->offlineResponse($existing) + ['created' => false]];
+            }
+            return ['success' => false, 'message' => 'This booking is already ' . $existing['booking_status'] . '.'];
+        }
+
+        $hold = $this->holdModel->findActiveByReference($bookingReference);
+        if (!$hold) {
+            return ['success' => false, 'message' => 'Booking hold has expired or was not found. Please select a slot again.'];
+        }
+        if ((int) $hold['user_id'] !== $userId) {
+            return ['success' => false, 'message' => 'Unauthorized booking hold access.'];
+        }
+
+        $due = OfflinePayment::bookingDueAt((string) $hold['booking_date'], (string) $hold['start_time']);
+        if ($due === null) {
+            $this->holdModel->release($bookingReference);
+            return [
+                'success' => false,
+                'message' => 'This session starts too soon to pay and be approved in time. Please choose a later slot, or contact SKSL to book it at the centre.',
+            ];
+        }
+        $dueDb = $due->format('Y-m-d H:i:s');
+
+        $made = $this->createPendingBooking($hold, $userId, 'offline', $dueDb);
+        if (!$made['success']) {
+            return $made;
+        }
+        // The slot stays reserved for the customer until the payment deadline.
+        $this->holdModel->extendUntil($bookingReference, $dueDb);
+
+        return [
+            'success' => true,
+            'message' => 'Booking request received. Your slot is reserved until you pay.',
+            'data'    => $this->offlineResponse($made['booking']) + ['created' => true],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $booking
+     * @return array<string, mixed>
+     */
+    public function offlineResponse(array $booking): array
+    {
+        $amount = (float) $booking['total_amount'];
+        return [
+            'booking_reference' => (string) $booking['booking_reference'],
+            'amount_rupees'     => $amount,
+            'payment_due_at'    => $booking['payment_due_at'],
+            'upi_link'          => OfflinePayment::upiLink($amount, (string) $booking['booking_reference']),
+            'redirect'          => app_url('booking-confirmation?ref=' . rawurlencode((string) $booking['booking_reference'])),
+        ];
+    }
+
+    /**
+     * Emails after a request is received (customer: how to pay; admin: a request is waiting).
+     * Called after the browser has its answer, because SMTP can take seconds.
+     */
+    public function sendOfflineRequestNotices(int $bookingId): void
+    {
+        try {
+            $b = $this->bookingModel->findById($bookingId);
+            if (!$b) {
+                return;
+            }
+            $mail = new EmailService();
+            $mail->sendOfflineBookingReceived($b);
+            $mail->sendAdminAlert(
+                '[Action needed] Booking waiting for payment approval',
+                'A booking request is waiting for payment',
+                'When the payment has arrived (UPI / bank / cash), open Bookings > Awaiting payment and approve it. It lapses automatically if unpaid.',
+                [
+                    'Booking reference' => (string) $b['booking_reference'],
+                    'Customer'          => (string) $b['user_name'] . ' <' . (string) $b['user_email'] . '> ' . (string) ($b['user_mobile'] ?? ''),
+                    'Session'           => (string) ($b['service_name_snapshot'] ?: $b['service_name']) . ', ' . date('d M Y', strtotime((string) $b['booking_date'])) . ', ' . date('g:i A', strtotime((string) $b['start_time'])) . ' IST',
+                    'Amount to receive' => '₹' . number_format((float) $b['total_amount'], 2),
+                    'Pay by'            => date('d M Y, g:i A', strtotime((string) $b['payment_due_at'])) . ' IST',
+                ],
+                'admin_offline_booking_request'
+            );
+        } catch (\Throwable $e) {
+            error_log('Offline request notices failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Staff confirm that the money for an offline booking has arrived. The booking is confirmed and the
+     * invoice and emails follow exactly as after an online payment. A request that lapsed while the
+     * money was on its way can still be approved if its slot is free and the session has not started.
+     *
+     * @return array{success: bool, message: string, data?: array<string, mixed>}
+     */
+    public function approveOfflineBooking(int $bookingId, int $adminId, string $method, string $reference, bool $runPostCommit = true): array
+    {
+        $reference = trim($reference, " 	");
+        if (!isset(OfflinePayment::METHODS[$method])) {
+            return ['success' => false, 'message' => 'Choose how the payment was received.'];
+        }
+        if ($reference === '' || mb_strlen($reference) > 100 || preg_match('/[\x00-\x1F\x7F]/', $reference)) {
+            return ['success' => false, 'message' => 'Enter the payment reference (UPI transaction id, bank reference or receipt number), up to 100 characters.'];
+        }
+
+        $this->db->beginTransaction();
+        try {
+            $stmt = $this->db->prepare('SELECT * FROM bookings WHERE id = ? FOR UPDATE');
+            $stmt->execute([$bookingId]);
+            $row = $stmt->fetch();
+            if (!$row || ($row['payment_channel'] ?? '') !== 'offline') {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'This is not an offline payment booking.'];
+            }
+            if ($row['payment_status'] === 'paid' || in_array($row['booking_status'], ['confirmed', 'completed'], true)) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'This booking has already been approved.'];
+            }
+            if (!in_array($row['booking_status'], ['pending', 'expired'], true)) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'This booking is ' . $row['booking_status'] . ' and cannot be approved. Ask the customer to book again.'];
+            }
+            $startsAt = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $row['booking_date'] . ' ' . $row['start_time'], TimeHelper::now()->getTimezone());
+            if ($startsAt === false || $startsAt <= TimeHelper::now()) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'The session time has already passed, so this booking cannot be approved.'];
+            }
+            if (!$this->slotStillAvailable($row, (string) $row['booking_reference'])) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'The slot is no longer free (it was released and someone else took it, or the customer has an overlapping session). Refund the customer, or ask them to book another time.'];
+            }
+
+            $paymentId = $this->paymentModel->create([
+                'booking_id'        => (int) $row['id'],
+                'razorpay_order_id' => 'offline_' . $row['booking_reference'],
+                'amount'            => (float) $row['total_amount'],
+                'currency'          => 'INR',
+                'status'            => 'pending',
+            ]);
+            $this->paymentModel->markPaid(
+                $paymentId,
+                'offline_' . $row['booking_reference'],
+                'offline_approved',
+                json_encode(['source' => 'offline_approval', 'method' => $method, 'reference' => $reference, 'admin_id' => $adminId, 'at' => date('Y-m-d H:i:s')])
+            );
+
+            $upd = $this->db->prepare(
+                "UPDATE bookings
+                 SET booking_status = 'confirmed', payment_status = 'paid', payment_method = ?, payment_reference = ?,
+                     payment_received_at = ?, approved_by_admin_id = ?
+                 WHERE id = ? AND booking_status IN ('pending', 'expired') AND payment_status = 'pending'"
+            );
+            $upd->execute([$method, $reference, TimeHelper::now()->format('Y-m-d H:i:s'), $adminId, (int) $row['id']]);
+            if ($upd->rowCount() !== 1) {
+                $this->db->rollBack();
+                return ['success' => false, 'message' => 'This booking changed while you were approving it. Please refresh and check it.'];
+            }
+            $this->holdModel->release((string) $row['booking_reference']);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            error_log('PaymentService::approveOfflineBooking failed: ' . $e->getMessage());
+            return ['success' => false, 'message' => 'The approval could not be saved. Nothing was changed; please try again.'];
+        }
+
+        if ($runPostCommit) {
+            $this->runPostConfirmation($bookingId);
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Payment approved. The booking is confirmed and the customer has been emailed.',
+            'data'    => ['booking_reference' => (string) $row['booking_reference']],
+        ];
+    }
+
+    /** Invoice and emails for an approved booking (run after the admin's page has been answered). */
+    public function runPostConfirmation(int $bookingId): void
+    {
+        $b = $this->bookingModel->findById($bookingId);
+        if ($b) {
+            $this->afterBookingConfirmed($b, (string) $b['booking_reference']);
+        }
+    }
+
+    /**
+     * Post-commit work after a booking becomes confirmed and paid (online or approved offline). The
+     * invoice, the customer email and the admin alert are independent: a PDF or business-identity
+     * problem must never stop the customer or staff hearing about a paid booking.
+     *
+     * @param array<string, mixed>|null $updatedBooking
+     */
+    private function afterBookingConfirmed(?array $updatedBooking, string $bookingReference): void
+    {
         $pdfPath = null;
         try {
             $invoiceService = new InvoiceService($this->db, $this->bookingModel, $this->paymentModel);
@@ -611,22 +870,7 @@ class PaymentService
                 error_log('Admin booking notification exception: ' . $mailEx->getMessage());
             }
         }
-
-        return [
-            'success' => true,
-            'message' => 'Payment successfully verified! Your recovery session is confirmed.',
-            'data'    => [
-                'booking_reference'   => $bookingReference,
-                'service_name'        => $booking['service_name'],
-                'booking_date'        => $booking['booking_date'],
-                'start_time'          => $booking['start_time'],
-                'end_time'            => $booking['end_time'],
-                'amount'              => (float) $booking['total_amount'],
-                'razorpay_payment_id' => $paymentId,
-            ],
-        ];
     }
-
 
     /**
      * Is the slot of a pending booking still free for it? Takes the service row lock first so

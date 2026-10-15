@@ -8,6 +8,7 @@ use App\Models\PackageModel;
 use App\Models\CustomerPackageModel;
 use App\Models\PaymentModel;
 use App\Models\UserModel;
+use App\Helpers\OfflinePayment;
 use App\Helpers\RateLimit;
 use App\Helpers\TimeHelper;
 use Razorpay\Api\Api as RazorpayApi;
@@ -104,6 +105,10 @@ class PackageService
      */
     public function createPurchaseOrder(int $userId, int $packageId): array
     {
+        if (!OfflinePayment::onlineEnabled()) {
+            return ['success' => false, 'message' => 'Online payment is not available right now. Please request the package and pay as instructed.'];
+        }
+
         $package = $this->packageModel->findById($packageId);
         if (!$package || $package['status'] !== 'active') {
             return ['success' => false, 'message' => 'Requested package is not available.'];
@@ -229,6 +234,167 @@ class PackageService
             error_log('PackageService::createPurchaseOrder Exception: ' . $e->getMessage());
             return ['success' => false, 'message' => 'We could not start this purchase. Please try again.'];
         }
+    }
+
+    /**
+     * Offline mode: request a combo package without paying. The purchase waits (24 h by default) for
+     * staff to receive the money and approve it; the credits and the invoice come on approval.
+     *
+     * @return array{success: bool, message: string, data?: array<string, mixed>}
+     */
+    public function requestOfflinePurchase(int $userId, int $packageId): array
+    {
+        if (!OfflinePayment::offlineMode()) {
+            return ['success' => false, 'message' => 'Offline package requests are not open. Please pay online.'];
+        }
+        $package = $this->packageModel->findById($packageId);
+        if (!$package || $package['status'] !== 'active') {
+            return ['success' => false, 'message' => 'Requested package is not available.'];
+        }
+        $user = $this->userModel->findById($userId);
+        if (!$user) {
+            return ['success' => false, 'message' => 'User account not found.'];
+        }
+        if (!RateLimit::attempt(RateLimit::key('package_purchase', (string) $userId), 15, 3600)) {
+            return ['success' => false, 'message' => 'Too many purchase attempts. Please try again later.'];
+        }
+
+        $pending = $this->customerPackageModel->findPendingOffline($userId, $packageId);
+        if ($pending) {
+            return ['success' => true, 'message' => 'Your package request is waiting for payment.', 'data' => $this->offlinePurchaseResponse($pending) + ['created' => false]];
+        }
+
+        try {
+            $purchaseRef = 'SKSL-PKG-' . TimeHelper::now()->format('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
+            $gstPercent  = (float) ($package['gst_percent'] ?? 18.00);
+            $split       = \App\Models\ServiceModel::calculatePricing((float) $package['price'], $gstPercent);
+            $validity    = max(1, (int) ($package['validity_days'] ?? 30));
+            $due         = OfflinePayment::packageDueAt()->format('Y-m-d H:i:s');
+
+            $this->db->beginTransaction();
+            try {
+                $this->db->prepare(
+                    "INSERT INTO customer_packages (
+                        user_id, package_id, purchase_reference, package_name_snapshot, validity_days_snapshot,
+                        base_amount, gst_percent, gst_amount, total_amount,
+                        payment_status, payment_channel, payment_due_at, expires_at, status
+                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'offline', ?, ?, 'active')"
+                )->execute([
+                    $userId, $packageId, $purchaseRef, (string) $package['name'], $validity,
+                    $split['base_price'], $gstPercent, $split['gst_amount'], $split['total_amount'],
+                    $due, TimeHelper::now()->modify("+{$validity} days")->format('Y-m-d H:i:s'), // provisional: validity restarts on approval
+                ]);
+                $customerPackageId = (int) $this->db->lastInsertId();
+                $this->paymentModel->create([
+                    'payment_source'      => 'package',
+                    'booking_id'          => null,
+                    'customer_package_id' => $customerPackageId,
+                    'razorpay_order_id'   => 'offline_' . $purchaseRef,
+                    'amount'              => $split['total_amount'],
+                    'currency'            => 'INR',
+                    'status'              => 'pending',
+                ]);
+                $this->db->commit();
+            } catch (\Throwable $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                throw $e;
+            }
+            $purchase = $this->customerPackageModel->findById($customerPackageId);
+            return ['success' => true, 'message' => 'Package request received. Please pay to activate it.', 'data' => $this->offlinePurchaseResponse($purchase ?? []) + ['created' => true]];
+        } catch (\Throwable $e) {
+            error_log('PackageService::requestOfflinePurchase Exception: ' . $e->getMessage());
+            return ['success' => false, 'message' => 'We could not start this purchase. Please try again.'];
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $purchase
+     * @return array<string, mixed>
+     */
+    public function offlinePurchaseResponse(array $purchase): array
+    {
+        $amount = (float) ($purchase['total_amount'] ?? 0);
+        return [
+            'customer_package_id' => (int) ($purchase['id'] ?? 0),
+            'purchase_reference'  => (string) ($purchase['purchase_reference'] ?? ''),
+            'package_name'        => (string) ($purchase['package_name_snapshot'] ?? ''),
+            'amount_rupees'       => $amount,
+            'payment_due_at'      => $purchase['payment_due_at'] ?? null,
+            'upi_link'            => OfflinePayment::upiLink($amount, (string) ($purchase['purchase_reference'] ?? '')),
+            'redirect'            => app_url('my-packages'),
+        ];
+    }
+
+    /** Emails after an offline package request (customer: how to pay; admin: a request is waiting). */
+    public function sendOfflineRequestNotices(int $customerPackageId): void
+    {
+        try {
+            $p = $this->customerPackageModel->findById($customerPackageId);
+            if (!$p) {
+                return;
+            }
+            $mail = new EmailService();
+            $mail->sendOfflinePackageReceived($p);
+            $mail->sendAdminAlert(
+                '[Action needed] Combo package waiting for payment approval',
+                'A combo package request is waiting for payment',
+                'When the payment has arrived, open Package Purchases and approve it. The credits are created and the invoice is emailed when you approve.',
+                [
+                    'Reference'         => (string) $p['purchase_reference'],
+                    'Customer'          => (string) $p['user_name'] . ' <' . (string) $p['user_email'] . '> ' . (string) ($p['user_mobile'] ?? ''),
+                    'Package'           => (string) $p['package_name_snapshot'],
+                    'Amount to receive' => '₹' . number_format((float) $p['total_amount'], 2),
+                    'Pay by'            => date('d M Y, g:i A', strtotime((string) $p['payment_due_at'])) . ' IST',
+                ],
+                'admin_offline_package_request'
+            );
+        } catch (\Throwable $e) {
+            error_log('Offline package request notices failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Staff confirm the money for an offline package purchase has arrived: credits are created, validity
+     * starts now and the invoice is emailed, exactly as after an online payment. A request that lapsed
+     * while the money was on its way can still be approved.
+     *
+     * @return array{success: bool, message: string, data?: array<string, mixed>}
+     */
+    public function approveOfflinePurchase(int $customerPackageId, int $adminId, string $method, string $reference): array
+    {
+        $reference = trim($reference, " 	");
+        if (!isset(OfflinePayment::METHODS[$method])) {
+            return ['success' => false, 'message' => 'Choose how the payment was received.'];
+        }
+        if ($reference === '' || mb_strlen($reference) > 100 || preg_match('/[\x00-\x1F\x7F]/', $reference)) {
+            return ['success' => false, 'message' => 'Enter the payment reference (UPI transaction id, bank reference or receipt number), up to 100 characters.'];
+        }
+
+        $purchase = $this->customerPackageModel->findById($customerPackageId);
+        if (!$purchase || ($purchase['payment_channel'] ?? '') !== 'offline') {
+            return ['success' => false, 'message' => 'This is not an offline payment purchase.'];
+        }
+        if ($purchase['payment_status'] === 'paid') {
+            return ['success' => false, 'message' => 'This package has already been approved.'];
+        }
+        $payment = $this->paymentModel->findByCustomerPackageId($customerPackageId);
+        if (!$payment) {
+            return ['success' => false, 'message' => 'The payment record for this purchase is missing.'];
+        }
+
+        // Method and reference first, so the invoice that settlement sends already shows them.
+        $this->db->prepare(
+            "UPDATE customer_packages SET payment_method = ?, payment_reference = ?, approved_by_admin_id = ?
+             WHERE id = ? AND payment_status <> 'paid'"
+        )->execute([$method, $reference, $adminId, $customerPackageId]);
+
+        $result = $this->settlePaidPurchase($payment, 'offline_' . $purchase['purchase_reference'], 'offline_approved', 'offline_approval', null);
+        if (!$result['success']) {
+            return ['success' => false, 'message' => $result['message']];
+        }
+        return ['success' => true, 'message' => 'Payment approved. The credits are active and the customer has been emailed.', 'data' => $result['data'] ?? []];
     }
 
     /**

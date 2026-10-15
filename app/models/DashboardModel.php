@@ -48,7 +48,14 @@ class DashboardModel
              WHERE payment_status = 'paid' AND purchased_at >= (NOW() - INTERVAL 30 DAY)"
         )->fetchColumn();
 
+        // Offline mode: requests (sessions and combo packages) waiting for staff to approve their payment.
+        $approvals = (int) $this->db->query(
+            "SELECT (SELECT COUNT(*) FROM bookings WHERE booking_status = 'pending' AND payment_channel = 'offline' AND payment_status = 'pending')
+                  + (SELECT COUNT(*) FROM customer_packages WHERE status = 'active' AND payment_channel = 'offline' AND payment_status = 'pending' AND payment_due_at > NOW())"
+        )->fetchColumn();
+
         return [
+            'awaiting_approval'  => $approvals,
             'today_sessions'     => (int) ($row['today_sessions'] ?? 0),
             'next_7_days'        => (int) ($row['next_7_days'] ?? 0),
             'awaiting_payment'   => (int) ($row['awaiting_payment'] ?? 0),

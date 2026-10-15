@@ -643,7 +643,7 @@ class BookingService
                 "UPDATE bookings
                  SET booking_status = 'cancelled', cancelled_at = ?, cancelled_by = 'customer',
                      cancellation_fee = ?, refund_amount = ?, notes = CONCAT_WS('\n', notes, ?)
-                 WHERE id = ? AND booking_status = 'confirmed'"
+                 WHERE id = ? AND booking_status IN ('confirmed', 'pending')"
             );
             $upd->execute([
                 TimeHelper::now()->format('Y-m-d H:i:s'),

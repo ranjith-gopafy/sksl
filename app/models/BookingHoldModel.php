@@ -125,6 +125,18 @@ class BookingHoldModel
     }
 
     /**
+     * Keep a hold alive until a later moment (offline payment requests wait hours, not minutes).
+     */
+    public function extendUntil(string $reference, string $expiresAt): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE booking_holds SET expires_at = ? WHERE booking_reference = ? AND status = 'active' AND expires_at > NOW()"
+        );
+        $stmt->execute([$expiresAt, $reference]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
      * Find active, non-expired hold by booking reference.
      */
     public function findActiveByReference(string $reference): ?array

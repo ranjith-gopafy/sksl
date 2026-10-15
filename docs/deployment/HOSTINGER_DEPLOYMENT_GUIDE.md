@@ -411,3 +411,20 @@ Before switching to LIVE Razorpay keys:
 | OTP not arriving | Check `email_logs` for `email_type = 'admin_otp'` rows and their error, verify SMTP credentials (the code is only in the email body, never in logs) |
 | CSS not loading | Check `public/css/app.css` was uploaded; run `npm run build` locally first |
 | File upload fails | Check `UPLOAD_MAX_SIZE_BYTES` and `upload_max_filesize` in `php.ini` |
+
+### Taking payments offline (while the Razorpay gateway is not live)
+
+Set these in the production `.env`:
+
+```
+ONLINE_PAYMENTS_ENABLED=false
+UPI_ID=<the client's UPI id>
+UPI_PAYEE_NAME=<name shown to customers>
+UPI_QR_IMAGE=images/upi-qr.jpg      # the QR picture is already in public/images/
+```
+
+Customers then request a booking or combo package and pay by UPI; the booking is confirmed (with the GST invoice and
+emails) when staff open **Bookings > Awaiting payment** (or **Package Purchases**), enter the payment method and
+reference, and press **Approve**. Unpaid requests release their slot automatically after 24 hours (never later than
+2 hours before the session). Run `php database/migrate.php` for migration 025 first. To bring the Razorpay checkout
+back later, set `ONLINE_PAYMENTS_ENABLED=true` and add the Razorpay keys; nothing else changes.

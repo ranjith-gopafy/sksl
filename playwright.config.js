@@ -23,14 +23,24 @@ module.exports = defineConfig({
     ['list'],
     ['html', { outputFolder: 'playwright-report', open: 'never' }]
   ],
-  webServer: {
-    command: 'php -d variables_order=EGPCS -S localhost:8000 -t public',
-    url: 'http://localhost:8000/health',
-    reuseExistingServer: true,
-    timeout: 15000,
-    // Browser tests must never send real email (payments, cancellations and admin alerts all try to).
-    env: { MAIL_DRIVER: 'log' },
-  },
+  webServer: [
+    {
+      command: 'php -d variables_order=EGPCS -S localhost:8000 -t public',
+      url: 'http://localhost:8000/health',
+      reuseExistingServer: true,
+      timeout: 15000,
+      // Browser tests must never send real email (payments, cancellations and admin alerts all try to).
+      env: { MAIL_DRIVER: 'log' },
+    },
+    {
+      // Same site with the online gateway switched off: bookings and packages wait for staff to approve the payment.
+      command: 'php -d variables_order=EGPCS -S localhost:8001 -t public',
+      url: 'http://localhost:8001/health',
+      reuseExistingServer: true,
+      timeout: 15000,
+      env: { MAIL_DRIVER: 'log', ONLINE_PAYMENTS_ENABLED: 'false' },
+    },
+  ],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8000',
     trace: 'on-first-retry',
@@ -42,10 +52,12 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'Desktop Chromium',
+      testIgnore: /offline-payments\.spec\.js/,
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'Mobile Pixel 7',
+      testIgnore: /offline-payments\.spec\.js/,
       use: {
         ...devices['Pixel 7'],
         isMobile: true,
@@ -54,12 +66,18 @@ module.exports = defineConfig({
     },
     {
       name: 'Mobile iPhone 14',
+      testIgnore: /offline-payments\.spec\.js/,
       use: {
         ...devices['iPhone 14'],
         defaultBrowserType: 'chromium',
         isMobile: true,
         hasTouch: true,
       },
+    },
+    {
+      name: 'Offline payments',
+      testMatch: /offline-payments\.spec\.js/,
+      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:8001' },
     },
   ],
 });

@@ -60,13 +60,21 @@ $bookingLink = static fn (string $ref): string => app_url('admin/bookings?status
             <p class="mt-2 font-heading text-2xl sm:text-3xl font-extrabold text-slate-900"><?= (int) $stats['next_7_days'] ?></p>
             <p class="mt-1 text-xs text-slate-600 group-hover:text-[#075183]">Confirmed bookings &rarr;</p>
         </a>
+        <?php if (\App\Helpers\OfflinePayment::offlineMode()): ?>
+        <a href="<?= app_url('admin/bookings?status=pending') ?>" class="group bg-white rounded-2xl border <?= $stats['awaiting_approval'] > 0 ? 'border-amber-300' : 'border-slate-200' ?> p-4 sm:p-5 shadow-xs hover:border-sky-300 hover:shadow-md transition" data-testid="awaiting-approval-card">
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Awaiting approval</p>
+            <p class="mt-2 font-heading text-2xl sm:text-3xl font-extrabold <?= $stats['awaiting_approval'] > 0 ? 'text-amber-700' : 'text-slate-900' ?>"><?= (int) $stats['awaiting_approval'] ?></p>
+            <p class="mt-1 text-xs text-slate-600 group-hover:text-[#075183]">Payments to approve (sessions and packages) &rarr;</p>
+        </a>
+        <?php else: ?>
         <a href="<?= app_url('admin/bookings?status=pending') ?>" class="group bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs hover:border-sky-300 hover:shadow-md transition">
             <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Awaiting payment</p>
             <p class="mt-2 font-heading text-2xl sm:text-3xl font-extrabold <?= $stats['awaiting_payment'] > 0 ? 'text-amber-700' : 'text-slate-900' ?>"><?= (int) $stats['awaiting_payment'] ?></p>
             <p class="mt-1 text-xs text-slate-600 group-hover:text-[#075183]">Checkouts in progress &rarr;</p>
         </a>
+        <?php endif; ?>
         <a href="<?= app_url('admin/package-purchases') ?>" class="group bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs hover:border-sky-300 hover:shadow-md transition">
-            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Online sales this month</p>
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Sales this month</p>
             <p class="mt-2 font-heading text-2xl sm:text-3xl font-extrabold text-slate-900">&#8377;<?= number_format((float) $stats['online_sales_month'], 2) ?></p>
             <p class="mt-1 text-xs text-slate-600 group-hover:text-[#075183]"><?= (int) $stats['online_sales_count'] ?> paid booking<?= $stats['online_sales_count'] === 1 ? '' : 's' ?> (incl. GST) &middot; <?= (int) $stats['package_sales_30d'] ?> package<?= $stats['package_sales_30d'] === 1 ? '' : 's' ?> sold in 30 days &rarr;</p>
         </a>

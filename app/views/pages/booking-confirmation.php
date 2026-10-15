@@ -1,3 +1,9 @@
+<?php
+$isOffline  = ($booking['payment_channel'] ?? 'online') === 'offline';
+$isAwaiting = $isOffline && ($booking['booking_status'] ?? '') === 'pending';
+$isLapsed   = $isOffline && ($booking['booking_status'] ?? '') === 'expired';
+$isWaitOrLapsed = $isAwaiting || $isLapsed;
+?>
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
     <!-- Success Banner Card -->
     <div class="rounded-3xl bg-white border border-slate-200/90 p-8 sm:p-10 shadow-xs relative overflow-hidden">
@@ -6,9 +12,9 @@
 
         <!-- Success Header -->
         <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 pt-2">
-            <div class="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
+            <div class="w-16 h-16 rounded-2xl <?= $isWaitOrLapsed ? 'bg-amber-50 border border-amber-200 text-amber-700' : 'bg-emerald-50 border border-emerald-200 text-emerald-600' ?> flex items-center justify-center shrink-0 shadow-xs">
                 <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="<?= $isWaitOrLapsed ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' : 'M5 13l4 4L19 7' ?>" />
                 </svg>
             </div>
             <div class="text-center sm:text-left flex-1">
@@ -16,6 +22,22 @@
 $isPayAtCentre = ($booking['payment_mode'] ?? '') === 'payment_not_required';
 $isPackage     = ($booking['payment_mode'] ?? '') === 'package_credit';
 ?>
+                <?php if ($isWaitOrLapsed): ?>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold uppercase tracking-wider mb-3">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 <?= $isAwaiting ? 'animate-pulse' : '' ?>"></span>
+                        <?= $isAwaiting ? 'Awaiting Payment' : 'Request Expired' ?>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
+                        <?= $isAwaiting ? 'We Have Your Booking Request' : 'This Booking Request Has Expired' ?>
+                    </h1>
+                    <p class="text-sm text-slate-600 mt-1">
+                        <?php if ($isAwaiting): ?>
+                            Your slot is reserved. Pay the amount below and your booking is confirmed, with your GST tax invoice emailed, as soon as we have received the payment.
+                        <?php else: ?>
+                            No payment was received in time, so the slot was released. If you have already paid, please contact us with your payment reference. Otherwise you can book again.
+                        <?php endif; ?>
+                    </p>
+                <?php else: ?>
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full <?= $isPayAtCentre ? 'bg-sky-50 border border-sky-200 text-sky-800' : 'bg-emerald-50 border border-emerald-200 text-emerald-700' ?> text-xs font-bold tracking-wider uppercase mb-2">
                     <span class="w-2 h-2 rounded-full <?= $isPayAtCentre ? 'bg-sky-500' : 'bg-emerald-500 animate-pulse' ?>"></span>
                     <?= $isPayAtCentre ? 'Appointment Confirmed &bull; Pay at Centre' : ($isPackage ? 'Session Confirmed &bull; Package Credit' : 'Booking Confirmed &amp; Paid') ?>
@@ -32,6 +54,7 @@ $isPackage     = ($booking['payment_mode'] ?? '') === 'package_credit';
                         Thank you for choosing Sara Kinetic Sports Lab. Your booking confirmation is below<?= (!$isPayAtCentre && !$isPackage) ? ' and your GST tax invoice is ready to download' : '' ?>.
                     <?php endif; ?>
                 </p>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -56,19 +79,31 @@ $isPackage     = ($booking['payment_mode'] ?? '') === 'package_credit';
             <div class="flex items-center gap-3">
                 <div class="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200 text-right">
                     <span class="text-[10px] uppercase font-bold text-slate-500 block">Session Status</span>
-                    <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-                        <?= h($booking['booking_status']) ?>
+                    <span class="text-xs font-bold <?= $isWaitOrLapsed ? 'text-amber-700' : 'text-emerald-700' ?> uppercase tracking-wider">
+                        <?= $isAwaiting ? 'Awaiting approval' : h($booking['booking_status']) ?>
                     </span>
                 </div>
                 <div class="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-200 text-right">
                     <span class="text-[10px] uppercase font-bold text-slate-500 block">Payment Status</span>
-                    <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-                        <?= h($booking['payment_status']) ?>
+                    <span class="text-xs font-bold <?= $isWaitOrLapsed ? 'text-amber-700' : 'text-emerald-700' ?> uppercase tracking-wider">
+                        <?= $isAwaiting ? 'Due ' . h(date('d M, g:i A', strtotime((string) $booking['payment_due_at']))) : h($booking['payment_status']) ?>
                     </span>
                 </div>
             </div>
         </div>
     </div>
+
+    <?php if ($isAwaiting): ?>
+        <div class="mt-6">
+            <?php
+            $offAmount    = (float) $booking['total_amount'];
+            $offReference = (string) $booking['booking_reference'];
+            $offDueAt     = (string) $booking['payment_due_at'];
+            $offKind      = 'booking';
+            require __DIR__ . '/_offline_payment.php';
+            ?>
+        </div>
+    <?php endif; ?>
 
     <!-- Booking Details Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
@@ -147,7 +182,7 @@ $isPackage     = ($booking['payment_mode'] ?? '') === 'package_credit';
                     </li>
                     <li class="flex items-start gap-2.5">
                         <div class="w-1.5 h-1.5 rounded-full bg-sky-600 mt-1.5 shrink-0"></div>
-                        <span><strong>Cancellations:</strong> You can cancel from My Sessions up to <?= \App\Helpers\BookingRules::cancellationNoticeHours() ?> hours before your session. A <?= h(rtrim(rtrim(number_format(\App\Helpers\BookingRules::cancellationFeePercent(), 2), '0'), '.')) ?>% cancellation charge applies and the rest is refunded manually by SKSL. <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-600 font-semibold hover:underline">Policy</a></span>
+                        <span><strong>Cancellations:</strong> You can cancel from My Sessions up to <?= \App\Helpers\BookingRules::cancellationNoticeHours() ?> hours before your session. A <?= h(rtrim(rtrim(number_format(\App\Helpers\BookingRules::cancellationFeePercent(), 2), '0'), '.')) ?>% cancellation charge applies and the rest is refunded manually by SKSL. <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-700 font-semibold hover:underline">Policy</a></span>
                     </li>
                 </ul>
             </div>
@@ -194,15 +229,28 @@ $isPackage     = ($booking['payment_mode'] ?? '') === 'package_credit';
                         <?php endif; ?>
 
                         <div class="pt-3 border-t border-slate-100 flex justify-between text-sm font-extrabold text-slate-900 font-heading">
-                            <span>Total Paid</span>
-                            <span class="text-emerald-600 font-bold">&#8377;<?= number_format((float) $booking['total_amount'], 2) ?></span>
+                            <span><?= $isWaitOrLapsed ? 'Total to Pay' : 'Total Paid' ?></span>
+                            <span class="<?= $isWaitOrLapsed ? 'text-amber-700' : 'text-emerald-600' ?> font-bold">&#8377;<?= number_format((float) $booking['total_amount'], 2) ?></span>
                         </div>
                     <?php endif; ?>
                 </div>
 
                 <!-- Transaction Audit Info -->
                 <div class="mt-6 pt-5 border-t border-slate-100 space-y-2.5 text-[11px] text-slate-500">
-                    <?php if (!$isPayAtCentre && !$isPackage): ?>
+                    <?php if ($isOffline): ?>
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-slate-500">Payment Method</span>
+                            <span class="text-slate-800 font-semibold">
+                                <?= h(\App\Helpers\OfflinePayment::METHODS[$booking['payment_method'] ?? ''] ?? 'UPI (pay outside the website)') ?>
+                            </span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] uppercase font-bold text-slate-500">Payment Reference</span>
+                            <span class="font-mono text-slate-800 break-all font-semibold">
+                                <?= !empty($booking['payment_reference']) ? h($booking['payment_reference']) : ($isAwaiting ? 'Awaiting your payment' : '&mdash;') ?>
+                            </span>
+                        </div>
+                    <?php elseif (!$isPayAtCentre && !$isPackage): ?>
                         <div>
                             <span class="block text-[10px] uppercase font-bold text-slate-500">Razorpay Payment ID</span>
                             <span class="font-mono text-slate-800 break-all font-semibold">

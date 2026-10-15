@@ -3,7 +3,7 @@
  * Test helper for the browser (Playwright) suite: a throwaway customer with confirmed bookings.
  *
  *   php tests/support/customer_session.php create                         -> {"id":..,"email":..,"password":..}
- *   php tests/support/customer_session.php booking <userId> <hoursAhead> [paid|package|centre]
+ *   php tests/support/customer_session.php booking <userId> <hoursAhead> [paid|package|centre|offline]
  *                                                                          -> {"ref":..}
  *   php tests/support/customer_session.php status <ref>                   -> booking row as JSON
  *   php tests/support/customer_session.php cleanup <userId>               -> removes the customer and everything of theirs
@@ -55,19 +55,21 @@ switch ($command) {
         (new BookingModel())->create([
             'booking_reference' => $ref, 'user_id' => $userId, 'service_id' => (int) $svc['id'],
             'booking_type' => $kind === 'package' ? 'package' : ($kind === 'centre' ? 'professional' : 'standard'),
-            'payment_mode' => $kind === 'paid' ? 'payment_required' : ($kind === 'package' ? 'package_credit' : 'payment_not_required'),
+            'payment_mode' => in_array($kind, ['paid', 'offline'], true) ? 'payment_required' : ($kind === 'package' ? 'package_credit' : 'payment_not_required'),
+            'payment_channel' => $kind === 'offline' ? 'offline' : 'online',
+            'payment_due_at' => $kind === 'offline' ? date('Y-m-d H:i:s', strtotime('+24 hours')) : null,
             'package_credit_id' => $creditId,
             'booking_date' => $start->format('Y-m-d'), 'start_time' => $start->format('H:i:s'), 'end_time' => $end->format('H:i:s'),
             'service_name_snapshot' => $svc['name'], 'service_duration_minutes' => 15,
-            'base_amount' => $kind === 'paid' ? $split['base_price'] : 0, 'gst_amount' => $kind === 'paid' ? $split['gst_amount'] : 0,
-            'total_amount' => $kind === 'paid' ? $split['total_amount'] : 0,
-            'booking_status' => 'confirmed', 'payment_status' => $kind === 'centre' ? 'pending' : 'paid',
+            'base_amount' => in_array($kind, ['paid', 'offline'], true) ? $split['base_price'] : 0, 'gst_amount' => in_array($kind, ['paid', 'offline'], true) ? $split['gst_amount'] : 0,
+            'total_amount' => in_array($kind, ['paid', 'offline'], true) ? $split['total_amount'] : 0,
+            'booking_status' => $kind === 'offline' ? 'pending' : 'confirmed', 'payment_status' => in_array($kind, ['centre', 'offline'], true) ? 'pending' : 'paid',
         ]);
         echo json_encode(['ref' => $ref]);
         break;
 
     case 'status':
-        $s = $db->prepare('SELECT booking_status, payment_status, cancelled_by, cancellation_fee, refund_amount FROM bookings WHERE booking_reference = ?');
+        $s = $db->prepare('SELECT booking_status, payment_status, payment_channel, payment_method, payment_reference, cancelled_by, cancellation_fee, refund_amount FROM bookings WHERE booking_reference = ?');
         $s->execute([(string) ($argv[2] ?? '')]);
         echo json_encode($s->fetch(PDO::FETCH_ASSOC));
         break;
@@ -76,7 +78,7 @@ switch ($command) {
         $id = (int) ($argv[2] ?? 0);
         if ($id > 0) {
             $db->exec("DELETE FROM customer_package_credits WHERE customer_package_id IN (SELECT id FROM customer_packages WHERE user_id = {$id})");
-            $db->exec("DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE user_id = {$id})");
+            $db->exec("DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE user_id = {$id}) OR customer_package_id IN (SELECT id FROM customer_packages WHERE user_id = {$id})");
             $db->exec("DELETE FROM booking_holds WHERE user_id = {$id}");
             $db->exec("DELETE FROM bookings WHERE user_id = {$id}");
             $db->exec("DELETE FROM customer_packages WHERE user_id = {$id}");

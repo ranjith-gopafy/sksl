@@ -103,7 +103,11 @@ class InvoiceService
             'sgst_amount'          => $sgstAmount,
             'total_amount'         => $totalAmount,
             'payment_status'       => 'paid',
-            'payment_method'       => 'Razorpay Online Gateway',
+            'is_offline'           => ($booking['payment_channel'] ?? 'online') === 'offline',
+            'payment_reference'    => (string) ($booking['payment_reference'] ?? ''),
+            'payment_method'       => ($booking['payment_channel'] ?? 'online') === 'offline'
+                ? (\App\Helpers\OfflinePayment::METHODS[$booking['payment_method'] ?? ''] ?? 'Payment received by SKSL')
+                : 'Razorpay Online Gateway',
             'razorpay_payment_id'  => $payment['razorpay_payment_id'],
             'razorpay_order_id'    => $payment['razorpay_order_id'],
             'business_name'        => $business['legal_name'],
@@ -173,7 +177,11 @@ class InvoiceService
             'sgst_amount'          => $sgstAmount,
             'total_amount'         => (float) $purchase['total_amount'],
             'payment_status'       => 'paid',
-            'payment_method'       => 'Razorpay Online Gateway',
+            'is_offline'           => ($purchase['payment_channel'] ?? 'online') === 'offline',
+            'payment_reference'    => (string) ($purchase['payment_reference'] ?? ''),
+            'payment_method'       => ($purchase['payment_channel'] ?? 'online') === 'offline'
+                ? (\App\Helpers\OfflinePayment::METHODS[$purchase['payment_method'] ?? ''] ?? 'Payment received by SKSL')
+                : 'Razorpay Online Gateway',
             'razorpay_payment_id'  => $payment['razorpay_payment_id'],
             'razorpay_order_id'    => $payment['razorpay_order_id'],
             'business_name'        => $business['legal_name'],
@@ -613,12 +621,18 @@ class InvoiceService
                 </tr>
             </table>
 
-            <!-- Payment Gateway Audit -->
+            <!-- Payment settlement details -->
             <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 10px; font-size: 8.5pt; color: #475569; margin-bottom: 20px;">
-                <strong>Payment Gateway Settlement Details:</strong><br>
-                Method: <?= htmlspecialchars($data['payment_method'], ENT_QUOTES, 'UTF-8') ?> &bull; 
-                Razorpay Payment ID: <span style="font-family: monospace;"><?= htmlspecialchars($data['razorpay_payment_id'], ENT_QUOTES, 'UTF-8') ?></span> &bull; 
-                Razorpay Order ID: <span style="font-family: monospace;"><?= htmlspecialchars($data['razorpay_order_id'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php if (!empty($data['is_offline'])): ?>
+                    <strong>Payment Details:</strong><br>
+                    Method: <?= htmlspecialchars($data['payment_method'], ENT_QUOTES, 'UTF-8') ?> &bull;
+                    Payment reference: <span style="font-family: monospace;"><?= htmlspecialchars($data['payment_reference'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php else: ?>
+                    <strong>Payment Gateway Settlement Details:</strong><br>
+                    Method: <?= htmlspecialchars($data['payment_method'], ENT_QUOTES, 'UTF-8') ?> &bull;
+                    Razorpay Payment ID: <span style="font-family: monospace;"><?= htmlspecialchars($data['razorpay_payment_id'], ENT_QUOTES, 'UTF-8') ?></span> &bull;
+                    Razorpay Order ID: <span style="font-family: monospace;"><?= htmlspecialchars($data['razorpay_order_id'], ENT_QUOTES, 'UTF-8') ?></span>
+                <?php endif; ?>
             </div>
 
             <!-- Legal Footer -->

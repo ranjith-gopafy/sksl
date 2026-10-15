@@ -118,15 +118,42 @@ class CustomerPackageModel
      */
     public function expireStalePending(int $olderThanMinutes = 1440): int
     {
+        // Online checkouts: unpaid for a day. Offline requests keep their own payment deadline.
         $stmt = $this->db->prepare(
             "UPDATE customer_packages
              SET payment_status = 'failed', status = 'cancelled'
-             WHERE payment_status = 'pending' AND status = 'active'
+             WHERE payment_status = 'pending' AND status = 'active' AND payment_channel = 'online'
                AND created_at < (NOW() - INTERVAL :mins MINUTE)"
         );
         $stmt->bindValue('mins', $olderThanMinutes, \PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->rowCount();
+        $count = $stmt->rowCount();
+
+        $off = $this->db->prepare(
+            "UPDATE customer_packages
+             SET payment_status = 'failed', status = 'cancelled'
+             WHERE payment_status = 'pending' AND status = 'active' AND payment_channel = 'offline'
+               AND payment_due_at IS NOT NULL AND payment_due_at < NOW()"
+        );
+        $off->execute();
+        return $count + $off->rowCount();
+    }
+
+    /**
+     * An offline request for this package that is still waiting for payment (so a second click
+     * returns the same request instead of creating another).
+     */
+    public function findPendingOffline(int $userId, int $packageId): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id FROM customer_packages
+             WHERE user_id = ? AND package_id = ? AND payment_channel = 'offline'
+               AND payment_status = 'pending' AND status = 'active' AND payment_due_at > NOW()
+             ORDER BY id DESC LIMIT 1"
+        );
+        $stmt->execute([$userId, $packageId]);
+        $id = $stmt->fetchColumn();
+        return $id ? $this->findById((int) $id) : null;
     }
 
     /**

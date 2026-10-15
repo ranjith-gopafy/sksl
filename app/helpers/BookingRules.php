@@ -93,6 +93,10 @@ final class BookingRules
     {
         $none = ['allowed' => false, 'reason' => '', 'paid_online' => false, 'fee' => 0.0, 'refund' => 0.0, 'deadline' => null];
         $status = (string) ($booking['booking_status'] ?? '');
+        if ($status === 'pending' && ($booking['payment_channel'] ?? '') === 'offline') {
+            // Nothing has been paid yet, so withdrawing a request costs nothing and has no notice period.
+            return ['allowed' => true, 'reason' => '', 'paid_online' => false, 'fee' => 0.0, 'refund' => 0.0, 'deadline' => null];
+        }
         if ($status === 'cancelled') { return ['reason' => 'This booking is already cancelled.'] + $none; }
         if ($status !== 'confirmed') { return ['reason' => 'This booking can no longer be cancelled.'] + $none; }
         if (($booking['visit_status'] ?? 'pending') !== 'pending') { return ['reason' => 'This session has already been attended or marked as a no-show.'] + $none; }

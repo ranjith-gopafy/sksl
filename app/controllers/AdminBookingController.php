@@ -51,6 +51,7 @@ class AdminBookingController
         // so staff never see "pending" rows that can no longer be paid.
         $this->holdModel->expireStale();
         $this->bookingModel->expireStalePending();
+        $this->bookingModel->expireOfflineDue();
         (new \App\Models\CustomerPackageModel())->expireStalePending();
 
         $filters = [
@@ -121,11 +122,49 @@ class AdminBookingController
                 }
             }
             Flash::set('success', "Booking #{$booking['booking_reference']} updated to " . ucfirst($status) . '.' . $note);
+            if ($status === 'cancelled' && ($booking['booking_status'] ?? '') === 'pending' && ($booking['payment_channel'] ?? '') === 'offline') {
+                // An unpaid request closed by staff: the customer is told the slot was released.
+                \App\Helpers\Response::redirectThen(app_url('admin/bookings'), static function () use ($booking): void {
+                    try {
+                        (new \App\Services\EmailService())->sendBookingRequestClosed($booking);
+                    } catch (\Throwable $e) {
+                        error_log('Request-closed email failed: ' . $e->getMessage());
+                    }
+                });
+            }
         } else {
             Flash::set('error', 'Booking status changed in the meantime; please review and try again.');
         }
 
         header('Location: ' . app_url('admin/bookings'));
+        exit;
+    }
+
+    /**
+     * POST /admin/bookings/{id}/approve
+     * The money for an offline booking has arrived: confirm it (invoice and emails follow).
+     *
+     * @param array<string, string> $params
+     */
+    public function approvePayment(array $params = []): void
+    {
+        AdminAuth::handle();
+
+        $id        = (int) ($params['id'] ?? $_POST['id'] ?? 0);
+        $method    = input_str($_POST['payment_method'] ?? '');
+        $reference = input_str($_POST['payment_reference'] ?? '');
+
+        $service = new \App\Services\PaymentService();
+        $result  = $service->approveOfflineBooking($id, (int) $_SESSION['admin_id'], $method, $reference, false);
+
+        Flash::set($result['success'] ? 'success' : 'error', $result['message']);
+        $url = app_url('admin/bookings?status=' . ($result['success'] ? 'confirmed' : 'pending'));
+        if ($result['success']) {
+            \App\Helpers\Response::redirectThen($url, static function () use ($service, $id): void {
+                $service->runPostConfirmation($id);
+            });
+        }
+        header('Location: ' . $url);
         exit;
     }
 

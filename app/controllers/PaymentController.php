@@ -68,6 +68,41 @@ class PaymentController
     }
 
     /**
+     * POST /api/payment/request-offline
+     * Offline mode: turn the customer's active hold into a booking request that waits for payment.
+     */
+    public function requestOffline(): void
+    {
+        CustomerAuth::handle();
+
+        $userId = (int) $_SESSION['user_id'];
+        $bookingReference = trim((string) ($_POST['booking_reference'] ?? ''));
+        if ($bookingReference === '') {
+            $bookingReference = trim((string) (request_json()['booking_reference'] ?? ''));
+        }
+        if ($bookingReference === '') {
+            Response::error('booking_reference is required.', [], 422);
+        }
+
+        $result = $this->paymentService->requestOfflineBooking($userId, $bookingReference);
+        if (!$result['success']) {
+            Response::error($result['message'], [], 400);
+        }
+
+        $payload = ['success' => true, 'message' => $result['message'], 'data' => $result['data']];
+        if (!empty($result['data']['created'])) {
+            $booking = $this->bookingModel->findByReference($bookingReference);
+            $service = $this->paymentService;
+            Response::jsonThen($payload, static function () use ($service, $booking): void {
+                if ($booking) {
+                    $service->sendOfflineRequestNotices((int) $booking['id']);
+                }
+            });
+        }
+        Response::json($payload);
+    }
+
+    /**
      * POST /api/payment/verify
      * Requires customer authentication.
      */

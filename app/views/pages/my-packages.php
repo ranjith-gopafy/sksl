@@ -35,7 +35,25 @@
         </div>
     </div>
 
-    <?php if (empty($customerPackages)): ?>
+    <?php foreach (($pendingRequests ?? []) as $req): ?>
+        <div class="mb-6 rounded-3xl border border-amber-200 bg-white p-6 sm:p-7 shadow-xs" data-testid="pending-package">
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 border border-amber-200 text-amber-800">Awaiting payment</span>
+                <span class="font-mono text-xs font-bold text-slate-600"><?= h($req['purchase_reference']) ?></span>
+            </div>
+            <h2 class="text-xl font-extrabold text-slate-900 font-heading"><?= h($req['package_name_snapshot']) ?></h2>
+            <p class="text-xs text-slate-600 mt-1 mb-4">Your session credits are activated, and your tax invoice emailed, as soon as we have received the payment.</p>
+            <?php
+            $offAmount    = (float) $req['total_amount'];
+            $offReference = (string) $req['purchase_reference'];
+            $offDueAt     = (string) $req['payment_due_at'];
+            $offKind      = 'package';
+            require __DIR__ . '/_offline_payment.php';
+            ?>
+        </div>
+    <?php endforeach; ?>
+
+    <?php if (empty($customerPackages) && empty($pendingRequests)): ?>
         <div class="text-center py-16 bg-white border border-[#D9DBDA] rounded-3xl p-8 shadow-xs">
             <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-4">
                 <svg class="w-8 h-8 text-[#075183]" fill="none" viewBox="0 0 24 24" stroke="currentColor">

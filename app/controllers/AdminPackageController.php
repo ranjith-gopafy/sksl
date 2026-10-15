@@ -151,6 +151,29 @@ class AdminPackageController
     }
 
     /**
+     * POST /admin/package-purchases/{id}/approve
+     * The money for an offline package purchase has arrived: activate it (credits, invoice, email).
+     *
+     * @param array<string, string> $params
+     */
+    public function approvePurchase(array $params = []): void
+    {
+        AdminAuth::handle();
+
+        $id     = (int) ($params['id'] ?? $_POST['id'] ?? 0);
+        $result = (new \App\Services\PackageService())->approveOfflinePurchase(
+            $id,
+            (int) $_SESSION['admin_id'],
+            input_str($_POST['payment_method'] ?? ''),
+            input_str($_POST['payment_reference'] ?? '')
+        );
+
+        Flash::set($result['success'] ? 'success' : 'error', $result['message']);
+        header('Location: ' . app_url('admin/package-purchases'));
+        exit;
+    }
+
+    /**
      * POST /admin/packages/{id}/toggle
      */
     public function toggle(array $params = []): void

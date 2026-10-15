@@ -12,6 +12,9 @@
 
 $modalityImg = service_image($selectedService['image'] ?? null); // allow-listed + escaped
 
+// While the online gateway is switched off the customer requests the booking and pays by UPI; staff approve it.
+$offlineMode = \App\Helpers\OfflinePayment::offlineMode();
+
 // Catalogue prices are GST-inclusive; the controller already split them (pricing = base + GST = total).
 $basePrice = (float) ($selectedService['pricing']['base_price'] ?? 0);
 $gstAmount = (float) ($selectedService['pricing']['gst_amount'] ?? 0);
@@ -413,7 +416,7 @@ if (!empty($durationOptions)) {
                         <?php elseif ($activePackage !== null): ?>
                             Redeems 1 session credit from your active combo package.
                         <?php else: ?>
-                            10-min slot hold auto-assigned on gateway launch.
+                            <?= $offlineMode ? 'Your slot is reserved while you pay by UPI. The booking is confirmed once we receive your payment.' : '10-min slot hold auto-assigned on gateway launch.' ?>
                         <?php endif; ?>
                     </p>
                 </div>
@@ -506,12 +509,15 @@ if (!empty($durationOptions)) {
     </div>
 </div>
 
+<?php if (!$offlineMode): ?>
 <!-- Razorpay Checkout SDK -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<?php endif; ?>
 
 <!-- Booking Engine JavaScript -->
 <script nonce="<?= csp_nonce() ?>">
 document.addEventListener('DOMContentLoaded', () => {
+    const OFFLINE_MODE = <?= $offlineMode ? 'true' : 'false' ?>; // gateway hidden: request the booking, pay by UPI, staff approve
     const serviceInput  = document.getElementById('service_id');
     const dateInput     = document.getElementById('date_selector');
     const dateInputCompat = document.getElementById('date_input');
@@ -924,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (isPackage) {
                 proceedBtn.textContent = 'Confirm with Package Credit';
             } else {
-                proceedBtn.textContent = `Proceed to Payment • ₹${total.toFixed(2)}`;
+                proceedBtn.textContent = OFFLINE_MODE ? `Request Booking • ₹${total.toFixed(2)}` : `Proceed to Payment • ₹${total.toFixed(2)}`;
             }
         } else {
             proceedBtn.disabled = true;
@@ -1085,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Branch 3: Standard Modality Booking (Hold + Gateway Checkout)
         proceedBtn.disabled = true;
-        proceedBtn.textContent = 'Initiating Secure Payment...';
+        proceedBtn.textContent = OFFLINE_MODE ? 'Reserving your slot...' : 'Initiating Secure Payment...';
 
         try {
             // Step 1: Create 10-min backend hold
@@ -1115,6 +1121,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             activeHold = holdData.data;
+
+            if (OFFLINE_MODE) {
+                // No gateway: turn the hold into a booking request that waits for the customer's UPI payment.
+                const reqForm = new FormData();
+                reqForm.append('_csrf_token', '<?= \App\Helpers\Csrf::token() ?>');
+                reqForm.append('booking_reference', activeHold.booking_reference);
+                const reqRes = await fetch('<?= app_url('api/payment/request-offline') ?>', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    body: reqForm
+                });
+                const reqData = await apiJson(reqRes);
+                if (!reqData.success || !reqData.data) {
+                    await releaseHoldSilently(activeHold.booking_reference);
+                    activeHold = null;
+                    showError(reqData.message || 'Unable to request this booking.');
+                    proceedBtn.disabled = false;
+                    updateProceedButton();
+                    loadAvailability();
+                    return;
+                }
+                activeHold = null; // the request now owns the reservation
+                window.location.href = reqData.data.redirect;
+                return;
+            }
 
             // Step 2: Immediately create Razorpay Gateway Order
             const orderForm = new FormData();

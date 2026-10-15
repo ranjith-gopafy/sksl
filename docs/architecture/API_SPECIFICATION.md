@@ -473,6 +473,26 @@ Request field: `status` — the target booking status. Only the transitions in
 | `cancelled` | — (terminal)              |
 | `expired`   | — (terminal)              |
 
+### Offline payment mode (online gateway hidden)
+
+`ONLINE_PAYMENTS_ENABLED=false` hides Razorpay. The customer flow is unchanged up to the payment step:
+
+- `POST /api/payment/request-offline` (`booking_reference`): turns the customer's active hold into a
+  `pending` booking with `payment_channel = 'offline'` and `payment_due_at` = the earlier of 24 h from now
+  (`OFFLINE_PAYMENT_HOLD_HOURS`) and 2 h before the session (`OFFLINE_PAYMENT_CUTOFF_HOURS`). The slot stays
+  reserved until then; no payment row exists yet. A session that starts too soon is refused and its hold released.
+  `POST /api/payment/create-order` is refused while offline mode is on.
+- `POST /api/packages/{id}/purchase` creates a pending offline package purchase instead of a gateway order
+  (`data.offline = true`); `POST /api/packages/verify` is not used.
+- `POST /admin/bookings/{id}/approve` (`payment_method`, `payment_reference`, both required) and
+  `POST /admin/package-purchases/{id}/approve`: staff confirm the money arrived. The booking becomes
+  `confirmed`/`paid` (or the package's credits are created and validity starts), a `payments` row is written
+  (`offline_<reference>`), the GST invoice is generated and the same confirmation emails are sent as after an
+  online payment. A request that lapsed while the money was on its way can still be approved if its slot is free
+  and the session has not started. The approving admin, method, reference and time are stored.
+- An unpaid request can be withdrawn by the customer (free) or closed by staff (Cancel); the slot is released.
+  Unpaid requests that pass `payment_due_at` are expired by `cron/expire-holds.php` / the admin Bookings page.
+
 ### Customer cancellation — `POST /my-bookings/{ref}/cancel`
 
 A signed-in customer may cancel their own **confirmed** booking up to

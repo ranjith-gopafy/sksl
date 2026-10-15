@@ -129,7 +129,7 @@
                                 data-id="<?= (int) $pkg['id'] ?>"
                                 data-name="<?= h($pkg['name']) ?>"
                             >
-                                Purchase Bundle
+                                <?= \App\Helpers\OfflinePayment::offlineMode() ? 'Request Bundle' : 'Purchase Bundle' ?>
                             </button>
                         <?php endif; ?>
                     </div>
@@ -139,8 +139,10 @@
     <?php endif; ?>
 </div>
 
+<?php if (!\App\Helpers\OfflinePayment::offlineMode()): ?>
 <!-- Razorpay Script -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<?php endif; ?>
 
 <script nonce="<?= csp_nonce() ?>">
 document.addEventListener('DOMContentLoaded', () => {
@@ -209,6 +211,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const order = data.data;
+
+                // Offline mode: the package is requested; it activates when staff approve the payment.
+                if (order.offline) {
+                    window.location.href = order.redirect;
+                    return;
+                }
 
                 // Handle Mock Mode for local testing
                 if (order.is_mock) {

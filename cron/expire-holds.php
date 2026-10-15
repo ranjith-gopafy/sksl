@@ -29,7 +29,7 @@ use App\Models\BookingModel;
 use App\Models\EmailLogModel;
 
 $expiredHolds    = (new BookingHoldModel())->expireStale();
-$expiredBookings = (new BookingModel())->expireStalePending();
+$expiredBookings = (new BookingModel())->expireStalePending() + (new BookingModel())->expireOfflineDue();
 $expiredPackages = (new \App\Models\CustomerPackageModel())->expireStalePending();
 // Working data that only matters for minutes: keep a week of history, then delete it.
 $purgedHolds = (new BookingHoldModel())->purgeEndedOlderThan(7);

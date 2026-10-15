@@ -53,10 +53,19 @@ class PackageController
         CustomerAuth::handle();
         $userId = (int) $_SESSION['user_id'];
 
-        // Unpaid and abandoned checkouts are not "packages" the customer owns.
+        $all = $this->packageService->getCustomerPackages($userId);
+        // Unpaid and abandoned checkouts are not "packages" the customer owns...
         $customerPackages = array_values(array_filter(
-            $this->packageService->getCustomerPackages($userId),
+            $all,
             static fn(array $cp): bool => ($cp['payment_status'] ?? '') === 'paid'
+        ));
+        // ...but an offline request that is still waiting for payment is shown, with how to pay.
+        $pendingRequests = array_values(array_filter(
+            $all,
+            static fn(array $cp): bool => ($cp['payment_status'] ?? '') === 'pending'
+                && ($cp['payment_channel'] ?? '') === 'offline'
+                && ($cp['status'] ?? '') === 'active'
+                && strtotime((string) ($cp['payment_due_at'] ?? '')) > time()
         ));
         $title = 'My Modality Packages & Credits — Sara Kinetic Sports Lab';
         $viewFile = dirname(__DIR__) . '/views/pages/my-packages.php';
@@ -85,6 +94,23 @@ class PackageController
 
         if ($packageId <= 0) {
             Response::error('Invalid package ID.', [], 422);
+        }
+
+        if (\App\Helpers\OfflinePayment::offlineMode()) {
+            // Offline mode: the package is requested now and activated when staff approve the payment.
+            $result = $this->packageService->requestOfflinePurchase($userId, $packageId);
+            if (!$result['success']) {
+                Response::error($result['message'], [], 422);
+            }
+            $payload = ['success' => true, 'message' => $result['message'], 'data' => $result['data'] + ['offline' => true]];
+            if (!empty($result['data']['created'])) {
+                $svc = $this->packageService;
+                $cpId = (int) $result['data']['customer_package_id'];
+                Response::jsonThen($payload, static function () use ($svc, $cpId): void {
+                    $svc->sendOfflineRequestNotices($cpId);
+                });
+            }
+            Response::json($payload);
         }
 
         $result = $this->packageService->createPurchaseOrder($userId, $packageId);

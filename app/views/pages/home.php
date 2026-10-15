@@ -330,10 +330,17 @@ if (empty($bannerSlides)) {
                 <div class="w-12 h-12 rounded-2xl bg-[#D6981E]/15 text-gold-aa font-heading font-extrabold text-xl flex items-center justify-center mb-5">
                     02
                 </div>
+                <?php if (\App\Helpers\OfflinePayment::offlineMode()): ?>
+                <h3 class="text-lg font-bold text-slate-900 font-heading">Slot Reserved While You Pay</h3>
+                <p class="text-sm text-slate-600 mt-2 leading-relaxed">
+                    Your spot is held under strict capacity protection while you pay by UPI. We confirm your booking as soon as the payment reaches us.
+                </p>
+                <?php else: ?>
                 <h3 class="text-lg font-bold text-slate-900 font-heading">Guaranteed 10-Min Hold</h3>
                 <p class="text-sm text-slate-600 mt-2 leading-relaxed">
                     Your spot is temporarily reserved under strict capacity protection while you complete payment via Razorpay.
                 </p>
+                <?php endif; ?>
             </div>
 
             <!-- Step 3: Tax Invoice (#BF5B2B) -->

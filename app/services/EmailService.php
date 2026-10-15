@@ -666,4 +666,92 @@ HTML;
 
         file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
     }
+    /**
+     * Offline mode: the customer's booking request was received and now waits for their payment.
+     *
+     * @param array<string, mixed> $b booking row (BookingModel::findById)
+     */
+    public function sendOfflineBookingReceived(array $b): bool
+    {
+        $name = (string) ($b['service_name_snapshot'] ?: ($b['service_name'] ?? 'Session'));
+        $info = \App\Helpers\OfflinePayment::info();
+        $rows = [
+            'Booking reference' => (string) $b['booking_reference'],
+            'Session'           => $name . ', ' . date('d M Y', strtotime((string) $b['booking_date'])) . ', ' . date('g:i A', strtotime((string) $b['start_time'])) . ' IST',
+            'Amount to pay'     => '₹' . number_format((float) $b['total_amount'], 2) . ' (incl. GST)',
+            'Pay before'        => date('d M Y, g:i A', strtotime((string) $b['payment_due_at'])) . ' IST',
+        ];
+        if ($info['upi_id'] !== '') {
+            $rows['Pay by UPI to'] = $info['upi_id'] . ($info['payee'] !== '' ? ' (' . $info['payee'] . ')' : '');
+        }
+        $rows['Quote this reference'] = (string) $b['booking_reference'];
+        if ($info['note'] !== '') {
+            $rows['Note'] = $info['note'];
+        }
+        return $this->sendNotice(
+            (string) $b['user_email'],
+            (string) $b['user_name'],
+            "Booking request received: {$name} ({$b['booking_reference']})",
+            'We have your booking request',
+            'Your slot is reserved until the time below. Please pay the amount shown; your booking is confirmed, and your tax invoice sent, as soon as we have received your payment.',
+            $rows,
+            'booking_offline_received',
+            (int) $b['id']
+        );
+    }
+
+    /**
+     * Offline mode: the customer's combo package request was received and waits for payment.
+     *
+     * @param array<string, mixed> $purchase customer_packages row with user_name / user_email
+     */
+    public function sendOfflinePackageReceived(array $purchase): bool
+    {
+        $info = \App\Helpers\OfflinePayment::info();
+        $rows = [
+            'Reference'     => (string) $purchase['purchase_reference'],
+            'Package'       => (string) $purchase['package_name_snapshot'],
+            'Amount to pay' => '₹' . number_format((float) $purchase['total_amount'], 2) . ' (incl. GST)',
+            'Pay before'    => date('d M Y, g:i A', strtotime((string) $purchase['payment_due_at'])) . ' IST',
+        ];
+        if ($info['upi_id'] !== '') {
+            $rows['Pay by UPI to'] = $info['upi_id'] . ($info['payee'] !== '' ? ' (' . $info['payee'] . ')' : '');
+        }
+        $rows['Quote this reference'] = (string) $purchase['purchase_reference'];
+        if ($info['note'] !== '') {
+            $rows['Note'] = $info['note'];
+        }
+        return $this->sendNotice(
+            (string) $purchase['user_email'],
+            (string) $purchase['user_name'],
+            'Package request received: ' . $purchase['package_name_snapshot'] . ' (' . $purchase['purchase_reference'] . ')',
+            'We have your package request',
+            'Please pay the amount shown. Your session credits are activated, and your tax invoice sent, as soon as we have received your payment.',
+            $rows,
+            'package_offline_received'
+        );
+    }
+
+    /**
+     * Staff closed an unpaid request (not approved).
+     *
+     * @param array<string, mixed> $b booking row
+     */
+    public function sendBookingRequestClosed(array $b): bool
+    {
+        $name = (string) ($b['service_name_snapshot'] ?: ($b['service_name'] ?? 'Session'));
+        return $this->sendNotice(
+            (string) $b['user_email'],
+            (string) $b['user_name'],
+            "Booking request closed: {$name} ({$b['booking_reference']})",
+            'Your booking request was closed',
+            'We did not receive a payment for this booking, so the slot has been released. If you have already paid, please contact us with your payment reference and we will sort it out.',
+            [
+                'Booking reference' => (string) $b['booking_reference'],
+                'Session'           => $name . ', ' . date('d M Y', strtotime((string) $b['booking_date'])) . ', ' . date('g:i A', strtotime((string) $b['start_time'])) . ' IST',
+            ],
+            'booking_request_closed',
+            (int) $b['id']
+        );
+    }
 }

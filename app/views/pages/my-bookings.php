@@ -118,6 +118,10 @@
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 border border-rose-200 text-rose-800">
                                         Cancelled
                                     </span>
+                                <?php elseif ($b['booking_status'] === 'pending' && ($b['payment_channel'] ?? '') === 'offline'): ?>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 border border-amber-200 text-amber-800" data-testid="awaiting-chip">
+                                        Awaiting payment
+                                    </span>
                                 <?php else: ?>
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
                                         <?= h($b['booking_status']) ?>
@@ -128,6 +132,11 @@
                             <h2 class="text-xl font-extrabold text-slate-900 font-heading">
                                 <?= h($b['service_name']) ?>
                             </h2>
+                            <?php if ($b['booking_status'] === 'pending' && ($b['payment_channel'] ?? '') === 'offline'): ?>
+                                <p class="text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 max-w-md" data-testid="pay-by-note">
+                                    Your slot is reserved. Pay by <strong><?= h(date('d M, g:i A', strtotime((string) $b['payment_due_at']))) ?> IST</strong>; the booking is confirmed once we receive the payment.
+                                </p>
+                            <?php endif; ?>
                             <?php if ($b['booking_status'] === 'cancelled' && $b['refund_amount'] !== null): ?>
                                 <p class="text-xs text-rose-800 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 max-w-md" data-testid="refund-note">
                                     <?php if ($b['cancelled_by'] === 'customer' && $b['cancellation_fee'] !== null): ?>
@@ -171,7 +180,7 @@
                                     <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Paid with</div>
                                     <div class="text-sm font-extrabold text-slate-900 font-heading">1 package credit</div>
                                 <?php else: ?>
-                                    <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Amount Paid</div>
+                                    <div class="text-[10px] uppercase font-bold text-slate-500 tracking-wider"><?= ($b['booking_status'] === 'pending' && ($b['payment_channel'] ?? '') === 'offline') ? 'Amount to Pay' : 'Amount Paid' ?></div>
                                     <div class="text-lg font-extrabold text-slate-900 font-heading">
                                         &#8377;<?= number_format((float) $b['total_amount'], 2) ?>
                                         <span class="text-[10px] font-normal text-slate-500">(incl. 18% GST)</span>
@@ -181,10 +190,13 @@
 
                             <div class="flex flex-wrap items-center gap-2">
                                 <?php
-                                $quote = ($b['booking_status'] === 'confirmed' && ($b['booking_date'] > \App\Helpers\TimeHelper::today() || ($b['booking_date'] === \App\Helpers\TimeHelper::today() && $b['end_time'] > \App\Helpers\TimeHelper::now()->format('H:i:s'))))
+                                $quote = (in_array($b['booking_status'], ['confirmed', 'pending'], true) && ($b['booking_status'] === 'confirmed' || ($b['payment_channel'] ?? '') === 'offline') && ($b['booking_date'] > \App\Helpers\TimeHelper::today() || ($b['booking_date'] === \App\Helpers\TimeHelper::today() && $b['end_time'] > \App\Helpers\TimeHelper::now()->format('H:i:s'))))
                                     ? \App\Helpers\BookingRules::cancellationQuote($b) : null;
                                 ?>
                                 <?php if ($quote !== null && $quote['allowed']): ?>
+                                <?php if ($b['booking_status'] === 'pending' && ($b['payment_channel'] ?? '') === 'offline'): ?>
+                                    <a href="<?= app_url('booking-confirmation?ref=' . rawurlencode($b['booking_reference'])) ?>" class="px-3.5 py-2 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-semibold text-xs transition-colors" data-testid="how-to-pay">How to pay</a>
+                                <?php endif; ?>
                                     <button type="button" data-cancel-open
                                             data-ref="<?= h($b['booking_reference']) ?>"
                                             data-name="<?= h($b['service_name']) ?>"
@@ -196,7 +208,7 @@
                                             data-refund="<?= h(number_format($quote['refund'], 2)) ?>"
                                             data-credit="<?= ($b['booking_type'] ?? '') === 'package' ? '1' : '0' ?>"
                                             class="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 font-semibold text-xs transition-colors cursor-pointer">
-                                        Cancel session
+                                        <?= $b['booking_status'] === 'pending' ? 'Cancel request' : 'Cancel session' ?>
                                     </button>
                                 <?php elseif ($b['booking_status'] === 'confirmed' && $quote !== null): ?>
                                     <span class="text-[11px] text-slate-500 max-w-[16rem] sm:text-right" data-testid="cancel-closed">Online cancellation closed (<?= \App\Helpers\BookingRules::cancellationNoticeHours() ?> h before start). Contact SKSL.</span>
