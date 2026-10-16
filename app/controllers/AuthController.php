@@ -43,10 +43,12 @@ class AuthController
 
         if ($result['success']) {
             if ($isApi) {
-                Response::json($result, 201);
+                // Identical body whether the account was created or already existed
+                Response::json(['success' => true, 'message' => $result['message']], 201);
             }
 
-            Flash::set('success', 'Account created successfully! Please sign in.');
+            Flash::set('success', $result['message']);
+            $_SESSION['_old_input'] = ['email' => input_str($_POST['email'] ?? '')];
             header('Location: ' . app_url('login'));
             exit;
         }
@@ -55,11 +57,12 @@ class AuthController
             Response::json($result, 422);
         }
 
-        Flash::set('error', $result['message']);
+        $firstError = is_array($result['errors'] ?? null) ? (string) reset($result['errors']) : '';
+        Flash::set('error', $firstError !== '' ? $firstError : $result['message']);
         $_SESSION['_old_input'] = [
-            'name'   => $_POST['name'] ?? '',
-            'email'  => $_POST['email'] ?? '',
-            'mobile' => $_POST['mobile'] ?? '',
+            'name'   => input_str($_POST['name'] ?? ''),
+            'email'  => input_str($_POST['email'] ?? ''),
+            'mobile' => input_str($_POST['mobile'] ?? ''),
         ];
         header('Location: ' . app_url('register'));
         exit;
@@ -71,6 +74,16 @@ class AuthController
     public function showLogin(): void
     {
         \App\Middleware\GuestMiddleware::handle();
+
+        // "Login to purchase" style links carry ?redirect=packages: remember where the customer was going,
+        // but only a path inside this site (safe_return_url rejects anything else).
+        $wanted = $_GET['redirect'] ?? null;
+        if (is_string($wanted) && $wanted !== '') {
+            $target = safe_return_url('/' . ltrim($wanted, '/'), '');
+            if ($target !== app_url('')) {
+                $_SESSION['intended_url'] = $target;
+            }
+        }
 
         $title = 'Sign In — Sara Kinetic Sports Lab';
         $oldEmail = $_SESSION['_old_input']['email'] ?? '';
@@ -86,8 +99,8 @@ class AuthController
     public function login(): void
     {
         $isApi    = $this->isApiRequest();
-        $email    = (string) ($_POST['email'] ?? '');
-        $password = (string) ($_POST['password'] ?? '');
+        $email    = input_str($_POST['email'] ?? '');
+        $password = input_str($_POST['password'] ?? '');
 
         $result = $this->authService->login($email, $password);
 
@@ -96,10 +109,12 @@ class AuthController
                 Response::json($result, 200);
             }
 
-            $redirectUrl = $_SESSION['intended_url'] ?? app_url('services');
+            // Only same-site relative paths survive; anything else goes to /services
+            $redirectUrl = safe_return_url($_SESSION['intended_url'] ?? null, 'services');
             unset($_SESSION['intended_url']);
 
-            Flash::set('success', 'Welcome back, ' . htmlspecialchars($result['user']['name'] ?? ''));
+            // Shown as plain text by the toast, so the name is not HTML-escaped here (that would print "A&amp;B").
+            Flash::set('success', 'Welcome back, ' . ($result['user']['name'] ?? ''));
             header('Location: ' . $redirectUrl);
             exit;
         }
@@ -115,7 +130,8 @@ class AuthController
     }
 
     /**
-     * Handle logout (GET or POST).
+     * Handle logout. POST only (routes) — a GET link could be triggered by an
+     * <img src> on any page and log the visitor out.
      */
     public function logout(): void
     {
@@ -147,7 +163,7 @@ class AuthController
      */
     public function forgotPassword(): void
     {
-        $email = (string) ($_POST['email'] ?? '');
+        $email = input_str($_POST['email'] ?? '');
         $result = $this->authService->forgotPassword($email);
 
         if ($this->isApiRequest()) {
@@ -166,7 +182,7 @@ class AuthController
     {
         \App\Middleware\GuestMiddleware::handle();
 
-        $token = (string) ($_GET['token'] ?? $params['token'] ?? '');
+        $token = input_str($_GET['token'] ?? $params['token'] ?? '');
         $title = 'Reset Password — Sara Kinetic Sports Lab';
 
         $reset = $this->authService->verifyResetToken($token);
@@ -181,9 +197,9 @@ class AuthController
      */
     public function resetPassword(): void
     {
-        $token = (string) ($_POST['token'] ?? '');
-        $password = (string) ($_POST['password'] ?? '');
-        $passwordConfirmation = (string) ($_POST['password_confirmation'] ?? '');
+        $token = input_str($_POST['token'] ?? '');
+        $password = input_str($_POST['password'] ?? '');
+        $passwordConfirmation = input_str($_POST['password_confirmation'] ?? '');
 
         $result = $this->authService->resetPassword($token, $password, $passwordConfirmation);
 

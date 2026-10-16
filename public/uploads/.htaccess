@@ -1,0 +1,21 @@
+# Uploaded files are data, never code.
+Options -Indexes -ExecCGI
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .pl .py .cgi .sh
+RemoveType    .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .pl .py .cgi .sh
+<FilesMatch "\.(?i:php|phtml|php[0-9]|phar|pl|py|cgi|sh|htaccess|ini)$">
+    Require all denied
+</FilesMatch>
+# Only serve the image types we accept
+<FilesMatch "^(?!.*\.(?i:jpe?g|png|webp)$).*$">
+    Require all denied
+</FilesMatch>
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Content-Disposition "inline"
+</IfModule>

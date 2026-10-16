@@ -19,6 +19,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Models\UserModel;
 use App\Models\PasswordResetModel;
@@ -29,6 +30,9 @@ use App\Helpers\RateLimit;
 echo "=== SKSL Phase 3 Verification Test Suite ===\n\n";
 
 $db = getDb();
+// Development mail driver: reset links are readable from mail.log in this CLI run.
+// Must be set before AuthService constructs its EmailService.
+$_ENV['MAIL_DRIVER'] = 'log';
 $authService = new AuthService();
 $userModel   = new UserModel();
 $resetModel  = new PasswordResetModel();
@@ -49,7 +53,18 @@ function assertTest(bool $condition, string $testName): void {
 
 // Clean up any residual test data first
 $testEmail = 'test_athlete_' . time() . '@example.com';
+// Remove leftovers from earlier runs (bookings reference users via FK, so cascade by hand)
+$db->exec("DELETE p FROM payments p JOIN bookings b ON b.id = p.booking_id JOIN users u ON u.id = b.user_id WHERE u.email LIKE 'test_athlete_%@example.com'");
+$db->exec("DELETE b FROM bookings b JOIN users u ON u.id = b.user_id WHERE u.email LIKE 'test_athlete_%@example.com'");
+$db->exec("DELETE h FROM booking_holds h JOIN users u ON u.id = h.user_id WHERE u.email LIKE 'test_athlete_%@example.com'");
 $db->exec("DELETE FROM users WHERE email LIKE 'test_athlete_%@example.com'");
+// Rate limiter is DB-backed and per-IP; start from a clean slate
+RateLimit::clearScope('cust_login');
+RateLimit::clearScope('cust_login_ip');
+RateLimit::clearScope('cust_register');
+RateLimit::clearScope('cust_register_ip');
+RateLimit::clearScope('cust_forgot');
+RateLimit::clearScope('cust_forgot_ip');
 $mailLog = dirname(__DIR__) . '/storage/logs/mail.log';
 if (file_exists($mailLog)) {
     @unlink($mailLog);
@@ -70,6 +85,7 @@ assertTest(isset($res['errors']['name']), 'Reports name error');
 assertTest(isset($res['errors']['email']), 'Reports email error');
 assertTest(isset($res['errors']['mobile']), 'Reports mobile error');
 assertTest(isset($res['errors']['password']), 'Reports password error');
+assertTest(isset($res['errors']['terms']), 'Reports missing terms acceptance');
 
 // ── Test 2: Valid Registration ───────────────────────────────────────────────
 echo "\n2. Testing Valid Registration...\n";
@@ -80,6 +96,7 @@ $res = $authService->register([
     'mobile'                => '9876543210',
     'password'              => 'StrongPassword123!',
     'password_confirmation' => 'StrongPassword123!',
+    'terms'                 => '1',
 ]);
 assertTest($res['success'], 'Successfully registers valid user');
 $testUserId = (int) ($res['user_id'] ?? 0);
@@ -91,19 +108,28 @@ assertTest($dbUser !== null, 'User found in database via findById');
 assertTest($dbUser['name'] === 'Arjun Kinetic', 'User name matches');
 assertTest($dbUser['email'] === strtolower($testEmail), 'Email is stored lowercase');
 assertTest(!isset($dbUser['password_hash']), 'findById does not leak password_hash');
+$termsRow = $db->prepare('SELECT terms_accepted_at FROM users WHERE id = ?');
+$termsRow->execute([$testUserId]);
+assertTest(!empty($termsRow->fetchColumn()), 'Terms acceptance timestamp stored on the account');
 
-// ── Test 3: Duplicate Email Prevention ───────────────────────────────────────
-echo "\n3. Testing Duplicate Email Rejection...\n";
+// ── Test 3: Duplicate Email (no account enumeration) ─────────────────────────
+echo "\n3. Testing Duplicate Email Handling...\n";
 
+$usersBefore = (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn();
 $dupRes = $authService->register([
     'name'                  => 'Duplicate Tester',
     'email'                 => $testEmail,
     'mobile'                => '9876543210',
     'password'              => 'StrongPassword123!',
     'password_confirmation' => 'StrongPassword123!',
+    'terms'                 => '1',
 ]);
-assertTest(!$dupRes['success'], 'Duplicate email registration is rejected');
-assertTest(isset($dupRes['errors']['email']), 'Duplicate error specifies email field');
+$usersAfter = (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn();
+assertTest($dupRes['success'] === true, 'Duplicate email gets the same generic success response (no enumeration)');
+assertTest(!isset($dupRes['user_id']) && !isset($dupRes['errors']['email']), 'Response does not reveal that the email exists');
+assertTest($usersAfter === $usersBefore, 'No second account is created');
+$dbUser = $userModel->findById($testUserId);
+assertTest($dbUser['name'] === 'Arjun Kinetic', 'Existing account left untouched by the duplicate attempt');
 
 // ── Test 4: Customer Login ───────────────────────────────────────────────────
 echo "\n4. Testing Login...\n";
@@ -127,7 +153,7 @@ assertTest(!isset($_SESSION['user_id']), 'Session user_id cleared on logout');
 echo "\n6. Testing Login Rate Limiting...\n";
 
 $spamEmail = 'rate_limit_test_' . time() . '@example.com';
-$key = 'cust_login_' . md5($spamEmail);
+$key = RateLimit::key('cust_login', $spamEmail);
 RateLimit::clear($key);
 
 for ($i = 1; $i <= 5; $i++) {
@@ -136,7 +162,25 @@ for ($i = 1; $i <= 5; $i++) {
 }
 $sixth = $authService->login($spamEmail, 'bad_pass');
 assertTest(!$sixth['success'] && str_contains($sixth['message'], 'Too many'), '6th attempt is rate-limited/locked out');
+
+// Lockout lives in the database, not the session: a fresh session is still locked
+$rowStmt = $db->prepare('SELECT attempts, locked_until FROM rate_limits WHERE rl_key = ?');
+$rowStmt->execute([$key]);
+$rlRow = $rowStmt->fetch();
+assertTest($rlRow !== false && (int) $rlRow['attempts'] >= 5 && $rlRow['locked_until'] !== null, 'Lockout persisted in rate_limits table');
+$_SESSION = [];
+$afterReset = $authService->login($spamEmail, 'bad_pass');
+assertTest(!$afterReset['success'] && str_contains($afterReset['message'], 'Too many'), 'Dropping the session cookie does not reset the lockout');
+assertTest(RateLimit::remainingSeconds($key) > 0 && RateLimit::remainingSeconds($key) <= 900, 'remainingSeconds reports the active lockout');
 RateLimit::clear($key);
+assertTest(RateLimit::remainingSeconds($key) === 0, 'clear() removes the lockout');
+
+// Successful logins are not counted against the account
+for ($i = 1; $i <= 7; $i++) {
+    $ok = $authService->login($testEmail, 'StrongPassword123!');
+    assertTest($ok['success'], "Successful login {$i} not throttled");
+}
+$authService->logout();
 
 // ── Test 7: Forgot Password Flow ─────────────────────────────────────────────
 echo "\n7. Testing Forgot Password...\n";
@@ -163,6 +207,13 @@ assertTest(str_contains($logContent, $testEmail), 'Reset email was logged for re
 preg_match('/reset-password\?token=([a-f0-9]+)/', $logContent, $matches);
 $plainToken = $matches[1] ?? '';
 assertTest(!empty($plainToken), 'Extracted plain reset token from email log');
+
+// Delivery is recorded in email_logs (metadata only — the token/body is never stored there)
+$emailLogStmt = $db->prepare("SELECT * FROM email_logs WHERE recipient = ? AND email_type = 'password_reset' ORDER BY id DESC LIMIT 1");
+$emailLogStmt->execute([strtolower($testEmail)]);
+$emailLogRow = $emailLogStmt->fetch();
+assertTest($emailLogRow !== false && $emailLogRow['status'] === 'logged', 'password_reset delivery recorded in email_logs');
+assertTest($emailLogRow !== false && !str_contains(json_encode($emailLogRow), $plainToken), 'email_logs row does not contain the reset token');
 
 // Verify token lookup
 $validRecord = $authService->verifyResetToken($plainToken);
@@ -234,6 +285,7 @@ echo "\n11. Cleaning up test data...\n";
 $resetModel->deleteOldForUser($testUserId);
 $db->exec("DELETE FROM password_resets WHERE user_id = {$testUserId}");
 $db->exec("DELETE FROM users WHERE id = {$testUserId}");
+$db->prepare('DELETE FROM email_logs WHERE recipient = ?')->execute([strtolower($testEmail)]);
 echo "  [INFO] Test user and reset records cleaned up.\n";
 
 echo "\n============================================\n";

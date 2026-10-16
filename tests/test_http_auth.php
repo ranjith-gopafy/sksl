@@ -61,6 +61,7 @@ $regData = [
     'mobile'                => '9876543210',
     'password'              => 'E2eStrongPass123!',
     'password_confirmation' => 'E2eStrongPass123!',
+    'terms'                 => '1',
 ];
 $res2 = makeRequest("{$baseUrl}/register", 'POST', $regData, $cookieJar);
 echo "   Response URL: {$res2['url']} (Code: {$res2['code']})\n";
@@ -93,6 +94,7 @@ echo "   [PASS] Protected profile accessed successfully!\n";
 
 // 6. Cleanup
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 $db = getDb();
 $db->exec("DELETE FROM users WHERE email = '{$testEmail}'");
 @unlink($cookieJar);

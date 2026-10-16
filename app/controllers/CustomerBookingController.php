@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\BookingModel;
-use App\Middleware\CustomerAuth;
 use App\Helpers\Flash;
+use App\Models\BookingModel;
+use App\Services\BookingService;
+use App\Middleware\CustomerAuth;
 
 /**
  * Customer Booking Controller
  *
- * Handles customer dashboard, booking history, and 2-hour policy cancellation requests.
+ * Handles the customer dashboard, booking history and self-service cancellation
+ * (up to the notice period before the session; paid bookings are refunded manually
+ * by SKSL minus the cancellation charge, see the Cancellation & Refund Policy).
  */
 class CustomerBookingController
 {
@@ -35,27 +38,12 @@ class CustomerBookingController
 
         $allBookings = $this->bookingModel->findByUser($userId, null);
 
-        $now = time();
-        $today = date('Y-m-d');
-        $upcomingCount  = 0;
-        $completedCount = 0;
-        $cancelledCount = 0;
+        // Counts come from the same filters as the lists. A confirmed session
+        // whose end time has already passed (including earlier today) is completed.
+        $upcomingCount  = count($this->bookingModel->findByUser($userId, 'upcoming'));
+        $completedCount = count($this->bookingModel->findByUser($userId, 'completed'));
+        $cancelledCount = count($this->bookingModel->findByUser($userId, 'cancelled'));
         $totalCount     = count($allBookings);
-
-        foreach ($allBookings as &$b) {
-            $sessionEnd = strtotime($b['booking_date'] . ' ' . $b['end_time']);
-
-            if ($b['booking_status'] === 'cancelled') {
-                $cancelledCount++;
-            } elseif ($b['booking_status'] === 'completed' || ($b['booking_status'] === 'confirmed' && $sessionEnd < $now && $b['booking_date'] < $today)) {
-                $completedCount++;
-            } elseif ($b['booking_status'] === 'confirmed') {
-                $upcomingCount++;
-            }
-
-            $b['cancellation'] = BookingModel::checkCancellationEligibility($b, $userId);
-        }
-        unset($b);
 
         // Determine active tab
         if ($rawTab !== null && in_array($rawTab, ['all', 'upcoming', 'completed', 'cancelled'], true)) {
@@ -69,11 +57,9 @@ class CustomerBookingController
             $filteredBookings = $allBookings;
         } else {
             $filteredBookings = $this->bookingModel->findByUser($userId, $activeTab);
-            foreach ($filteredBookings as &$fb) {
-                $fb['cancellation'] = BookingModel::checkCancellationEligibility($fb, $userId);
-            }
-            unset($fb);
         }
+
+        $business = (array) config('business', []);
 
         $title = 'My Recovery Sessions — Sara Kinetic Sports Lab';
         $viewFile = dirname(__DIR__) . '/views/pages/my-bookings.php';
@@ -82,7 +68,7 @@ class CustomerBookingController
 
     /**
      * POST /my-bookings/{ref}/cancel
-     * Process customer cancellation request enforcing 2-hour minimum notice.
+     * Cancel one of the signed-in customer's own confirmed sessions (see BookingRules::cancellationQuote).
      *
      * @param array<string, string> $params
      */
@@ -90,37 +76,38 @@ class CustomerBookingController
     {
         CustomerAuth::handle();
 
-        $userId    = (int) $_SESSION['user_id'];
-        $reference = trim((string) ($params['ref'] ?? $_POST['booking_reference'] ?? ''));
+        $userId = (int) $_SESSION['user_id'];
+        $ref    = trim((string) ($params['ref'] ?? ''));
 
-        if ($reference === '') {
-            Flash::set('error', 'Booking reference is required.');
-            header('Location: ' . app_url('my-bookings'));
-            exit;
-        }
-
-        $booking = $this->bookingModel->findByReference($reference);
-        if (!$booking || (int) $booking['user_id'] !== $userId) {
-            Flash::set('error', 'Booking not found or unauthorized.');
-            header('Location: ' . app_url('my-bookings'));
-            exit;
-        }
-
-        $eligibility = BookingModel::checkCancellationEligibility($booking, $userId);
-        if (!$eligibility['can_cancel']) {
-            Flash::set('error', $eligibility['reason'] ?? 'This session is not eligible for cancellation.');
-            header('Location: ' . app_url('my-bookings'));
-            exit;
-        }
-
-        $success = $this->bookingModel->updateStatus((int) $booking['id'], 'cancelled');
-        if ($success) {
-            Flash::set('success', "Session {$reference} has been cancelled successfully.");
+        $service = new BookingService();
+        $notice  = null;
+        if (!\App\Helpers\RateLimit::attempt(\App\Helpers\RateLimit::key('booking_cancel', (string) $userId), 20, 3600)) {
+            Flash::set('error', 'Too many cancellation attempts. Please try again later or contact SKSL.');
         } else {
-            Flash::set('error', 'Unable to cancel session. Please contact support.');
+            $result = $service->cancelByCustomer($userId, $ref, false);
+            Flash::set($result['success'] ? 'success' : 'error', $result['message']);
+            $notice = $result['data']['notice'] ?? null;
         }
 
+        // Answer the customer first; the confirmation emails (seconds over SMTP) go out afterwards.
+        ignore_user_abort(true);
+        session_write_close();
         header('Location: ' . app_url('my-bookings?tab=cancelled'));
+        header('Content-Length: 1');
+        header('Connection: close');
+        while (ob_get_level() > 0) {
+            ob_end_flush();
+        }
+        echo ' ';
+        flush();
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } elseif (function_exists('litespeed_finish_request')) {
+            litespeed_finish_request();
+        }
+        if ($notice !== null) {
+            $service->sendCancellationNotices(...$notice);
+        }
         exit;
     }
 }

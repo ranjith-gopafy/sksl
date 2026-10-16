@@ -1,35 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-    <!-- Admin Navigation Header -->
-    <div class="bg-white border border-slate-200/90 rounded-2xl p-4 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-xs">
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold font-heading text-xs shadow-xs">
-                AD
-            </div>
-            <div>
-                <h1 class="text-sm font-extrabold text-slate-900 font-heading">SKSL Control Center</h1>
-                <p class="text-[11px] text-slate-500">Signed in as <?= h($_SESSION['admin_name'] ?? 'Admin') ?> (<?= h($_SESSION['admin_email'] ?? '') ?>)</p>
-            </div>
-        </div>
-
-        <nav class="flex items-center gap-1.5 overflow-x-auto">
-            <a href="<?= app_url('admin/bookings') ?>" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Bookings
-            </a>
-            <a href="<?= app_url('admin/services') ?>" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Modalities
-            </a>
-            <a href="<?= app_url('admin/banner') ?>" class="px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold uppercase tracking-wider">
-                Hero Banners
-            </a>
-            <a href="<?= app_url('admin/closed-dates') ?>" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Closed Dates
-            </a>
-            <a href="<?= app_url('admin/logout') ?>" class="px-3 py-1.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold uppercase tracking-wider transition-colors">
-                Sign Out
-            </a>
-        </nav>
-    </div>
+<div class="w-full max-w-7xl mx-auto">
 
     <!-- Page Header & Action Controls -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -43,7 +12,7 @@
             <h2 class="text-2xl font-extrabold text-slate-900 font-heading tracking-tight">
                 Hero Banner Manager
             </h2>
-            <p class="text-xs text-slate-500 mt-0.5">
+            <p class="text-xs text-slate-600 mt-0.5">
                 Manage up to 5 rotating hero slides. Edit headlines, tags, imagery, and target buttons live on the public carousel.
             </p>
         </div>
@@ -52,7 +21,7 @@
             <?php if (count($banners) < 5): ?>
                 <button 
                     type="button" 
-                    onclick="openCreateBannerModal()"
+                    data-action="openCreateBannerModal"
                     class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs shadow-xs transition-all cursor-pointer"
                 >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -61,7 +30,7 @@
                     <span>Add Banner (<?= count($banners) ?>/5)</span>
                 </button>
             <?php else: ?>
-                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 text-xs font-semibold">
+                <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-xs font-semibold">
                     <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
@@ -75,7 +44,7 @@
                 class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-slate-700 hover:text-slate-900 font-semibold text-xs transition-all shadow-xs"
             >
                 <span>View Live Site</span>
-                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
             </a>
@@ -88,7 +57,7 @@
             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                 <span>Active Carousel Slides (<?= count($banners) ?> Total)</span>
             </h3>
-            <span class="text-[11px] text-slate-400">Click a slide below to load into editor</span>
+            <span class="text-[11px] text-slate-600">Click a slide below to load into editor</span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
@@ -100,7 +69,7 @@
                     <!-- Image Thumbnail & Badges -->
                     <div class="relative h-28 bg-slate-900 overflow-hidden group">
                         <img 
-                            src="<?= asset($b['image_url'] ?? 'images/hero-banner.jpg') ?>" 
+                            src="<?= safe_image($b['image_url'] ?? null, 'images/hero-banner.jpg') ?>" 
                             alt="Slide <?= $slideNum ?>" 
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         >
@@ -138,7 +107,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
                                 <?php else: ?>
-                                    <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
                                     </svg>
                                 <?php endif; ?>
@@ -165,14 +134,14 @@
                             <form 
                                 method="POST" 
                                 action="<?= app_url('admin/banner') ?>" 
-                                onsubmit="return confirm('Are you sure you want to delete this hero banner?');"
+                                data-confirm="Are you sure you want to delete this hero banner?"
                             >
                                 <?= \App\Helpers\Csrf::field() ?>
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="id" value="<?= (int) $b['id'] ?>">
                                 <button 
                                     type="submit" 
-                                    class="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    class="p-1 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                                     title="Delete banner"
                                 >
                                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -200,7 +169,7 @@
                                 <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
                                 Editing Banner #<?= (int) $selectedBanner['id'] ?>
                             </h3>
-                            <p class="text-xs text-slate-500 mt-0.5">Optimized form controls for fast updates</p>
+                            <p class="text-xs text-slate-600 mt-0.5">Optimized form controls for fast updates</p>
                         </div>
 
                         <!-- Active Toggle inside editor -->
@@ -210,6 +179,7 @@
                                 <input 
                                     type="checkbox" 
                                     id="is_active_input"
+                                    aria-label="Show this slide on the homepage"
                                     name="is_active" 
                                     form="edit-banner-form"
                                     value="1" 
@@ -238,7 +208,7 @@
                                 value="<?= h($selectedBanner['badge_text'] ?? 'Sports Science & High-Performance Lab') ?>" 
                                 placeholder="e.g. Sports Science & High-Performance Lab"
                                 class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                                oninput="updateLivePreview()"
+                                data-oninput="updateLivePreview"
                             >
                         </div>
 
@@ -254,7 +224,7 @@
                                 required 
                                 placeholder="e.g. Elite Athletic Recovery Lab"
                                 class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                                oninput="updateLivePreview()"
+                                data-oninput="updateLivePreview"
                             ><?= h($selectedBanner['headline'] ?? '') ?></textarea>
                         </div>
 
@@ -269,7 +239,7 @@
                                 rows="2" 
                                 placeholder="e.g. Science-backed cold, heat, and hydrotherapy recovery protocols."
                                 class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                                oninput="updateLivePreview()"
+                                data-oninput="updateLivePreview"
                             ><?= h($selectedBanner['subheadline'] ?? '') ?></textarea>
                         </div>
 
@@ -285,16 +255,16 @@
                                 value="<?= h($selectedBanner['image_url'] ?? 'images/hero-banner.jpg') ?>" 
                                 placeholder="images/hero-banner.jpg"
                                 class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                                oninput="updateLivePreview()"
+                                data-oninput="updateLivePreview"
                             >
                             <!-- Quick Image Presets -->
                             <div class="flex flex-wrap items-center gap-1.5 mt-2">
-                                <span class="text-[10px] text-slate-400">Quick presets:</span>
-                                <button type="button" onclick="setPresetImg('images/hero-banner.jpg')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">hero-banner.jpg</button>
-                                <button type="button" onclick="setPresetImg('images/services/ice-bath.jpg')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">ice-bath.jpg</button>
-                                <button type="button" onclick="setPresetImg('images/services/sauna.jpg')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">sauna.jpg</button>
-                                <button type="button" onclick="setPresetImg('images/services/lap-pool.jpg')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">lap-pool.jpg</button>
-                                <button type="button" onclick="setPresetImg('images/services/spa.jpg')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">spa.jpg</button>
+                                <span class="text-[10px] text-slate-500">Quick presets:</span>
+                                <button type="button" data-action="setPresetImg" data-preset-img="images/hero-banner.jpg" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">hero-banner.jpg</button>
+                                <button type="button" data-action="setPresetImg" data-preset-img="images/services/ice-bath.jpg" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">ice-bath.jpg</button>
+                                <button type="button" data-action="setPresetImg" data-preset-img="images/services/sauna.jpg" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">sauna.jpg</button>
+                                <button type="button" data-action="setPresetImg" data-preset-img="images/services/lap-pool.jpg" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">lap-pool.jpg</button>
+                                <button type="button" data-action="setPresetImg" data-preset-img="images/services/spa.jpg" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-[10px] text-slate-600 font-mono">spa.jpg</button>
                             </div>
                         </div>
 
@@ -311,7 +281,7 @@
                                     value="<?= h($selectedBanner['cta_text'] ?? 'Reserve Recovery Session') ?>" 
                                     placeholder="e.g. Reserve Recovery Session"
                                     class="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                                    oninput="updateLivePreview()"
+                                    data-oninput="updateLivePreview"
                                 >
                             </div>
                             <div>
@@ -350,7 +320,7 @@
                             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                             Live Slide Simulator
                         </span>
-                        <span class="text-[10px] text-slate-400">Desktop Scale</span>
+                        <span class="text-[10px] text-slate-500">Desktop Scale</span>
                     </div>
 
                     <!-- Simulator Card -->
@@ -358,7 +328,7 @@
                         <!-- Background preview -->
                         <img 
                             id="preview-img" 
-                            src="<?= asset($selectedBanner['image_url'] ?? 'images/hero-banner.jpg') ?>" 
+                            src="<?= safe_image($selectedBanner['image_url'] ?? null, 'images/hero-banner.jpg') ?>" 
                             alt="Hero Preview" 
                             class="absolute inset-0 w-full h-full object-cover object-center"
                         >
@@ -390,7 +360,7 @@
                             <div class="pt-1.5">
                                 <span 
                                     id="preview-cta" 
-                                    class="inline-block py-1.5 px-3.5 rounded-lg bg-sky-500 text-white text-[11px] font-bold font-heading shadow-xs"
+                                    class="inline-block py-1.5 px-3.5 rounded-lg bg-sky-700 text-white text-[11px] font-bold font-heading shadow-xs"
                                 >
                                     <?= h($selectedBanner['cta_text'] ?? 'Reserve Recovery Session') ?>
                                 </span>
@@ -398,7 +368,7 @@
                         </div>
                     </div>
 
-                    <p class="text-[10px] text-slate-400 mt-3 text-center">
+                    <p class="text-[10px] text-slate-500 mt-3 text-center">
                         Simulator mirrors text and background live as you type.
                     </p>
                 </div>
@@ -417,7 +387,7 @@
                 <h3 class="text-base font-extrabold text-slate-900 font-heading">Add New Hero Banner</h3>
                 <p class="text-xs text-slate-500">Banner <?= count($banners) + 1 ?> of 5 maximum</p>
             </div>
-            <button type="button" onclick="closeCreateBannerModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+            <button type="button" data-action="closeCreateBannerModal" class="text-slate-500 hover:text-slate-600 p-1 rounded-lg">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -510,7 +480,7 @@
             <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button 
                     type="button" 
-                    onclick="closeCreateBannerModal()"
+                    data-action="closeCreateBannerModal"
                     class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                 >
                     Cancel
@@ -526,10 +496,12 @@
     </div>
 </div>
 
-<script>
-function setPresetImg(path) {
+<script nonce="<?= csp_nonce() ?>">
+// Invoked via data-action="setPresetImg" data-preset-img="images/…" (see public/js/app.js)
+function setPresetImg(eventOrPath, el) {
+    const path = typeof eventOrPath === 'string' ? eventOrPath : (el && el.getAttribute('data-preset-img'));
     const input = document.getElementById('image_url');
-    if (input) {
+    if (input && path) {
         input.value = path;
         updateLivePreview();
     }

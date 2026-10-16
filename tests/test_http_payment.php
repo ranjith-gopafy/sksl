@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
+require_once __DIR__ . '/support/payment_support.php';
 
 use App\Models\UserModel;
 use App\Models\ServiceModel;
@@ -64,9 +66,25 @@ curl_setopt_array($ch, [
 $loginResp = curl_exec($ch);
 curl_close($ch);
 
+// The CSRF token is rotated on login; pick up the fresh one from the booking page
+$ch = curl_init("$baseUrl/booking");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => true,
+]);
+$bookingHtml = (string) curl_exec($ch);
+curl_close($ch);
+preg_match("/'_csrf_token',\s*'([a-f0-9]+)'/i", $bookingHtml, $m);
+$freshToken = $m[1] ?? '';
+assert($freshToken !== '', 'Booking page exposes the post-login CSRF token');
+assert($freshToken !== $csrfToken, 'CSRF token is rotated after login');
+$csrfToken = $freshToken;
+
 // 3. Create a hold via HTTP
 $serviceModel = new ServiceModel();
-$spa = $serviceModel->findBySlug('spa');
+$spa = $serviceModel->findBySlug('massages');
 $serviceId = (int) $spa['id'];
 $date = date('Y-m-d', strtotime('+4 days'));
 $startTime = '10:00';
@@ -80,6 +98,7 @@ curl_setopt_array($ch, [
         'service_id' => $serviceId,
         'booking_date' => $date,
         'start_time' => $startTime,
+        'health_declared' => '1',
     ]),
     CURLOPT_COOKIEJAR => $cookieFile,
     CURLOPT_COOKIEFILE => $cookieFile,
@@ -114,7 +133,13 @@ assert($httpCode === 200 && ($orderJson['success'] ?? false) === true, "Order cr
 $orderId = $orderJson['data']['razorpay_order_id'];
 echo "[PASS] 3. HTTP Razorpay Order created: $orderId\n";
 
-// 5. Verify payment via HTTP
+// 3a. The health declaration accepted at hold time is carried onto the booking row
+$declStmt = getDb()->prepare('SELECT health_declared_at FROM bookings WHERE booking_reference = ? LIMIT 1');
+$declStmt->execute([$bookingRef]);
+assert(!empty($declStmt->fetchColumn()), 'bookings.health_declared_at must be set from the hold');
+echo "[PASS] 3a. bookings.health_declared_at stored for $bookingRef\n";
+
+// 5a. Verify with a forged signature via HTTP must be rejected
 $ch = curl_init("$baseUrl/api/payment/verify");
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
@@ -123,8 +148,31 @@ curl_setopt_array($ch, [
         '_csrf_token' => $csrfToken,
         'booking_reference' => $bookingRef,
         'razorpay_order_id' => $orderId,
-        'razorpay_payment_id' => 'pay_http_test_123',
-        'razorpay_signature' => 'sig_http_test_123',
+        'razorpay_payment_id' => 'pay_http_forged',
+        'razorpay_signature' => 'sig_http_forged',
+    ]),
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_HTTPHEADER => ['Accept: application/json'],
+]);
+$forgedJson = json_decode(curl_exec($ch), true);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert($httpCode === 400 && ($forgedJson['success'] ?? true) === false, "Forged signature must be rejected: " . json_encode($forgedJson));
+echo "[PASS] 3b. HTTP verify rejects a forged signature (HTTP $httpCode)\n";
+
+// 5. Verify payment via HTTP with a correctly signed payload
+$httpPaymentId = 'pay_http_' . bin2hex(random_bytes(4));
+$ch = curl_init("$baseUrl/api/payment/verify");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => http_build_query([
+        '_csrf_token' => $csrfToken,
+        'booking_reference' => $bookingRef,
+        'razorpay_order_id' => $orderId,
+        'razorpay_payment_id' => $httpPaymentId,
+        'razorpay_signature' => sksl_server_sign($orderId, $httpPaymentId),
     ]),
     CURLOPT_COOKIEJAR => $cookieFile,
     CURLOPT_COOKIEFILE => $cookieFile,

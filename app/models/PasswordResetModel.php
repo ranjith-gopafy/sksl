@@ -81,4 +81,28 @@ class PasswordResetModel
         );
         $stmt->execute([$userId]);
     }
+
+    /**
+     * Delete reset links that expired more than $days ago.
+     *
+     * @return int rows deleted
+     */
+    public function purgeExpired(int $days): int
+    {
+        $stmt = $this->db->prepare('DELETE FROM password_resets WHERE expires_at < (NOW() - INTERVAL :d DAY)');
+        $stmt->bindValue('d', max(1, $days), \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Revoke EVERY reset link for an account, including ones that are still unexpired and unused.
+     * Called when a new link is issued and when a password is set, so an old forwarded or
+     * shared-inbox email can never be used after the owner has moved on.
+     */
+    public function revokeAllForUser(int $userId): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM password_resets WHERE user_id = ?');
+        $stmt->execute([$userId]);
+    }
 }

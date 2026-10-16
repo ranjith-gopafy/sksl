@@ -44,8 +44,7 @@ class PaymentController
         $bookingReference = trim((string) ($_POST['booking_reference'] ?? ''));
 
         if ($bookingReference === '') {
-            $raw = file_get_contents('php://input');
-            $json = json_decode($raw, true);
+            $json = request_json();
             if (is_array($json)) {
                 $bookingReference = trim((string) ($json['booking_reference'] ?? ''));
             }
@@ -69,6 +68,41 @@ class PaymentController
     }
 
     /**
+     * POST /api/payment/request-offline
+     * Offline mode: turn the customer's active hold into a booking request that waits for payment.
+     */
+    public function requestOffline(): void
+    {
+        CustomerAuth::handle();
+
+        $userId = (int) $_SESSION['user_id'];
+        $bookingReference = trim((string) ($_POST['booking_reference'] ?? ''));
+        if ($bookingReference === '') {
+            $bookingReference = trim((string) (request_json()['booking_reference'] ?? ''));
+        }
+        if ($bookingReference === '') {
+            Response::error('booking_reference is required.', [], 422);
+        }
+
+        $result = $this->paymentService->requestOfflineBooking($userId, $bookingReference);
+        if (!$result['success']) {
+            Response::error($result['message'], [], 400);
+        }
+
+        $payload = ['success' => true, 'message' => $result['message'], 'data' => $result['data']];
+        if (!empty($result['data']['created'])) {
+            $booking = $this->bookingModel->findByReference($bookingReference);
+            $service = $this->paymentService;
+            Response::jsonThen($payload, static function () use ($service, $booking): void {
+                if ($booking) {
+                    $service->sendOfflineRequestNotices((int) $booking['id']);
+                }
+            });
+        }
+        Response::json($payload);
+    }
+
+    /**
      * POST /api/payment/verify
      * Requires customer authentication.
      */
@@ -83,8 +117,7 @@ class PaymentController
         $signature        = trim((string) ($_POST['razorpay_signature'] ?? ''));
 
         if ($bookingReference === '' || $orderId === '' || $paymentId === '') {
-            $raw = file_get_contents('php://input');
-            $json = json_decode($raw, true);
+            $json = request_json();
             if (is_array($json)) {
                 $bookingReference = $bookingReference ?: trim((string) ($json['booking_reference'] ?? ''));
                 $orderId          = $orderId ?: trim((string) ($json['razorpay_order_id'] ?? ''));
@@ -165,12 +198,12 @@ class PaymentController
      */
     public function downloadInvoice(array $params = []): void
     {
-        $isAdmin    = !empty($_SESSION['admin_id']);
-        $isCustomer = !empty($_SESSION['user_id']);
+        $isAdmin = !empty($_SESSION['admin_id']);
 
-        if (!$isAdmin && !$isCustomer) {
+        if (!$isAdmin) {
+            // Full customer check (account active, session newer than the last password change); it
+            // redirects to login and exits when the session is missing or stale.
             CustomerAuth::handle();
-            return;
         }
 
         $reference = trim((string) ($params['ref'] ?? $_GET['ref'] ?? ''));

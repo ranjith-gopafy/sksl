@@ -99,7 +99,8 @@ test.describe('Customer Authentication Flow', () => {
  */
 test.describe('Full Register → Login → Logout Flow', () => {
   const uniqueEmail = `e2e_flow_${Date.now()}@sksltest.local`;
-  const password = 'FlowTest@2024!';
+  // Password policy rejects passwords containing the user's name/email parts ("flow", "test", "user")
+  const password = 'Sprint-Recovery-2024!';
 
   test('register a new account successfully', async ({ page }) => {
     await page.goto('/register', { waitUntil: 'domcontentloaded' });
@@ -144,17 +145,15 @@ test.describe('Full Register → Login → Logout Flow', () => {
     await page.locator('button[type="submit"]').click();
     await page.waitForURL(/.*/, { timeout: 10000 });
 
-    // Find and click logout
-    const logoutLink = page.locator('a[href*="logout"]').first();
-    if (await logoutLink.isVisible()) {
-      await logoutLink.click();
-    } else {
-      const logoutBtn = page.locator('button:has-text("Logout"), button:has-text("Sign Out")').first();
-      if (await logoutBtn.isVisible()) {
-        await logoutBtn.click();
-      }
+    // Sign Out is a CSRF-protected POST form. The header copy exists only on
+    // desktop widths; the profile page carries one for every viewport.
+    let logoutBtn = page.locator('form[action$="/logout"] button[type="submit"]:visible').first();
+    if (!(await logoutBtn.isVisible())) {
+      await page.goto('/profile', { waitUntil: 'domcontentloaded' });
+      logoutBtn = page.locator('form[action$="/logout"] button[type="submit"]:visible').first();
     }
-
+    await expect(logoutBtn).toBeVisible();
+    await logoutBtn.click();
     await page.waitForURL(/.*/, { timeout: 8000 });
 
     // After logout, protected routes should redirect to login

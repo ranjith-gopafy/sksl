@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+// Command-line only: never runnable through a web server.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 echo "=== SKSL Phase 4 Verification Suite ===\n\n";
 
 $baseUrl = 'http://localhost/sksl/public';
@@ -50,10 +56,10 @@ $jsonStr = curl_exec($ch);
 curl_close($ch);
 $apiData = json_decode($jsonStr, true);
 
-if (isset($apiData['success']) && $apiData['success'] && count($apiData['data'] ?? []) === 10) {
-    echo "  [PASS] /api/services returned 10 active services in JSON format.\n";
+if (isset($apiData['success']) && $apiData['success'] && count($apiData['data'] ?? []) === 9) {
+    echo "  [PASS] /api/services returned 9 active services in JSON format.\n";
 } else {
-    echo "  [FAIL] /api/services failed to return 10 services.\n";
+    echo "  [FAIL] /api/services failed to return 9 services.\n";
     $allPassed = false;
 }
 
@@ -76,7 +82,8 @@ echo "\n4. Testing Legal & Informational Pages...\n";
 $allPassed = checkUrl("{$baseUrl}/privacy-policy", 'Privacy Policy') && $allPassed;
 $allPassed = checkUrl("{$baseUrl}/terms", 'Facility Terms &amp; Conditions') && $allPassed;
 $allPassed = checkUrl("{$baseUrl}/cancellation-refund", 'Cancellation &amp; Refund Policy') && $allPassed;
-$allPassed = checkUrl("{$baseUrl}/contact", 'Sports City Complex') && $allPassed;
+$allPassed = checkUrl("{$baseUrl}/contact", 'Phone, Email &amp; Support') && $allPassed;
+$allPassed = checkUrl("{$baseUrl}/contact", 'Cancellation &amp; Refund Policy') && $allPassed;
 
 echo "\n============================================\n";
 if ($allPassed) {

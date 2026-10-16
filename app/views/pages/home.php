@@ -24,8 +24,11 @@ if (empty($bannerSlides)) {
 }
 ?>
 
+<!-- One page-level heading; slide headlines are h2 so hidden slides do not add extra h1s -->
+<h1 class="sr-only">Sara Kinetic Sports Lab — Sports Recovery Facility in Bengaluru</h1>
+
 <!-- Full-Bleed Carousel Hero Banner (End-to-End, Zero Gap, Left-Aligned Typography) -->
-<section id="hero-carousel" class="relative w-full overflow-hidden bg-slate-950 select-none h-[460px] sm:h-[520px] lg:h-[580px] flex items-stretch">
+<section id="hero-carousel" class="relative w-full overflow-hidden bg-slate-950 select-none h-[460px] sm:h-[520px] lg:h-[580px] flex items-stretch" aria-roledescription="carousel" aria-label="Featured">
     
     <?php if (!empty($_SESSION['admin_id'])): ?>
         <!-- Admin Quick Control Trigger (Floating Top-Right) -->
@@ -55,11 +58,18 @@ if (empty($bannerSlides)) {
             <div 
                 class="carousel-slide absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out flex items-center <?= $isActive ? 'opacity-100 z-10 pointer-events-auto active' : 'opacity-0 z-0 pointer-events-none' ?>" 
                 data-slide-index="<?= $idx ?>"
+                role="group"
+                aria-roledescription="slide"
+                aria-label="<?= $idx + 1 ?> of <?= count($bannerSlides) ?>"
+                <?= $isActive ? '' : 'aria-hidden="true" inert' ?>
             >
                 <!-- Full-Bleed Background Photography with Ken Burns effect -->
+                <!-- width/height reserve the aspect ratio (no layout shift); only the first slide loads eagerly -->
                 <img 
-                    src="<?= asset($slideImage) ?>" 
+                    src="<?= safe_image($slideImage, 'images/hero-banner.jpg') ?>" 
                     alt="<?= h($slideHeadline) ?>" 
+                    width="1376" height="768"
+                    <?= $isActive ? 'fetchpriority="high" decoding="async"' : 'loading="lazy" decoding="async"' ?>
                     class="absolute inset-0 w-full h-full object-cover object-center transform transition-transform duration-[6000ms] ease-out will-change-transform"
                 >
 
@@ -79,9 +89,9 @@ if (empty($bannerSlides)) {
                         </div>
 
                         <!-- Left-Aligned Headline -->
-                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] font-heading drop-shadow-md">
+                        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.1] font-heading drop-shadow-md">
                             <?= nl2br(h($slideHeadline)) ?>
-                        </h1>
+                        </h2>
 
                         <!-- Left-Aligned Subheadline (Concise) -->
                         <p class="text-sm sm:text-base text-[#D9DBDA] leading-relaxed font-normal max-w-xl drop-shadow-sm line-clamp-2">
@@ -91,7 +101,7 @@ if (empty($bannerSlides)) {
                         <!-- Left-Aligned Action CTAs with Brand Colors -->
                         <div class="pt-2 flex flex-wrap items-center gap-3 sm:gap-4">
                             <a 
-                                href="<?= str_starts_with($slideCtaLink, 'http') ? h($slideCtaLink) : app_url(ltrim($slideCtaLink, '/')) ?>" 
+                                href="<?= safe_link($slideCtaLink, '/services') ?>" 
                                 class="app-touch-target inline-flex items-center justify-center font-heading font-bold text-sm px-6 py-3 sm:px-7 sm:py-3.5 rounded-2xl bg-[#053d63] hover:bg-[#075183] text-white shadow-lg shadow-[#053d63]/40 hover:-translate-y-0.5 transition-all"
                             >
                                 <span><?= h($slideCtaText) ?></span>
@@ -103,7 +113,7 @@ if (empty($bannerSlides)) {
                                 href="<?= app_url('services') ?>" 
                                 class="app-touch-target inline-flex items-center justify-center font-heading font-semibold text-sm px-5 py-3 sm:px-6 sm:py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-[#D9DBDA]/40 hover:border-white transition-all"
                             >
-                                Explore 10 Modalities
+                                Explore <?= count($services) ?> Modalities
                             </a>
                         </div>
 
@@ -144,11 +154,17 @@ if (empty($bannerSlides)) {
         <div class="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 flex items-center justify-between">
             
             <!-- Slide Dots / Active Pill Indicators -->
-            <div class="flex items-center gap-2 pointer-events-auto bg-slate-900/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10" id="carousel-indicators">
+            <div class="flex items-center gap-4 pointer-events-auto bg-slate-900/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10" id="carousel-indicators">
+                <?php if (count($bannerSlides) > 1): ?>
+                    <button type="button" id="carousel-toggle" class="inline-flex items-center justify-center w-6 h-6 -ml-1 mr-1 rounded-full text-white hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white cursor-pointer" aria-label="Pause slideshow">
+                        <svg id="carousel-toggle-pause" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+                        <svg id="carousel-toggle-play" class="w-3.5 h-3.5 hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                <?php endif; ?>
                 <?php foreach ($bannerSlides as $idx => $slide): ?>
                     <button 
                         type="button" 
-                        class="carousel-indicator-dot transition-all duration-300 rounded-full h-2 <?= ($idx === 0) ? 'w-8 bg-[#D6981E]' : 'w-2 bg-white/40 hover:bg-white/70' ?>" 
+                        class="carousel-indicator-dot relative before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[''] transition-all duration-300 rounded-full h-2 <?= ($idx === 0) ? 'w-8 bg-[#D6981E]' : 'w-2 bg-white/40 hover:bg-white/70' ?>" 
                         data-target-index="<?= $idx ?>"
                         aria-label="Go to slide <?= $idx + 1 ?>"
                     ></button>
@@ -158,7 +174,7 @@ if (empty($bannerSlides)) {
             <!-- Slide Counter & Mobile Swipe Hint -->
             <div class="hidden sm:flex items-center gap-3 bg-slate-900/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs font-bold text-white">
                 <span class="text-[#4A9CC0] font-mono tracking-wider"><span id="carousel-current-index">01</span> / <span id="carousel-total-count"><?= sprintf('%02d', count($bannerSlides)) ?></span></span>
-                <span class="text-slate-400 font-normal border-l border-white/20 pl-2.5">Auto-advance 5s</span>
+                <span class="text-slate-400 font-normal border-l border-white/20 pl-2.5">Slides change every 5s</span>
             </div>
         </div>
     </div>
@@ -187,7 +203,7 @@ if (empty($bannerSlides)) {
         <!-- Mobile App Experience: Interactive Category Filter Bar (Smooth Horizontal Scroll on Mobile) -->
         <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-4 mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
             <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-bold bg-[#075183] text-white shadow-xs whitespace-nowrap transition-all" data-category="all">
-                All Protocols (10)
+                All Protocols (<?= count($services) ?>)
             </button>
             <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="cryo">
                 Cold &amp; Cryo Immersion
@@ -206,9 +222,7 @@ if (empty($bannerSlides)) {
         <!-- Services Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" id="services-grid">
             <?php foreach ($services as $srv): 
-                $imgSrc = str_starts_with($srv['image'] ?? '', 'images/') || str_starts_with($srv['image'] ?? '', 'uploads/')
-                    ? asset($srv['image'])
-                    : asset('images/services/' . ($srv['image'] ?? 'spa.jpg'));
+                $imgSrc = service_image($srv['image'] ?? null); // allow-listed + escaped
                 
                 // Categorize for quick app filtering
                 $nameLower = strtolower($srv['name']);
@@ -224,128 +238,59 @@ if (empty($bannerSlides)) {
             ?>
                 <div 
                     class="modality-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"
-                    data-category="<?= $cat ?>"
+                    data-category="<?= h($cat) ?>"
                 >
-                    <!-- MOBILE VIEW: Compact Horizontal App Card (< 768px) -->
-                    <div class="flex md:hidden items-center p-3 gap-3.5">
-                        <!-- Left: Compact Image Thumbnail -->
-                        <div class="relative w-28 h-28 rounded-xl overflow-hidden bg-slate-100 shrink-0">
-                            <img 
-                                src="<?= $imgSrc ?>" 
-                                alt="<?= h($srv['name']) ?>" 
-                                class="w-full h-full object-cover"
-                                loading="lazy"
+                    <!-- One card. Row on phones, column from md up. Name, price and link exist once. -->
+                    <div class="flex items-stretch md:flex-col h-full">
+                        <div class="relative w-28 h-28 md:w-full md:h-56 shrink-0 overflow-hidden bg-slate-100 rounded-xl md:rounded-none m-3 md:m-0">
+                            <img
+                                src="<?= $imgSrc ?>"
+                                alt=""
+                                width="1200" height="896"
+                                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                loading="lazy" decoding="async"
                             >
-                            <!-- Duration Badge on Thumbnail -->
-                            <div class="absolute bottom-1.5 left-1.5">
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-white/95 text-[#075183] shadow-xs backdrop-blur-md flex items-center gap-0.5">
-                                    <svg class="w-3 h-3 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="hidden md:block absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent" aria-hidden="true"></div>
+                            <div class="absolute bottom-1.5 left-1.5 md:top-3 md:bottom-auto md:left-3">
+                                <span class="px-2 py-0.5 md:px-2.5 md:py-1 rounded-full text-[10px] md:text-xs font-extrabold bg-white/95 text-[#075183] shadow-xs backdrop-blur-md flex items-center gap-0.5">
+                                    <svg class="w-3 h-3 md:w-3.5 md:h-3.5 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
-                                    <?= h($srv['duration_minutes']) ?>m
+                                    <?= h($srv['duration_minutes']) ?> min
                                 </span>
                             </div>
                         </div>
 
-                        <!-- Right Side of Image: Client Name in Two Lines + Modality & Price -->
-                        <div class="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
-                            <div>
-                                <!-- Client Name in Two Lines -->
-                                <div class="border-l-2 border-[#D6981E] pl-2 leading-none">
-                                    <div class="font-heading font-extrabold text-[10px] tracking-wider text-[#075183] uppercase">
-                                        Sara Kinetic
-                                    </div>
-                                    <div class="font-heading font-bold text-[9px] tracking-widest text-[#BF5B2B] uppercase mt-0.5">
-                                        Sports Lab
-                                    </div>
+                        <div class="flex-1 min-w-0 flex flex-col justify-between py-3 pr-3 md:p-0">
+                            <div class="md:p-5 md:pb-3">
+                                <div class="md:hidden border-l-2 border-[#D6981E] pl-2 leading-none mb-1">
+                                    <div class="font-heading font-extrabold text-[10px] tracking-wider text-[#075183] uppercase">Sara Kinetic</div>
+                                    <div class="font-heading font-bold text-[9px] tracking-widest text-[#B8541F] uppercase mt-0.5">Sports Lab</div>
                                 </div>
-
-                                <!-- Modality Name -->
-                                <h3 class="text-sm font-extrabold font-heading text-slate-900 leading-snug mt-1 truncate">
+                                <h3 class="text-sm md:text-xl font-extrabold font-heading text-slate-900 leading-snug truncate">
                                     <?= h($srv['name']) ?>
                                 </h3>
-                                <div class="text-[11px] text-slate-500 font-medium">
+                                <div class="text-[11px] md:text-xs text-slate-500 font-medium mt-0.5">
                                     Max <?= h($srv['capacity']) ?> athletes
                                 </div>
+                                <p class="hidden md:block text-sm text-slate-600 leading-relaxed mt-3 min-h-[48px]">
+                                    <?= h($srv['description'] ?: 'High-performance athletic protocol engineered for rapid physical recovery, lactate clearance, and nervous system balance.') ?>
+                                </p>
                             </div>
-
-                            <!-- Price & CTA Bar -->
-                            <div class="flex items-center justify-between pt-1.5 border-t border-[#D9DBDA]/60 mt-1">
+                            <div class="flex items-center justify-between pt-1.5 mt-1 border-t border-[#D9DBDA]/60 md:mx-5 md:mb-5 md:px-0 md:pt-3 md:border-[#D9DBDA]/80">
                                 <div>
-                                    <div class="text-[8px] uppercase tracking-wider font-bold text-slate-400">Base Rate</div>
-                                    <div class="text-sm font-extrabold text-slate-900 font-heading -mt-0.5">
-                                        &#8377;<?= number_format($basePrice, 2) ?>
+                                    <div class="text-sm md:text-xl font-extrabold text-slate-900 font-heading">
+                                        &#8377;<?= number_format($basePrice, $basePrice == floor($basePrice) ? 0 : 2) ?>
                                     </div>
+                                    <div class="text-[8px] md:text-[10px] uppercase tracking-wider font-bold text-slate-500">Incl. 18% GST</div>
                                 </div>
-                                <a 
-                                    href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
-                                    class="app-touch-target px-3.5 py-1.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-[11px] uppercase tracking-wider shadow-xs"
+                                <a
+                                    href="<?= app_url('booking?service_id=' . $srv['id']) ?>"
+                                    class="app-touch-target inline-flex items-center justify-center px-3.5 py-1.5 md:px-4 md:py-2.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-[11px] md:text-xs uppercase tracking-wider shadow-xs"
                                 >
                                     Book
                                 </a>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- DESKTOP VIEW: Full 3-Column Showcase Card (>= 768px) -->
-                    <div class="hidden md:flex md:flex-col justify-between h-full">
-                        <div>
-                            <!-- Service Photography with Subtle Hover Zoom -->
-                            <div class="relative w-full h-52 sm:h-56 overflow-hidden bg-slate-100">
-                                <img 
-                                    src="<?= $imgSrc ?>" 
-                                    alt="<?= h($srv['name']) ?>" 
-                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                    loading="lazy"
-                                >
-                                <div class="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
-                                
-                                <!-- Badges on Image with Brand Colors -->
-                                <div class="absolute top-3 left-3 flex items-center gap-2">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-white/95 text-[#075183] backdrop-blur-md shadow-xs flex items-center gap-1">
-                                        <svg class="w-3.5 h-3.5 text-[#4A9CC0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <?= h($srv['duration_minutes']) ?> Min
-                                    </span>
-                                </div>
-
-                                <div class="absolute top-3 right-3">
-                                    <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-900/80 text-white backdrop-blur-md border border-white/10">
-                                        Max <?= h($srv['capacity']) ?> Athletes
-                                    </span>
-                                </div>
-
-                                <div class="absolute bottom-3 left-4 right-4 text-white">
-                                    <h3 class="text-xl font-extrabold font-heading text-white drop-shadow-sm">
-                                        <?= h($srv['name']) ?>
-                                    </h3>
-                                </div>
-                            </div>
-
-                            <!-- Card Body -->
-                            <div class="p-5 sm:p-6">
-                                <p class="text-sm text-slate-600 leading-relaxed min-h-[48px]">
-                                    <?= h($srv['description'] ?: 'High-performance athletic protocol engineered for rapid physical recovery, lactate clearance, and nervous system balance.') ?>
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- Price & CTA Bar -->
-                        <div class="px-5 pb-5 sm:px-6 sm:pb-6 pt-3 border-t border-[#D9DBDA]/80 flex items-center justify-between">
-                            <div>
-                                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Base Rate / Session</div>
-                                <div class="text-xl font-extrabold text-slate-900 font-heading">
-                                    &#8377;<?= number_format($basePrice, 2) ?>
-                                </div>
-                            </div>
-
-                            <a 
-                                href="<?= app_url('booking?service_id=' . $srv['id']) ?>" 
-                                class="app-touch-target inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm"
-                            >
-                                Book Slot
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -376,24 +321,31 @@ if (empty($bannerSlides)) {
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 font-heading">Select Protocol &amp; Live Slot</h3>
                 <p class="text-sm text-slate-600 mt-2 leading-relaxed">
-                    Choose from 10 certified sports modalities and view live slot capacity between 6:00 AM and 10:00 PM IST.
+                    Choose from <?= count($services) ?> certified sports modalities and view live slot capacity between <?= h(facility_time_label('open')) ?> and <?= h(facility_time_label('close')) ?> IST.
                 </p>
             </div>
 
             <!-- Step 2: 10-Min Hold (#D6981E) -->
             <div class="bg-white border border-[#D9DBDA] rounded-3xl p-7 shadow-xs hover:shadow-md transition-shadow relative">
-                <div class="w-12 h-12 rounded-2xl bg-[#D6981E]/15 text-[#D6981E] font-heading font-extrabold text-xl flex items-center justify-center mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-[#D6981E]/15 text-gold-aa font-heading font-extrabold text-xl flex items-center justify-center mb-5">
                     02
                 </div>
+                <?php if (\App\Helpers\OfflinePayment::offlineMode()): ?>
+                <h3 class="text-lg font-bold text-slate-900 font-heading">Slot Reserved While You Pay</h3>
+                <p class="text-sm text-slate-600 mt-2 leading-relaxed">
+                    Your spot is held under strict capacity protection while you pay by UPI. We confirm your booking as soon as the payment reaches us.
+                </p>
+                <?php else: ?>
                 <h3 class="text-lg font-bold text-slate-900 font-heading">Guaranteed 10-Min Hold</h3>
                 <p class="text-sm text-slate-600 mt-2 leading-relaxed">
                     Your spot is temporarily reserved under strict capacity protection while you complete payment via Razorpay.
                 </p>
+                <?php endif; ?>
             </div>
 
             <!-- Step 3: Tax Invoice (#BF5B2B) -->
             <div class="bg-white border border-[#D9DBDA] rounded-3xl p-7 shadow-xs hover:shadow-md transition-shadow relative">
-                <div class="w-12 h-12 rounded-2xl bg-[#BF5B2B]/10 text-[#BF5B2B] font-heading font-extrabold text-xl flex items-center justify-center mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-[#BF5B2B]/10 text-[#B8541F] font-heading font-extrabold text-xl flex items-center justify-center mb-5">
                     03
                 </div>
                 <h3 class="text-lg font-bold text-slate-900 font-heading">Automated GST Tax Invoice</h3>
@@ -434,7 +386,7 @@ if (empty($bannerSlides)) {
 </section>
 
 <!-- Carousel Interaction & Touch Swipe JavaScript -->
-<script>
+<script nonce="<?= csp_nonce() ?>">
 document.addEventListener('DOMContentLoaded', () => {
     const slides = document.querySelectorAll('.carousel-slide');
     const dots = document.querySelectorAll('.carousel-indicator-dot');
@@ -447,7 +399,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentIndex = 0;
     let autoPlayTimer = null;
-    let isPaused = false;
+    let isPaused = false;          // temporary: pointer or keyboard focus is on the carousel
+    // Moving content must be stoppable (WCAG 2.2.2), and visitors who asked their device for less
+    // motion never get auto-advance unless they start it themselves.
+    let userStopped = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const toggleBtn = document.getElementById('carousel-toggle');
+    const pauseIcon = document.getElementById('carousel-toggle-pause');
+    const playIcon  = document.getElementById('carousel-toggle-play');
+
+    function syncToggle() {
+        if (!toggleBtn) return;
+        toggleBtn.setAttribute('aria-label', userStopped ? 'Play slideshow' : 'Pause slideshow');
+        if (pauseIcon) pauseIcon.classList.toggle('hidden', userStopped);
+        if (playIcon) playIcon.classList.toggle('hidden', !userStopped);
+    }
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => { userStopped = !userStopped; syncToggle(); });
+    }
+    syncToggle();
 
     function goToSlide(index) {
         if (index < 0) {
@@ -462,17 +431,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (idx === currentIndex) {
                 slide.classList.remove('opacity-0', 'z-0', 'pointer-events-none');
                 slide.classList.add('opacity-100', 'z-10', 'pointer-events-auto', 'active');
+                slide.removeAttribute('aria-hidden');
+                slide.removeAttribute('inert');
             } else {
                 slide.classList.remove('opacity-100', 'z-10', 'pointer-events-auto', 'active');
                 slide.classList.add('opacity-0', 'z-0', 'pointer-events-none');
+                slide.setAttribute('aria-hidden', 'true');
+                slide.setAttribute('inert', '');
             }
         });
 
         dots.forEach((dot, idx) => {
             if (idx === currentIndex) {
-                dot.className = 'carousel-indicator-dot transition-all duration-300 rounded-full h-2 w-8 bg-[#D6981E]';
+                dot.className = 'carousel-indicator-dot relative before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[\'\'] transition-all duration-300 rounded-full h-2 w-8 bg-[#D6981E]';
             } else {
-                dot.className = 'carousel-indicator-dot transition-all duration-300 rounded-full h-2 w-2 bg-white/40 hover:bg-white/70';
+                dot.className = 'carousel-indicator-dot relative before:absolute before:-inset-x-1 before:-inset-y-3 before:content-[\'\'] transition-all duration-300 rounded-full h-2 w-2 bg-white/40 hover:bg-white/70';
             }
         });
 
@@ -505,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (totalCount <= 1) return;
         stopTimer();
         autoPlayTimer = setInterval(() => {
-            if (!isPaused) {
+            if (!isPaused && !userStopped) {
                 nextSlide();
             }
         }, 5000);
@@ -527,6 +500,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (carouselContainer) {
         carouselContainer.addEventListener('mouseenter', () => { isPaused = true; });
         carouselContainer.addEventListener('mouseleave', () => { isPaused = false; });
+        // Keyboard and screen-reader users: never rotate while focus is inside the carousel.
+        carouselContainer.addEventListener('focusin', () => { isPaused = true; });
+        carouselContainer.addEventListener('focusout', () => { isPaused = false; });
 
         // Mobile Touch Swipe Handling
         let touchStartX = 0;
@@ -556,16 +532,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Keyboard Arrow navigation
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') {
-            prevSlide();
-            resetTimer();
-        } else if (e.key === 'ArrowRight') {
-            nextSlide();
-            resetTimer();
-        }
-    });
+    // Keyboard Arrow navigation: only while focus is inside the carousel, so the arrow keys keep
+    // their normal job (scrolling, moving through form fields) everywhere else on the page.
+    if (carouselContainer) {
+        carouselContainer.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                prevSlide();
+                resetTimer();
+            } else if (e.key === 'ArrowRight') {
+                nextSlide();
+                resetTimer();
+            }
+        });
+    }
 
     startTimer();
 

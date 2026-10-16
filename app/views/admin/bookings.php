@@ -1,35 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-    <!-- Admin Navigation Header -->
-    <div class="bg-white border border-slate-200/90 rounded-3xl p-4 sm:p-5 mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-xs">
-        <div class="flex items-center gap-3.5">
-            <div class="w-10 h-10 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold font-heading text-sm shadow-xs">
-                AD
-            </div>
-            <div>
-                <h1 class="text-base font-extrabold text-slate-900 font-heading">SKSL Control Center</h1>
-                <p class="text-xs text-slate-500">Signed in as <?= h($_SESSION['admin_name'] ?? 'Admin') ?> (<?= h($_SESSION['admin_email'] ?? '') ?>)</p>
-            </div>
-        </div>
-
-        <nav class="flex items-center gap-1.5 overflow-x-auto">
-            <a href="<?= app_url('admin/bookings') ?>" class="px-3.5 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold uppercase tracking-wider">
-                Bookings
-            </a>
-            <a href="<?= app_url('admin/services') ?>" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Modalities
-            </a>
-            <a href="<?= app_url('admin/banner') ?>" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Hero Banner
-            </a>
-            <a href="<?= app_url('admin/closed-dates') ?>" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs font-medium uppercase tracking-wider transition-colors">
-                Closed Dates
-            </a>
-            <a href="<?= app_url('admin/logout') ?>" class="px-3.5 py-2 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-semibold uppercase tracking-wider transition-colors">
-                Sign Out
-            </a>
-        </nav>
-    </div>
-
+<div class="w-full max-w-7xl mx-auto">
     <!-- Filters Card -->
     <div class="bg-white border border-slate-200/90 rounded-3xl p-6 mb-8 shadow-xs">
         <form method="GET" action="<?= app_url('admin/bookings') ?>" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
@@ -57,7 +26,7 @@
                         value="<?= h($filters['date'] ?? '') ?>" 
                         class="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:bg-white focus:outline-none focus:border-[#075183] transition-colors"
                     >
-                    <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg class="w-4 h-4 text-slate-500 absolute left-3 top-3 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                 </div>
@@ -92,7 +61,8 @@
                         <option value="confirmed" <?= (($filters['status'] ?? 'confirmed') === 'confirmed') ? 'selected' : '' ?>>Confirmed</option>
                         <option value="completed" <?= (($filters['status'] ?? '') === 'completed') ? 'selected' : '' ?>>Completed</option>
                         <option value="cancelled" <?= (($filters['status'] ?? '') === 'cancelled') ? 'selected' : '' ?>>Cancelled</option>
-                        <option value="pending" <?= (($filters['status'] ?? '') === 'pending') ? 'selected' : '' ?>>Pending</option>
+                        <option value="pending" <?= (($filters['status'] ?? '') === 'pending') ? 'selected' : '' ?>>Awaiting payment</option>
+                        <option value="expired" <?= (($filters['status'] ?? '') === 'expired') ? 'selected' : '' ?>>Expired (unpaid)</option>
                         <option value="all" <?= (($filters['status'] ?? '') === 'all') ? 'selected' : '' ?>>All Statuses</option>
                     </select>
                     <button 
@@ -133,9 +103,12 @@
                 $statusTabs = [
                     'all'       => 'All',
                     'confirmed' => 'Confirmed',
+                    'visited'   => 'Visited',
                     'completed' => 'Completed',
+                    'no_show'   => 'No-Show',
                     'cancelled' => 'Cancelled',
-                    'pending'   => 'Pending',
+                    'pending'   => 'Awaiting payment',
+                    'expired'   => 'Expired',
                 ];
                 $currentStatus = $filters['status'] ?? 'confirmed';
                 foreach ($statusTabs as $statusCode => $statusLabel):
@@ -151,10 +124,10 @@
                     $badgeCount = $statusCounts[$statusCode] ?? null;
                 ?>
                     <a 
-                        href="<?= $tabUrl ?>" 
+                        href="<?= h($tabUrl) ?>" 
                         class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 <?= $isActive ? 'bg-[#075183] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white' ?>"
                     >
-                        <span><?= $statusLabel ?></span>
+                        <span><?= h($statusLabel) ?></span>
                         <?php if ($badgeCount !== null): ?>
                             <span class="text-[10px] px-1.5 py-0.5 rounded-full <?= $isActive ? 'bg-white/20 text-white' : 'bg-slate-200/70 text-slate-600' ?>">
                                 <?= $badgeCount ?>
@@ -166,13 +139,13 @@
         </div>
 
         <?php if (empty($bookings)): ?>
-            <div class="text-center py-16 text-slate-400 text-xs">
+            <div class="text-center py-16 text-slate-500 text-xs">
                 No bookings match the selected filter criteria.
             </div>
         <?php else: ?>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs text-slate-700">
-                    <thead class="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+            <div class="md:overflow-x-auto" tabindex="0" role="region" aria-label="Bookings (scrolls sideways)">
+                <table class="block md:table w-full text-left text-xs text-slate-700">
+                    <thead class="hidden md:table-header-group bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
                         <tr>
                             <th class="py-3.5 px-6">Reference</th>
                             <th class="py-3.5 px-4">Athlete</th>
@@ -183,49 +156,70 @@
                             <th class="py-3.5 px-6 text-right">Management</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="block md:table-row-group divide-y divide-slate-100">
                         <?php foreach ($bookings as $b): ?>
-                            <tr class="hover:bg-slate-50/70 transition-colors">
-                                <td class="py-4 px-6 font-mono text-sky-700 font-bold">
+                            <tr class="grid grid-cols-2 gap-x-4 md:table-row px-4 py-4 md:p-0 hover:bg-slate-50/70 transition-colors">
+                                <td data-label="Reference" class="col-span-2 block md:table-cell before:content-[attr(data-label)] before:block before:mb-0.5 before:text-[10px] before:font-bold before:uppercase before:tracking-wider before:text-slate-500 before:font-sans md:before:hidden py-1.5 md:py-4 md:px-6 font-mono text-sky-700 font-bold">
                                     <?= h($b['booking_reference']) ?>
-                                    <span class="block text-[10px] text-slate-400 font-sans font-normal mt-0.5">
+                                    <span class="block text-[10px] text-slate-500 font-sans font-normal mt-0.5">
                                         <?= date('d M Y, h:i A', strtotime($b['created_at'])) ?>
                                     </span>
                                 </td>
 
-                                <td class="py-4 px-4">
+                                <td data-label="Athlete" class="col-span-2 block md:table-cell before:content-[attr(data-label)] before:block before:mb-0.5 before:text-[10px] before:font-bold before:uppercase before:tracking-wider before:text-slate-500 before:font-sans md:before:hidden py-1.5 md:py-4 md:px-4">
                                     <div class="font-bold text-slate-900"><?= h($b['user_name']) ?></div>
                                     <div class="text-[11px] text-slate-500"><?= h($b['user_email']) ?></div>
-                                    <div class="text-[10px] text-slate-400"><?= h($b['user_mobile']) ?></div>
+                                    <div class="text-[10px] text-slate-500"><?= h($b['user_mobile']) ?></div>
                                 </td>
 
-                                <td class="py-4 px-4">
+                                <td data-label="Modality" class="block md:table-cell before:content-[attr(data-label)] before:block before:mb-0.5 before:text-[10px] before:font-bold before:uppercase before:tracking-wider before:text-slate-500 before:font-sans md:before:hidden py-1.5 md:py-4 md:px-4">
                                     <span class="font-bold text-slate-900"><?= h($b['service_name']) ?></span>
                                     <span class="block text-[10px] text-slate-500"><?= (int) $b['service_duration_minutes'] ?> mins</span>
                                 </td>
 
-                                <td class="py-4 px-4">
+                                <td data-label="Schedule (IST)" class="block md:table-cell before:content-[attr(data-label)] before:block before:mb-0.5 before:text-[10px] before:font-bold before:uppercase before:tracking-wider before:text-slate-500 before:font-sans md:before:hidden py-1.5 md:py-4 md:px-4">
                                     <div class="font-medium text-slate-800"><?= date('D, d M Y', strtotime($b['booking_date'])) ?></div>
                                     <div class="font-mono text-[11px] text-sky-700"><?= date('h:i A', strtotime($b['start_time'])) ?> – <?= date('h:i A', strtotime($b['end_time'])) ?></div>
                                 </td>
 
-                                <td class="py-4 px-4 text-right">
+                                <td data-label="Amount" class="block md:table-cell before:content-[attr(data-label)] before:block before:mb-0.5 before:text-[10px] before:font-bold before:uppercase before:tracking-wider before:text-slate-500 before:font-sans md:before:hidden py-1.5 md:py-4 md:px-4 md:text-right">
                                     <div class="font-extrabold text-slate-900 font-heading">&#8377;<?= number_format((float) $b['total_amount'], 2) ?></div>
-                                    <div class="text-[10px] text-slate-400">Base: &#8377;<?= number_format((float) $b['base_amount'], 2) ?></div>
+                                    <div class="text-[10px] text-slate-500">Base: &#8377;<?= number_format((float) $b['base_amount'], 2) ?></div>
                                 </td>
 
-                                <td class="py-4 px-4 text-center">
+                                <td data-label="Status" class="block md:table-cell before:content-[attr(data-label)] before:block before:mb-0.5 before:text-[10px] before:font-bold before:uppercase before:tracking-wider before:text-slate-500 before:font-sans md:before:hidden py-1.5 md:py-4 md:px-4 md:text-center">
                                     <?php if ($b['booking_status'] === 'confirmed'): ?>
                                         <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 border border-emerald-200 text-emerald-800">
                                             Confirmed
                                         </span>
-                                    <?php elseif ($b['booking_status'] === 'completed'): ?>
+                                    <?php elseif ($b['booking_status'] === 'completed' || $b['booking_status'] === 'visited'): ?>
                                         <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-sky-50 border border-sky-200 text-sky-800">
-                                            Completed
+                                            <?= ($b['booking_status'] === 'visited') ? 'Visited' : 'Completed' ?>
+                                        </span>
+                                    <?php elseif ($b['booking_status'] === 'no_show'): ?>
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 border border-amber-200 text-amber-800">
+                                            No-Show
                                         </span>
                                     <?php elseif ($b['booking_status'] === 'cancelled'): ?>
                                         <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 border border-rose-200 text-rose-800">
-                                            Cancelled
+                                            Cancelled<?= ($b['cancelled_by'] ?? '') === 'customer' ? ' by customer' : '' ?>
+                                        </span>
+                                        <?php if ($b['refund_amount'] !== null): ?>
+                                            <span class="block text-[10px] font-semibold text-rose-800 mt-1" data-testid="admin-refund-due">
+                                                Refund due &#8377;<?= number_format((float) $b['refund_amount'], 2) ?>
+                                                <?php if ($b['cancellation_fee'] !== null): ?>
+                                                    <span class="font-normal text-slate-500">(charge &#8377;<?= number_format((float) $b['cancellation_fee'], 2) ?> kept)</span>
+                                                <?php endif; ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    <?php elseif (($b['payment_channel'] ?? '') === 'offline' && $b['booking_status'] === 'pending'): ?>
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 border border-amber-200 text-amber-800" data-testid="admin-awaiting-chip">
+                                            Awaiting payment
+                                        </span>
+                                        <span class="block text-[10px] text-slate-500 mt-1">Pay by <?= h(date('d M, g:i A', strtotime((string) $b['payment_due_at']))) ?></span>
+                                    <?php elseif (($b['payment_channel'] ?? '') === 'offline' && $b['booking_status'] === 'expired'): ?>
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+                                            Lapsed unpaid
                                         </span>
                                     <?php else: ?>
                                         <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
@@ -233,19 +227,36 @@
                                         </span>
                                     <?php endif; ?>
 
-                                    <?php if (!empty($b['razorpay_payment_id'])): ?>
-                                        <span class="block text-[9px] font-mono text-slate-400 mt-1 truncate max-w-[120px] mx-auto" title="<?= h($b['razorpay_payment_id']) ?>">
+                                    <?php if (!empty($b['payment_method'])): ?>
+                                        <span class="block text-[10px] text-slate-500 mt-1 truncate max-w-[140px] mx-auto" title="<?= h((\App\Helpers\OfflinePayment::METHODS[$b['payment_method']] ?? $b['payment_method']) . ' · ' . ($b['payment_reference'] ?? '')) ?>">
+                                            <?= h(\App\Helpers\OfflinePayment::METHODS[$b['payment_method']] ?? $b['payment_method']) ?> &middot; <?= h($b['payment_reference'] ?? '') ?>
+                                        </span>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($b['razorpay_payment_id']) && ($b['payment_channel'] ?? 'online') === 'online'): ?>
+                                        <span class="block text-[9px] font-mono text-slate-500 mt-1 truncate max-w-[120px] mx-auto" title="<?= h($b['razorpay_payment_id']) ?>">
                                             <?= h($b['razorpay_payment_id']) ?>
                                         </span>
                                     <?php endif; ?>
                                 </td>
 
-                                <td class="py-4 px-6 text-right">
+                                <td data-label="Actions" class="col-span-2 block md:table-cell before:content-[attr(data-label)] before:block before:mb-0.5 before:text-[10px] before:font-bold before:uppercase before:tracking-wider before:text-slate-500 before:font-sans md:before:hidden py-1.5 md:py-4 md:px-6 md:text-right">
+                                    <?php if (($b['payment_channel'] ?? '') === 'offline' && ($b['payment_status'] ?? '') === 'pending' && in_array($b['booking_status'], ['pending', 'expired'], true)): ?>
+                                        <button type="button" data-approve-open
+                                                data-action="<?= h(app_url('admin/bookings/' . (int) $b['id'] . '/approve')) ?>"
+                                                data-ref="<?= h($b['booking_reference']) ?>"
+                                                data-customer="<?= h($b['user_name'] . ' · ' . ($b['user_mobile'] ?? '')) ?>"
+                                                data-session="<?= h(($b['service_name_snapshot'] ?: $b['service_name']) . ', ' . date('d M Y', strtotime($b['booking_date'])) . ', ' . date('g:i A', strtotime($b['start_time']))) ?>"
+                                                data-amount="<?= h(number_format((float) $b['total_amount'], 2)) ?>"
+                                                class="mr-2 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold uppercase tracking-wider cursor-pointer align-middle">
+                                            Approve payment
+                                        </button>
+                                    <?php endif; ?>
                                     <div class="relative inline-block text-left" id="action-wrap-<?= (int) $b['id'] ?>">
                                         <!-- 3-Dots Kebab Button -->
                                         <button 
                                             type="button" 
-                                            onclick="toggleActionMenu(event, <?= (int) $b['id'] ?>)" 
+                                            data-action="toggleActionMenu" data-id="<?= (int) $b['id'] ?>" 
                                             class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 inline-flex items-center justify-center transition-colors border border-slate-200 cursor-pointer shadow-2xs"
                                             title="Management Options"
                                             aria-label="Actions for booking <?= h($b['booking_reference']) ?>"
@@ -275,8 +286,8 @@
                                                 <span>View Details</span>
                                             </button>
 
-                                            <!-- 2. Tax Invoice PDF (Hidden for cancelled and pending bookings) -->
-                                            <?php if ($b['booking_status'] !== 'cancelled' && $b['booking_status'] !== 'pending'): ?>
+                                            <!-- 2. Tax Invoice PDF (only paid, live bookings can have one) -->
+                                            <?php if ($b['payment_status'] === 'paid' && $b['booking_status'] !== 'cancelled' && $b['booking_status'] !== 'pending'): ?>
                                                 <a 
                                                     href="<?= app_url('bookings/' . h($b['booking_reference']) . '/invoice') ?>" 
                                                     target="_blank"
@@ -289,11 +300,50 @@
                                                 </a>
                                             <?php endif; ?>
 
+                                            <?php
+                                            $canComplete = \App\Models\BookingModel::checkAdminTransition($b, 'completed')['allowed'];
+                                            $canCancel   = \App\Models\BookingModel::checkAdminTransition($b, 'cancelled')['allowed'];
+                                            ?>
+                                            <?php if ($canComplete || $canCancel): ?>
                                             <div class="my-1 border-t border-slate-100"></div>
-                                            <div class="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Change Status</div>
+                                            <div class="px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Change Status</div>
+                                            <?php else: ?>
+                                            <div class="my-1 border-t border-slate-100"></div>
+                                            <div class="px-3.5 py-1.5 text-[11px] text-slate-500 italic">
+                                                <?php
+                                                echo match ($b['booking_status']) {
+                                                    'cancelled' => 'Cancelled — final. Athlete must book again.',
+                                                    'expired'   => ($b['payment_channel'] ?? '') === 'offline' ? 'Request lapsed unpaid. Approve it only if the payment arrived late.' : 'Checkout expired unpaid — final.',
+                                                    default     => 'Completed — final.',
+                                                };
+                                                ?>
+                                            </div>
+                                            <?php endif; ?>
 
-                                            <!-- 3. Status Transitions -->
-                                            <?php if ($b['booking_status'] !== 'completed'): ?>
+                                            <!-- 3. Status Transitions (staff only; see BookingModel::ADMIN_TRANSITIONS) -->
+                                            <?php if ($b['booking_status'] === 'confirmed'): ?>
+                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/visit') ?>">
+                                                    <?= \App\Helpers\Csrf::field() ?>
+                                                    <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-emerald-50 flex items-center gap-2 text-emerald-700 font-medium transition-colors cursor-pointer text-left">
+                                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <span>Mark Visited</span>
+                                                    </button>
+                                                </form>
+
+                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/no-show') ?>" data-confirm="Mark this session as No Show?">
+                                                    <?= \App\Helpers\Csrf::field() ?>
+                                                    <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-amber-50 flex items-center gap-2 text-amber-700 font-medium transition-colors cursor-pointer text-left">
+                                                        <svg class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        <span>Mark No-Show</span>
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+
+                                            <?php if ($canComplete): ?>
                                                 <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>">
                                                     <?= \App\Helpers\Csrf::field() ?>
                                                     <input type="hidden" name="status" value="completed">
@@ -306,21 +356,8 @@
                                                 </form>
                                             <?php endif; ?>
 
-                                            <?php if ($b['booking_status'] !== 'confirmed'): ?>
-                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>">
-                                                    <?= \App\Helpers\Csrf::field() ?>
-                                                    <input type="hidden" name="status" value="confirmed">
-                                                    <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-emerald-50 flex items-center gap-2 text-emerald-700 font-medium transition-colors cursor-pointer text-left">
-                                                        <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                        <span>Mark Confirmed</span>
-                                                    </button>
-                                                </form>
-                                            <?php endif; ?>
-
-                                            <?php if ($b['booking_status'] !== 'cancelled'): ?>
-                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>" onsubmit="return confirm('Cancel booking #<?= h($b['booking_reference']) ?>?')">
+                                            <?php if ($canCancel): ?>
+                                                <form method="POST" action="<?= app_url('admin/bookings/' . (int) $b['id'] . '/status') ?>" data-confirm="<?= h('Cancel booking #' . $b['booking_reference'] . '?' . ($b['payment_status'] === 'paid' ? ' The athlete has paid — you will need to refund via Razorpay.' : '')) ?>">
                                                     <?= \App\Helpers\Csrf::field() ?>
                                                     <input type="hidden" name="status" value="cancelled">
                                                     <button type="submit" class="w-full px-3.5 py-1.5 hover:bg-rose-50 flex items-center gap-2 text-rose-700 font-medium transition-colors cursor-pointer text-left">
@@ -349,8 +386,8 @@
         <!-- Close Button -->
         <button 
             type="button" 
-            onclick="closeBookingViewModal()" 
-            class="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            data-action="closeBookingViewModal" 
+            class="absolute top-5 right-5 p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label="Close modal"
         >
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -380,7 +417,7 @@
         <div class="space-y-4 text-xs">
             <!-- Athlete Profile -->
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Athlete Information</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Athlete Information</div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
                         <span class="text-slate-500 block text-[11px]">Full Name</span>
@@ -399,7 +436,7 @@
 
             <!-- Modality & Schedule -->
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Modality &amp; Schedule</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Modality &amp; Schedule</div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div>
                         <span class="text-slate-500 block text-[11px]">Modality</span>
@@ -422,7 +459,7 @@
 
             <!-- Financial Breakdown -->
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Financial Breakdown</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Financial Breakdown</div>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div>
                         <span class="text-slate-500 block text-[11px]">Base Amount</span>
@@ -445,7 +482,7 @@
 
             <!-- Payment Details -->
             <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200/80">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Payment Verification</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Payment Verification</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px]">
                     <div>
                         <span class="text-slate-500 block text-[10px] font-sans">Razorpay Payment ID</span>
@@ -458,9 +495,9 @@
                 </div>
             </div>
 
-            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2">
+            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-2">
                 <span>Created: <span id="modal-created-at" class="text-slate-600 font-medium"></span></span>
-                <span class="text-[10px] uppercase font-bold text-slate-400">SKSL Operations</span>
+                <span class="text-[10px] uppercase font-bold text-slate-500">SKSL Operations</span>
             </div>
         </div>
 
@@ -469,9 +506,10 @@
             <div id="modal-pdf-container">
                 <!-- Injected dynamically if valid for PDF -->
             </div>
+            <template id="modal-pdf-icon-template"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></template>
             <button 
                 type="button" 
-                onclick="closeBookingViewModal()" 
+                data-action="closeBookingViewModal" 
                 class="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
             >
                 Close View
@@ -480,10 +518,13 @@
     </div>
 </div>
 
-<script>
-function toggleActionMenu(event, id) {
+<script nonce="<?= csp_nonce() ?>">
+// Invoked via data-action="toggleActionMenu" data-id="…" (see public/js/app.js)
+function toggleActionMenu(event, el) {
     event.stopPropagation();
+    const id = (el && el.getAttribute) ? el.getAttribute('data-id') : el;
     const targetDropdown = document.getElementById('action-dropdown-' + id);
+    if (!targetDropdown) return;
     const isHidden = targetDropdown.classList.contains('hidden');
     closeAllActionMenus();
     if (isHidden) {
@@ -529,11 +570,25 @@ function openBookingViewModal(b) {
         statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600';
     }
 
+    // Build with DOM APIs (never innerHTML with record data) so a crafted
+    // booking reference/status cannot inject markup into the admin page.
     const pdfContainer = document.getElementById('modal-pdf-container');
-    if (b.booking_status !== 'cancelled' && b.booking_status !== 'pending') {
-        pdfContainer.innerHTML = `<a href="<?= app_url('bookings/') ?>${b.booking_reference}/invoice" target="_blank" class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Download PDF Invoice</a>`;
+    pdfContainer.replaceChildren();
+    if (b.payment_status === 'paid' && b.booking_status !== 'cancelled' && b.booking_status !== 'pending') {
+        const link = document.createElement('a');
+        link.href = '<?= app_url('bookings/') ?>' + encodeURIComponent(String(b.booking_reference || '')) + '/invoice';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.className = 'px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-2xs';
+        const icon = document.getElementById('modal-pdf-icon-template');
+        if (icon) link.appendChild(icon.content.cloneNode(true));
+        link.appendChild(document.createTextNode('Download PDF Invoice'));
+        pdfContainer.appendChild(link);
     } else {
-        pdfContainer.innerHTML = `<span class="text-slate-400 text-xs italic">Tax invoice unavailable for ${b.booking_status} booking</span>`;
+        const note = document.createElement('span');
+        note.className = 'text-slate-500 text-xs italic';
+        note.textContent = 'Tax invoice unavailable for ' + String(b.booking_status || 'this') + ' booking';
+        pdfContainer.appendChild(note);
     }
 
     document.getElementById('booking-view-modal').classList.remove('hidden');
@@ -566,4 +621,60 @@ document.addEventListener('keydown', function(e) {
         closeAllActionMenus();
     }
 });
+</script>
+
+<!-- Approve an offline payment: staff record how the money arrived, then the booking is confirmed -->
+<dialog id="approve-dialog" class="rounded-2xl p-0 w-[calc(100%-2rem)] max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/50" aria-labelledby="approve-title">
+    <form method="POST" id="approve-form" class="p-6 space-y-4">
+        <?= \App\Helpers\Csrf::field() ?>
+        <h2 id="approve-title" class="text-lg font-extrabold font-heading text-slate-900">Approve payment</h2>
+        <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm space-y-1">
+            <div class="flex justify-between gap-3"><span class="text-slate-600">Booking</span><span id="approve-ref" class="font-mono font-bold"></span></div>
+            <div class="flex justify-between gap-3"><span class="text-slate-600">Customer</span><span id="approve-customer" class="font-semibold text-right"></span></div>
+            <div class="flex justify-between gap-3"><span class="text-slate-600">Session</span><span id="approve-session" class="font-semibold text-right"></span></div>
+            <div class="flex justify-between gap-3 border-t border-slate-200 pt-1.5"><span class="font-bold text-slate-800">Amount to have received</span><span id="approve-amount" class="font-extrabold"></span></div>
+        </div>
+        <div>
+            <label for="approve-method" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">How was it paid?</label>
+            <select id="approve-method" name="payment_method" required class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+                <?php foreach (\App\Helpers\OfflinePayment::METHODS as $code => $label): ?>
+                    <option value="<?= h($code) ?>"><?= h($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div>
+            <label for="approve-reference" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Payment reference</label>
+            <input id="approve-reference" name="payment_reference" type="text" required maxlength="100" autocomplete="off"
+                   placeholder="UPI transaction id, bank reference or receipt number"
+                   class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm">
+            <p class="text-[11px] text-slate-500 mt-1">Required. It is kept on the booking and shown on the invoice.</p>
+        </div>
+        <p class="text-xs text-slate-600">Approving confirms the booking, creates the GST invoice and emails the customer exactly as an online payment would.</p>
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
+            <button type="button" id="approve-cancel" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 font-semibold text-sm hover:bg-slate-50 cursor-pointer">Not yet</button>
+            <button type="submit" class="px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm cursor-pointer">Approve &amp; confirm booking</button>
+        </div>
+    </form>
+</dialog>
+<script nonce="<?= csp_nonce() ?>">
+(function () {
+    const dlg = document.getElementById('approve-dialog');
+    if (!dlg || typeof dlg.showModal !== 'function') return;
+    const $ = (id) => document.getElementById(id);
+    document.querySelectorAll('[data-approve-open]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const d = btn.dataset;
+            $('approve-form').action = d.action;
+            $('approve-ref').textContent = d.ref;
+            $('approve-customer').textContent = d.customer;
+            $('approve-session').textContent = d.session;
+            $('approve-amount').textContent = '\u20B9' + d.amount;
+            $('approve-reference').value = '';
+            dlg.showModal();
+            $('approve-reference').focus();
+        });
+    });
+    $('approve-cancel').addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+})();
 </script>

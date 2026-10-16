@@ -48,13 +48,13 @@ class UserModel
     /**
      * Create a new user. Returns the new user's ID.
      */
-    public function create(string $name, string $email, string $mobile, string $passwordHash): int
+    public function create(string $name, string $email, string $mobile, string $passwordHash, ?string $termsAcceptedAt = null): int
     {
         $stmt = $this->db->prepare(
-            "INSERT INTO users (name, email, mobile, password_hash, status)
-             VALUES (?, ?, ?, ?, 'active')"
+            "INSERT INTO users (name, email, mobile, password_hash, status, terms_accepted_at)
+             VALUES (?, ?, ?, ?, 'active', ?)"
         );
-        $stmt->execute([$name, strtolower(trim($email)), $mobile, $passwordHash]);
+        $stmt->execute([$name, strtolower(trim($email)), $mobile, $passwordHash, $termsAcceptedAt]);
         return (int) $this->db->lastInsertId();
     }
 
@@ -63,8 +63,10 @@ class UserModel
      */
     public function updatePassword(int $userId, string $passwordHash): bool
     {
+        // password_changed_at invalidates every session opened before this moment
+        // (see App\Middleware\CustomerAuth).
         $stmt = $this->db->prepare(
-            'UPDATE users SET password_hash = ? WHERE id = ?'
+            'UPDATE users SET password_hash = ?, password_changed_at = NOW() WHERE id = ?'
         );
         return $stmt->execute([$passwordHash, $userId]);
     }

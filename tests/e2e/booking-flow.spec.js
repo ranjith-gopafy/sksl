@@ -199,3 +199,20 @@ test.describe('Payment Flow (Mock Mode)', () => {
     // If real Razorpay modal opens: we don't automate it (cross-origin iframe)
   });
 });
+
+test.describe('Booking page renders for every kind of service', () => {
+  // Regression: professional (pay at centre) and package pages used to throw a TypeError
+  // because the price summary elements only exist for paid modalities.
+  for (const slug of ['physiotherapy', 'sports-psychology', 'massages', 'sauna']) {
+    test(`booking page for ${slug} loads without script errors`, async ({ page }) => {
+      const errors = [];
+      page.on('pageerror', (e) => errors.push(e.message));
+      await loginAsCustomer(page);
+      if (page.url().includes('login')) { test.skip(); return; }
+
+      await page.goto(`/booking?service=${slug}`, { waitUntil: 'load' });
+      await expect(page.locator('#cal-days-grid button').first()).toBeVisible();
+      expect(errors).toEqual([]);
+    });
+  }
+});

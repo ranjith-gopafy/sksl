@@ -17,6 +17,7 @@
                     type="email" 
                     id="email" 
                     name="email" 
+                    autocomplete="username"
                     required 
                     value="<?= h($oldEmail ?? '') ?>"
                     placeholder="athlete@example.com"
@@ -29,7 +30,7 @@
                     <label for="password" class="text-xs font-bold uppercase tracking-wider text-slate-700">
                         Password
                     </label>
-                    <a href="<?= app_url('forgot-password') ?>" class="text-xs text-sky-600 hover:text-sky-700 font-semibold transition-colors">
+                    <a href="<?= app_url('forgot-password') ?>" class="text-xs text-sky-700 hover:text-sky-800 font-semibold transition-colors">
                         Forgot password?
                     </a>
                 </div>
@@ -37,6 +38,7 @@
                     type="password" 
                     id="password" 
                     name="password" 
+                    autocomplete="current-password"
                     required 
                     placeholder="Enter your password"
                     class="w-full px-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all text-sm"
@@ -53,7 +55,7 @@
 
         <div class="mt-8 pt-6 border-t border-slate-100 text-center text-sm text-slate-600">
             Don't have an account yet? 
-            <a href="<?= app_url('register') ?>" class="text-sky-600 hover:text-sky-700 font-bold ml-1 transition-colors">
+            <a href="<?= app_url('register') ?>" class="text-sky-700 hover:text-sky-800 font-bold ml-1 transition-colors">
                 Create an account
             </a>
         </div>

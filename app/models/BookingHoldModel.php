@@ -23,23 +23,27 @@ class BookingHoldModel
      * Count active, non-expired holds overlapping a slot interval.
      * Overlap formula: existing_start < requested_end AND existing_end > requested_start
      */
-    public function countActiveOverlapping(int $serviceId, string $date, string $startTime, string $endTime): int
+    public function countActiveOverlapping(int $serviceId, string $date, string $startTime, string $endTime, ?string $excludeReference = null): int
     {
-        $stmt = $this->db->prepare(
-            "SELECT COUNT(*) FROM booking_holds
+        $sql = "SELECT COUNT(*) FROM booking_holds
              WHERE service_id = :service_id
                AND booking_date = :booking_date
                AND start_time < :end_time
                AND end_time > :start_time
                AND status = 'active'
-               AND expires_at > NOW()"
-        );
-        $stmt->execute([
+               AND expires_at > NOW()";
+        $params = [
             'service_id'   => $serviceId,
             'booking_date' => $date,
             'start_time'   => $startTime,
             'end_time'     => $endTime,
-        ]);
+        ];
+        if ($excludeReference !== null) {
+            $sql .= ' AND booking_reference <> :exclude_ref';
+            $params['exclude_ref'] = $excludeReference;
+        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return (int) $stmt->fetchColumn();
     }
 
@@ -77,6 +81,19 @@ class BookingHoldModel
     }
 
     /**
+     * Number of active, non-expired holds a customer currently has (any service/date).
+     */
+    public function countActiveForUser(int $userId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM booking_holds
+             WHERE user_id = ? AND status = 'active' AND expires_at > NOW()"
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
      * Create a new temporary hold.
      *
      * @param array<string, mixed> $data
@@ -86,23 +103,37 @@ class BookingHoldModel
     {
         $stmt = $this->db->prepare(
             "INSERT INTO booking_holds (
-                booking_reference, user_id, service_id, booking_date,
-                start_time, end_time, expires_at, status
+                booking_reference, user_id, service_id, duration_option_id, booking_date,
+                start_time, end_time, expires_at, health_declared_at, status
              ) VALUES (
-                :ref, :user_id, :service_id, :booking_date,
-                :start_time, :end_time, :expires_at, 'active'
+                :ref, :user_id, :service_id, :duration_option_id, :booking_date,
+                :start_time, :end_time, :expires_at, :health_declared_at, 'active'
              )"
         );
         $stmt->execute([
-            'ref'          => $data['booking_reference'],
-            'user_id'      => $data['user_id'],
-            'service_id'   => $data['service_id'],
-            'booking_date' => $data['booking_date'],
-            'start_time'   => $data['start_time'],
-            'end_time'     => $data['end_time'],
-            'expires_at'   => $data['expires_at'],
+            'ref'                => $data['booking_reference'],
+            'user_id'            => $data['user_id'],
+            'service_id'         => $data['service_id'],
+            'duration_option_id' => $data['duration_option_id'] ?? null,
+            'booking_date'       => $data['booking_date'],
+            'start_time'         => $data['start_time'],
+            'end_time'           => $data['end_time'],
+            'expires_at'         => $data['expires_at'],
+            'health_declared_at' => $data['health_declared_at'] ?? null,
         ]);
         return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Keep a hold alive until a later moment (offline payment requests wait hours, not minutes).
+     */
+    public function extendUntil(string $reference, string $expiresAt): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE booking_holds SET expires_at = ? WHERE booking_reference = ? AND status = 'active' AND expires_at > NOW()"
+        );
+        $stmt->execute([$expiresAt, $reference]);
+        return $stmt->rowCount() === 1;
     }
 
     /**
@@ -124,10 +155,24 @@ class BookingHoldModel
     /**
      * Release an active hold (e.g. customer cancels checkout or payment failed).
      */
+    /**
+     * Delete holds that ended (expired, released or consumed) more than $days ago. Holds are pure
+     * working data for the 10-minute reservation window; the booking itself is the record.
+     *
+     * @return int rows deleted
+     */
+    public function purgeEndedOlderThan(int $days): int
+    {
+        $stmt = $this->db->prepare('DELETE FROM booking_holds WHERE expires_at < (NOW() - INTERVAL :d DAY)');
+        $stmt->bindValue('d', max(1, $days), \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
     public function release(string $reference): bool
     {
         $stmt = $this->db->prepare(
-            "UPDATE booking_holds SET status = 'released' WHERE booking_reference = ?"
+            "UPDATE booking_holds SET status = 'released' WHERE booking_reference = ? AND status = 'active'"
         );
         return $stmt->execute([$reference]);
     }

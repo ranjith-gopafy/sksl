@@ -1,4 +1,4 @@
-<div class="min-h-[75vh] flex items-center justify-center px-4 py-12">
+<div class="w-full flex items-center justify-center">
     <div class="w-full max-w-md">
         
         <!-- Header badge & title -->
@@ -23,10 +23,10 @@
 
                 <div>
                     <label for="admin_email" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                        Staff Email Address
+                        Admin Email Address
                     </label>
                     <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206" />
                             </svg>
@@ -35,6 +35,7 @@
                             type="email" 
                             id="admin_email" 
                             name="email" 
+                            autocomplete="email"
                             required 
                             placeholder="admin@sk-sports-lab.com"
                             class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm transition-all"

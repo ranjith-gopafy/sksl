@@ -239,9 +239,16 @@ Requires customer authentication.
 {
   "service_id": 1,
   "booking_date": "2026-09-15",
-  "start_time": "10:00"
+  "start_time": "10:00",
+  "health_declared": "1"
 }
 ```
+
+`health_declared` is mandatory (`"1"`, `"true"` or `"on"`). It records that the
+customer accepted the Terms & Health Declaration; the server answers **422** without
+it. The acceptance time is stored on the hold (`booking_holds.health_declared_at`)
+and copied to `bookings.health_declared_at` when the booking row is created at
+`/api/payment/create-order`.
 
 The server must recalculate:
 
@@ -431,45 +438,80 @@ Destroy admin session.
 
 # 14. Admin Booking APIs
 
-## GET /admin/api/bookings
+Implemented routes (see `public/index.php`). There is no separate `/admin/api/...`
+namespace; admin pages are server-rendered and state changes are CSRF-protected
+POST forms.
+
+## GET /admin/bookings
 
 Requires admin authentication.
 
-Support:
+Supports:
 
-- search
-- date filter
-- status filter
-- payment status filter
-- pagination
+- `search` (reference, customer name, email, mobile — `LIKE` wildcards are escaped)
+- `date` filter
+- `status` tab (`pending`, `confirmed`, `completed`, `cancelled`, `expired`, `all`)
+- pagination (`page`)
 
-Never expose secrets.
+Never expose secrets. Loading this page also runs the hold / pending-booking
+expiry housekeeping.
 
 ---
 
-## GET /admin/api/bookings/{id}
+## POST /admin/bookings/{id}/status
 
-Requires admin authentication.
+Requires admin authentication and a CSRF token.
 
-Return appropriate booking details.
+Request field: `status` — the target booking status. Only the transitions in
+`BookingModel::ADMIN_TRANSITIONS` are accepted:
 
----
+| From        | Allowed targets           |
+|-------------|---------------------------|
+| `pending`   | `cancelled`               |
+| `confirmed` | `completed`, `cancelled`  |
+| `completed` | — (terminal)              |
+| `cancelled` | — (terminal)              |
+| `expired`   | — (terminal)              |
 
-## POST /admin/api/bookings/{id}/cancel
+### Offline payment mode (online gateway hidden)
 
-Requires admin authentication.
+`ONLINE_PAYMENTS_ENABLED=false` hides Razorpay. The customer flow is unchanged up to the payment step:
 
-Cancellation/refund behavior must follow approved client policy.
+- `POST /api/payment/request-offline` (`booking_reference`): turns the customer's active hold into a
+  `pending` booking with `payment_channel = 'offline'` and `payment_due_at` = the earlier of 24 h from now
+  (`OFFLINE_PAYMENT_HOLD_HOURS`) and 2 h before the session (`OFFLINE_PAYMENT_CUTOFF_HOURS`). The slot stays
+  reserved until then; no payment row exists yet. A session that starts too soon is refused and its hold released.
+  `POST /api/payment/create-order` is refused while offline mode is on.
+- `POST /api/packages/{id}/purchase` creates a pending offline package purchase instead of a gateway order
+  (`data.offline = true`); `POST /api/packages/verify` is not used.
+- `POST /admin/bookings/{id}/approve` (`payment_method`, `payment_reference`, both required) and
+  `POST /admin/package-purchases/{id}/approve`: staff confirm the money arrived. The booking becomes
+  `confirmed`/`paid` (or the package's credits are created and validity starts), a `payments` row is written
+  (`offline_<reference>`), the GST invoice is generated and the same confirmation emails are sent as after an
+  online payment. A request that lapsed while the money was on its way can still be approved if its slot is free
+  and the session has not started. The approving admin, method, reference and time are stored.
+- An unpaid request can be withdrawn by the customer (free) or closed by staff (Cancel); the slot is released.
+  Unpaid requests that pass `payment_due_at` are expired by `cron/expire-holds.php` / the admin Bookings page.
 
-Do not invent refund rules.
+### Customer cancellation — `POST /my-bookings/{ref}/cancel`
 
----
+A signed-in customer may cancel their own **confirmed** booking up to
+`CANCELLATION_NOTICE_HOURS` (default 24) before it starts. CSRF-protected, POST only,
+rate limited (20 per hour per customer), and the booking must belong to the caller.
+The response is a redirect to `/my-bookings?tab=cancelled` with a flash message.
 
-## POST /admin/api/bookings/{id}/complete
+- Paid online: `cancellation_fee` = `CANCELLATION_FEE_PERCENT` (default 10) % of
+  `total_amount` (incl. GST, rounded to paise), `refund_amount` = the rest. The payment
+  stays `paid`; SKSL refunds `refund_amount` manually in the Razorpay dashboard. The
+  customer and the admin address are emailed (sent after the redirect is delivered).
+- Package-credit session: the credit is returned, no amounts.
+- Pay-at-centre appointment: nothing to refund.
+- Refused when less than the notice period remains, when the session was attended or
+  marked no-show, or when the booking is not `confirmed`.
 
-Requires admin authentication.
-
-Mark booking completed.
+Admin cancellation (`POST /admin/bookings/{id}/status`) records `cancelled_by = admin`
+and sets `refund_amount` to the full amount for online-paid bookings. The application
+never issues a refund itself.
 
 ---
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Models\AdminModel;
 use App\Services\AdminAuthService;
@@ -12,9 +13,13 @@ echo "SKSL — Phase 11 Admin Email OTP Authentication Tests\n";
 echo "=======================================================\n\n";
 
 $db = getDb();
+// CLI part: use the development mail driver so the OTP body is readable from mail.log.
+// (The web-server part below cannot rely on that and issues its own known code.)
+$_ENV['MAIL_DRIVER'] = 'log';
 $adminModel = new AdminModel();
 $authService = new AdminAuthService();
 $mailLogFile = dirname(__DIR__) . '/storage/logs/mail.log';
+$emailLogModel = new \App\Models\EmailLogModel();
 
 // 1. Setup Test Admin
 $adminEmail = 'staff_' . time() . '@sk-sports-lab.test';
@@ -28,16 +33,24 @@ $reqRes = $authService->requestOtp($adminEmail);
 assert($reqRes['success'] === true, 'Failed to request OTP');
 echo "[PASS] 2. OTP request processed successfully\n";
 
-// Verify OTP logged to mail.log
+// Verify OTP written by the dev mail driver and recorded in email_logs
 assert(file_exists($mailLogFile), 'Mail log file does not exist');
 $mailContent = file_get_contents($mailLogFile);
 assert(str_contains($mailContent, $adminEmail), "Admin email $adminEmail missing from mail log");
 
-// Extract the 6-digit OTP from the email log
-preg_match_all('/Your SKSL Admin Login OTP:\s*(\d{6})/i', $mailContent, $matches);
-assert(!empty($matches[1]), 'Could not extract 6-digit OTP from mail log');
+// The code must be in the body only — never in the subject line
+preg_match_all('/^SUBJECT:\s*(.*)$/m', $mailContent, $subjects);
+$lastSubject = end($subjects[1]) ?: '';
+assert(str_contains($lastSubject, 'sign-in code') && !preg_match('/\d{6}/', $lastSubject), "OTP subject must not contain the code, got: $lastSubject");
+preg_match_all('/SKSL Admin Login Code:\s*(\d{6})/i', $mailContent, $matches);
+assert(!empty($matches[1]), 'Could not extract 6-digit OTP from mail log body');
 $plainOtp = end($matches[1]);
-echo "[PASS] 3. Extracted generated 6-digit OTP from email log: $plainOtp\n";
+echo "[PASS] 3. OTP present in email body only (subject: \"$lastSubject\"); extracted $plainOtp\n";
+
+$otpLogs = $emailLogModel->findByRecipient($adminEmail, 'admin_otp', 5);
+assert(count($otpLogs) === 1 && $otpLogs[0]['status'] === 'logged', 'email_logs must hold one admin_otp row for this recipient');
+assert(!preg_match('/\d{6}/', (string) $otpLogs[0]['subject']), 'email_logs subject must not contain the OTP');
+echo "[PASS] 3b. Delivery recorded in email_logs without the code\n";
 
 // 3. Test Invalid OTP Inputs
 $badFormat = $authService->verifyOtp($adminEmail, '12345');
@@ -108,10 +121,10 @@ curl_close($ch);
 assert($httpCode === 302, "Expected 302 redirect after sending OTP, got $httpCode");
 echo "[PASS] 10. HTTP POST /admin/login redirects to verify-otp\n";
 
-// Extract latest OTP from mail log
-$mailContent = file_get_contents($mailLogFile);
-preg_match_all('/Your SKSL Admin Login OTP:\s*(\d{6})/i', $mailContent, $matches2);
-$httpOtp = end($matches2[1]);
+// The web server may deliver through real SMTP (nothing readable on disk), so
+// issue a second, known code for this admin exactly as the service would.
+$httpOtp = '135790';
+$adminModel->createOtp($adminId, password_hash($httpOtp, PASSWORD_BCRYPT), date('Y-m-d H:i:s', time() + 300));
 
 // Step C: GET /admin/verify-otp
 $ch = curl_init("$baseUrl/admin/verify-otp?email=" . urlencode($adminEmail));
@@ -147,7 +160,7 @@ curl_close($ch);
 assert($httpCode === 302, "Expected 302 redirect after successful OTP verification, got $httpCode");
 echo "[PASS] 11. HTTP POST /admin/verify-otp authenticates and redirects to admin area\n";
 
-// Step E: Logout
+// Step E: Logout (POST-only, CSRF protected)
 $ch = curl_init("$baseUrl/admin/logout");
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
@@ -156,16 +169,59 @@ curl_setopt_array($ch, [
     CURLOPT_FOLLOWLOCATION => false,
 ]);
 curl_exec($ch);
+$getLogoutCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert(in_array($getLogoutCode, [404, 405], true), "GET /admin/logout must not be routable, got $getLogoutCode");
+
+// The admin page carries a fresh CSRF token (rotated on login)
+$ch = curl_init("$baseUrl/admin/bookings");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+$adminHtml = (string) curl_exec($ch);
+$adminPageCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert($adminPageCode === 200, "Expected admin dashboard to load for the signed-in admin, got $adminPageCode");
+preg_match('/name="_csrf_token"\s+value="([a-f0-9]+)"/i', $adminHtml, $m3);
+$csrfToken3 = $m3[1] ?? '';
+assert($csrfToken3 !== '', 'Admin page exposes a CSRF token for the logout form');
+assert($csrfToken3 !== $csrfToken2, 'CSRF token is rotated after admin login');
+
+$ch = curl_init("$baseUrl/admin/logout");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => http_build_query(['_csrf_token' => $csrfToken3]),
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
-
 assert($httpCode === 302, "Expected 302 redirect after logout, got $httpCode");
-echo "[PASS] 12. HTTP admin logout terminates session\n";
+
+$ch = curl_init("$baseUrl/admin/bookings");
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEJAR => $cookieFile,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_FOLLOWLOCATION => false,
+]);
+curl_exec($ch);
+$afterLogoutCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+assert($afterLogoutCode === 302, "Admin area must redirect to login after logout, got $afterLogoutCode");
+echo "[PASS] 12. HTTP admin logout is POST-only and terminates the session\n";
 
 // Cleanup
 @unlink($cookieFile);
 $db->prepare('DELETE FROM admin_otps WHERE admin_id = ?')->execute([$adminId]);
 $db->prepare('DELETE FROM admins WHERE id = ?')->execute([$adminId]);
+$db->prepare('DELETE FROM email_logs WHERE recipient = ?')->execute([$adminEmail]);
 echo "[PASS] 13. Test data cleaned up successfully\n\n";
 
 echo ">>> ALL PHASE 11 ADMIN AUTHENTICATION TESTS PASSED SUCCESSFULLY! <<<\n";

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Services\BookingService;
 use App\Models\BookingHoldModel;
@@ -44,9 +45,9 @@ assertHold($holdRes['success'], 'Successfully created booking hold');
 assertHold(str_starts_with($holdRes['data']['booking_reference'], 'SKSL-'), 'Reference starts with SKSL- prefix');
 assertHold($holdRes['data']['hold_minutes'] === 10, 'Hold duration is 10 minutes');
 assertHold($holdRes['data']['end_time'] === '15:00', 'Calculated end time is 15:00 for 45-min service');
-assertHold($holdRes['data']['pricing']['base_price'] === 499.0, 'Base price snapshot is 499.00');
-assertHold($holdRes['data']['pricing']['gst_amount'] === 89.82, 'GST amount snapshot is 89.82');
-assertHold($holdRes['data']['pricing']['total_amount'] === 588.82, 'Total amount snapshot is 588.82');
+assertHold($holdRes['data']['pricing']['base_price'] === 422.88, 'Base price snapshot is 422.88 (ex-GST)');
+assertHold($holdRes['data']['pricing']['gst_amount'] === 76.12, 'GST amount snapshot is 76.12');
+assertHold($holdRes['data']['pricing']['total_amount'] === 499.0, 'Total amount snapshot is 499.00 (the advertised price)');
 
 $ref1 = $holdRes['data']['booking_reference'];
 
@@ -98,7 +99,7 @@ ob_start();
 require dirname(__DIR__) . '/cron/expire-holds.php';
 $cronOutput = ob_get_clean();
 
-assertHold(preg_match('/Expired \d+ stale booking hold/', $cronOutput) === 1, 'Cron expired the stale hold');
+assertHold(preg_match("/Expired [1-9]\d* stale hold\(s\), \d+ unpaid pending booking\(s\)/", $cronOutput) === 1, "Cron expired the stale hold");
 assertHold(file_exists(dirname(__DIR__) . '/storage/logs/cron.log'), 'Cron log written');
 
 // ── Test 6: HTTP End-to-End Booking Wizard & Hold ────────────────────────────
@@ -152,12 +153,23 @@ assertHold(str_contains($authBooking['body'], 'Reservation Summary'), 'Summary c
 preg_match('/name="_csrf_token" value="([a-f0-9]+)"/', $authBooking['body'], $m);
 $csrfBook = $m[1] ?? $csrf;
 
+// POST /api/bookings/hold without the health declaration is refused (server-side, not just the checkbox)
+$noDecl = curlReq("{$baseUrl}/api/bookings/hold", 'POST', [
+    '_csrf_token'  => $csrfBook,
+    'service_id'   => 4,
+    'booking_date' => $testDate,
+    'start_time'   => '16:00',
+], $cookieJar);
+$noDeclJson = json_decode($noDecl['body'], true);
+assertHold(($noDecl['code'] ?? 0) === 422 && empty($noDeclJson['success']) && str_contains((string) ($noDeclJson['message'] ?? ''), 'Health Declaration'), 'HTTP hold without health_declared returns 422');
+
 // POST /api/bookings/hold
 $httpHold = curlReq("{$baseUrl}/api/bookings/hold", 'POST', [
     '_csrf_token'  => $csrfBook,
     'service_id'   => 4,
     'booking_date' => $testDate,
     'start_time'   => '16:00',
+    'health_declared' => '1',
 ], $cookieJar);
 
 $holdJson = json_decode($httpHold['body'], true);
@@ -165,6 +177,9 @@ assertHold(isset($holdJson['success']) && $holdJson['success'], 'HTTP POST /api/
 assertHold(isset($holdJson['data']['booking_reference']), 'Returned booking reference via HTTP');
 
 $httpRef = $holdJson['data']['booking_reference'] ?? '';
+$storedHold = $db->prepare('SELECT health_declared_at FROM booking_holds WHERE booking_reference = ? LIMIT 1');
+$storedHold->execute([$httpRef]);
+assertHold(!empty($storedHold->fetchColumn()), 'health_declared_at stored on the hold');
 
 // POST /api/bookings/hold/release
 $httpRel = curlReq("{$baseUrl}/api/bookings/hold/release", 'POST', [

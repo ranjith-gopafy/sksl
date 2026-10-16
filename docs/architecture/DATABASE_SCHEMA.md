@@ -102,6 +102,12 @@ Suggested:
 - `total_amount`
 - `booking_status`
 - `payment_status`
+- `invoice_number` nullable (migration 012; assigned once when paid)
+- `health_declared_at` nullable (migration 012; copied from the hold, see §7)
+- `payment_channel` (`online`/`offline`), `payment_due_at`, `payment_method`, `payment_reference`, `payment_received_at`,
+  `approved_by_admin_id` (migration 025; the pay-outside-the-website flow: deadline, how the money arrived, who approved)
+- `cancelled_at`, `cancelled_by` (`customer`/`admin`), `cancellation_fee`, `refund_amount` nullable (migration 024;
+  the charge kept and the amount SKSL must refund manually for online-paid cancellations)
 - `created_at`
 - `updated_at`
 
@@ -119,6 +125,8 @@ Suggested:
 - `start_time`
 - `end_time`
 - `expires_at`
+- `health_declared_at` nullable (migration 015; set when the customer accepted the
+  Terms & Health Declaration at hold time — the hold endpoint rejects requests without it)
 - `status`
 - `created_at`
 
@@ -152,17 +160,18 @@ Suggested:
 - `used_at` nullable
 - `created_at`
 
-## 10. email_logs (optional)
-Suggested:
+## 10. email_logs
+Written by `EmailService::send()` for every outbound email attempt (`EmailLogModel`).
 - `id`
-- `booking_id` nullable
+- `booking_id` nullable (FK bookings, SET NULL on delete)
 - `recipient`
-- `email_type`
-- `status`
+- `email_type` — `password_reset`, `existing_account_notice`, `admin_otp`, `booking_confirmation`, `admin_new_booking`, `admin_payment_after_close`
+- `subject` nullable (never contains secrets; the admin OTP is body-only)
+- `status` — `sent` (SMTP accepted), `failed` (error_message holds the SMTP/config error), `logged` (development `MAIL_DRIVER=log` wrote it to `storage/logs/mail.log`)
 - `error_message` nullable
 - `created_at`
 
-Never store credentials.
+Never store credentials or message bodies. Rows older than `EMAIL_LOG_RETENTION_DAYS` (default 90) are purged by `cron/expire-holds.php`.
 
 ## Relationships
 ```text

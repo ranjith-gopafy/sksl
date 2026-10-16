@@ -1,0 +1,2 @@
+# Never serve this directory over HTTP (see project-root .htaccess).
+Require all denied

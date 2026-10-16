@@ -6,6 +6,8 @@ namespace App\Services;
 
 use App\Models\UserModel;
 use App\Models\PasswordResetModel;
+use App\Helpers\Csrf;
+use App\Helpers\PasswordPolicy;
 use App\Helpers\RateLimit;
 
 /**
@@ -39,11 +41,20 @@ class AuthService
     {
         $errors = [];
 
-        $name = trim((string) ($input['name'] ?? ''));
-        $email = strtolower(trim((string) ($input['email'] ?? '')));
-        $mobile = preg_replace('/\D/', '', (string) ($input['mobile'] ?? ''));
-        $password = (string) ($input['password'] ?? '');
-        $passwordConfirmation = (string) ($input['password_confirmation'] ?? '');
+        $name = trim(input_str($input['name'] ?? ''));
+        $email = strtolower(trim(input_str($input['email'] ?? '')));
+
+        // Rate limit: 10 attempts per email and 20 per IP, per hour (DB-backed).
+        $wait = RateLimit::throttle('cust_register', $email !== '' ? $email : RateLimit::clientIp(), 10, 20, 3600);
+        if ($wait > 0) {
+            return [
+                'success' => false,
+                'message' => 'Too many registration attempts. Please try again in ' . (int) ceil($wait / 60) . ' minute(s).',
+            ];
+        }
+        $mobile = normalize_mobile(input_str($input['mobile'] ?? ''));
+        $password = input_str($input['password'] ?? '');
+        $passwordConfirmation = input_str($input['password_confirmation'] ?? '');
 
         // Validation
         if ($name === '' || mb_strlen($name) < 2 || mb_strlen($name) > 100) {
@@ -58,10 +69,16 @@ class AuthService
             $errors['mobile'] = 'Please enter a valid 10-digit mobile number.';
         }
 
-        if (strlen($password) < 8) {
-            $errors['password'] = 'Password must be at least 8 characters long.';
+        if (($policyError = PasswordPolicy::validate($password, $email, $name)) !== null) {
+            $errors['password'] = $policyError;
         } elseif ($password !== $passwordConfirmation) {
             $errors['password_confirmation'] = 'Passwords do not match.';
+        }
+
+        // Terms of Service + Privacy Policy must be accepted explicitly
+        $termsAccepted = filter_var($input['terms'] ?? $input['accept_terms'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if (!$termsAccepted) {
+            $errors['terms'] = 'Please accept the Terms of Service and Privacy Policy to create an account.';
         }
 
         if (!empty($errors)) {
@@ -72,26 +89,36 @@ class AuthService
             ];
         }
 
-        // Check for duplicate email
+        // Duplicate email: do NOT tell the requester (account enumeration).
+        // The real owner gets an email explaining someone tried to register and
+        // how to reset their password; the response is identical to a success.
         $existing = $this->userModel->findByEmail($email);
         if ($existing !== null) {
+            try {
+                $this->emailService->sendExistingAccountNotice((string) $existing['email'], (string) $existing['name']);
+            } catch (\Throwable $e) {
+                error_log('Existing-account notice failed: ' . $e->getMessage());
+            }
             return [
-                'success' => false,
-                'message' => 'An account with this email address already exists. Please log in.',
-                'errors'  => ['email' => 'An account with this email address already exists.'],
+                'success'  => true,
+                'message'  => self::REGISTER_SUCCESS_MESSAGE,
+                'existing' => true, // internal flag — never sent to the browser (see AuthController)
             ];
         }
 
         // Hash password and store
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-        $userId = $this->userModel->create($name, $email, $mobile, $passwordHash);
+        $userId = $this->userModel->create($name, $email, $mobile, $passwordHash, date('Y-m-d H:i:s'));
 
         return [
             'success' => true,
-            'message' => 'Registration successful! You can now log in.',
+            'message' => self::REGISTER_SUCCESS_MESSAGE,
             'user_id' => $userId,
         ];
     }
+
+    /** Shown for both a new account and a duplicate email, so the two are indistinguishable. */
+    public const REGISTER_SUCCESS_MESSAGE = 'Thanks! If this email was not already registered, your account is ready — sign in below. If it was, we have sent that address a note on how to access the existing account.';
 
     /**
      * Authenticate customer with email and password.
@@ -100,13 +127,29 @@ class AuthService
      */
     public function login(string $email, string $password): array
     {
-        $normalizedEmail = strtolower(trim($email));
-        $rateLimitKey = 'cust_login_' . md5($normalizedEmail);
+        // One login attempt per account at a time, so a burst of parallel guesses cannot all slip
+        // past the failure counter before the first failure has been recorded.
+        $result = RateLimit::serialize('cust_login:' . strtolower(trim($email)), fn () => $this->attemptLogin($email, $password));
 
-        // Rate limit: 5 attempts per 15 minutes (900 seconds)
-        if (!RateLimit::attempt($rateLimitKey, 5, 900)) {
-            $remaining = RateLimit::remainingSeconds($rateLimitKey);
-            $minutes = (int) ceil($remaining / 60);
+        return $result ?? [
+            'success' => false,
+            'message' => 'The server is busy. Please try again in a moment.',
+        ];
+    }
+
+    /**
+     * @return array{success: bool, message: string, user?: array}
+     */
+    private function attemptLogin(string $email, string $password): array
+    {
+        $normalizedEmail = strtolower(trim($email));
+        $rateLimitKey = RateLimit::key('cust_login', $normalizedEmail);
+
+        // Rate limit (DB-backed, counts failures only):
+        // 5 failures per account and 30 per IP lock for 15 minutes.
+        $wait = RateLimit::retryAfter('cust_login', $normalizedEmail);
+        if ($wait > 0) {
+            $minutes = (int) ceil($wait / 60);
             return [
                 'success' => false,
                 'message' => "Too many failed login attempts. Please try again in {$minutes} minute(s).",
@@ -115,7 +158,9 @@ class AuthService
 
         $user = $this->userModel->findByEmail($normalizedEmail);
 
-        if ($user === null || !password_verify($password, $user['password_hash'])) {
+        // bcrypt stops reading at a NUL byte, so such a "password" could match a shorter real one
+        if ($user === null || str_contains($password, "\0") || !password_verify($password, $user['password_hash'])) {
+            RateLimit::recordFailure('cust_login', $normalizedEmail, 5, 30, 900);
             return [
                 'success' => false,
                 'message' => 'Invalid email or password.',
@@ -132,16 +177,21 @@ class AuthService
         // Clear rate limit on successful authentication
         RateLimit::clear($rateLimitKey);
 
-        // Session fixation protection
-        if (!headers_sent()) {
+        // Session fixation protection + fresh CSRF token for the new privilege level
+        if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
+        Csrf::rotate();
+
+        // Role separation: a browser is either a customer or an administrator.
+        unset($_SESSION['admin_id'], $_SESSION['admin_name'], $_SESSION['admin_email']);
 
         // Populate customer session
         $_SESSION['user_id']     = (int) $user['id'];
         $_SESSION['user_name']   = $user['name'];
         $_SESSION['user_email']  = $user['email'];
         $_SESSION['user_mobile'] = $user['mobile'];
+        $_SESSION['auth_at']     = time(); // compared with users.password_changed_at by CustomerAuth
 
         // Remove sensitive fields before returning
         unset($user['password_hash']);
@@ -163,11 +213,13 @@ class AuthService
             $_SESSION['user_name'],
             $_SESSION['user_email'],
             $_SESSION['user_mobile'],
+            $_SESSION['auth_at'],
             $_SESSION['intended_url']
         );
-        if (!headers_sent()) {
+        if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
+        Csrf::rotate();
     }
 
     /**
@@ -177,9 +229,9 @@ class AuthService
     public function forgotPassword(string $email): array
     {
         $normalizedEmail = strtolower(trim($email));
-        $rateLimitKey = 'cust_forgot_' . md5($normalizedEmail);
 
-        if (!RateLimit::attempt($rateLimitKey, 3, 900)) {
+        // 3 reset emails per account and 10 per IP, per 15 minutes; response stays generic.
+        if (RateLimit::throttle('cust_forgot', $normalizedEmail, 3, 10, 900) > 0) {
             return [
                 'success' => true,
                 'message' => 'If an account with that email exists, a password reset link has been sent.',
@@ -193,8 +245,8 @@ class AuthService
             $plainToken = bin2hex(random_bytes(32));
             $tokenHash  = hash('sha256', $plainToken);
 
-            // Clean up older unused/expired tokens for this user
-            $this->resetModel->deleteOldForUser((int) $user['id']);
+            // Only the newest link works: every earlier one (even unexpired and unused) is revoked
+            $this->resetModel->revokeAllForUser((int) $user['id']);
 
             // Store token hash valid for 1 hour
             $expiresAt = new \DateTime('+1 hour');
@@ -229,17 +281,22 @@ class AuthService
      */
     public function resetPassword(string $plainToken, string $password, string $passwordConfirmation): array
     {
-        if (strlen($password) < 8) {
-            return [
-                'success' => false,
-                'message' => 'Password must be at least 8 characters long.',
-            ];
+        if (($policyError = PasswordPolicy::validate($password)) !== null) {
+            return ['success' => false, 'message' => $policyError];
         }
 
         if ($password !== $passwordConfirmation) {
             return [
                 'success' => false,
                 'message' => 'Passwords do not match.',
+            ];
+        }
+
+        // Token guessing is infeasible (256-bit), but throttle per IP anyway.
+        if (!RateLimit::attempt(RateLimit::key('cust_reset_ip', RateLimit::clientIp()), 10, 900)) {
+            return [
+                'success' => false,
+                'message' => 'Too many attempts. Please wait 15 minutes and try again.',
             ];
         }
 
@@ -251,16 +308,24 @@ class AuthService
             ];
         }
 
-        // Update password
+        // Re-check the policy against the account's own email/name
+        $owner = $this->userModel->findById((int) $reset['user_id']);
+        if (($policyError = PasswordPolicy::validate($password, (string) ($owner['email'] ?? ''), (string) ($owner['name'] ?? ''))) !== null) {
+            return ['success' => false, 'message' => $policyError];
+        }
+
+        // Update password — updatePassword() also stamps password_changed_at,
+        // which invalidates every other session for this account.
         $passwordHash = password_hash($password, PASSWORD_DEFAULT);
         $this->userModel->updatePassword((int) $reset['user_id'], $passwordHash);
 
-        // Mark token as used (one-time use enforcement)
+        // One-time use: consume this token and revoke every other link for the account
         $this->resetModel->markUsed((int) $reset['id']);
+        $this->resetModel->revokeAllForUser((int) $reset['user_id']);
 
         return [
             'success' => true,
-            'message' => 'Your password has been reset successfully. You can now log in with your new password.',
+            'message' => 'Your password has been reset successfully. Any other devices have been signed out. You can now log in with your new password.',
         ];
     }
 
@@ -269,8 +334,8 @@ class AuthService
      */
     public function updateProfile(int $userId, array $data): array
     {
-        $name = trim((string) ($data['name'] ?? ''));
-        $mobile = preg_replace('/\D/', '', (string) ($data['mobile'] ?? ''));
+        $name = trim(input_str($data['name'] ?? ''));
+        $mobile = normalize_mobile(input_str($data['mobile'] ?? ''));
 
         if ($name === '' || mb_strlen($name) < 2 || mb_strlen($name) > 100) {
             return ['success' => false, 'message' => 'Full name must be between 2 and 100 characters.'];
@@ -299,26 +364,46 @@ class AuthService
      */
     public function changePassword(int $userId, string $currentPassword, string $newPassword, string $newPasswordConfirmation): array
     {
-        if (strlen($newPassword) < 8) {
-            return ['success' => false, 'message' => 'New password must be at least 8 characters long.'];
-        }
-
         if ($newPassword !== $newPasswordConfirmation) {
             return ['success' => false, 'message' => 'New passwords do not match.'];
         }
 
+        // Anyone holding a signed-in session (a shared or stolen device) could otherwise guess the
+        // current password without limit: 5 wrong guesses per account in 15 minutes, then a pause.
+        $wait = RateLimit::retryAfter('cust_pwchange', (string) $userId);
+        if ($wait > 0) {
+            return ['success' => false, 'message' => 'Too many incorrect attempts. Please try again in ' . (int) ceil($wait / 60) . ' minute(s).'];
+        }
+
         // Fetch user from DB including password hash
-        $stmt = getDb()->prepare('SELECT id, password_hash FROM users WHERE id = ? LIMIT 1');
+        $stmt = getDb()->prepare('SELECT id, name, email, password_hash FROM users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $user = $stmt->fetch();
 
         if (!$user || !password_verify($currentPassword, $user['password_hash'])) {
+            RateLimit::recordFailure('cust_pwchange', (string) $userId, 5, 30, 900);
             return ['success' => false, 'message' => 'Current password is incorrect.'];
+        }
+
+        if (($policyError = PasswordPolicy::validate($newPassword, (string) $user['email'], (string) $user['name'])) !== null) {
+            return ['success' => false, 'message' => 'New password: ' . lcfirst($policyError)];
+        }
+        if (password_verify($newPassword, $user['password_hash'])) {
+            return ['success' => false, 'message' => 'New password must be different from the current password.'];
         }
 
         $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
         $this->userModel->updatePassword($userId, $newHash);
+        // A password the owner just chose must not be overridable with an older reset email
+        $this->resetModel->revokeAllForUser($userId);
 
-        return ['success' => true, 'message' => 'Password changed successfully.'];
+        // Other sessions are now invalid (auth_at < password_changed_at); keep this one.
+        $_SESSION['auth_at'] = time() + 1;
+        if (!headers_sent() && session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
+        Csrf::rotate();
+
+        return ['success' => true, 'message' => 'Password changed successfully. Any other devices have been signed out.'];
     }
 }

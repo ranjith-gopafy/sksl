@@ -1,6 +1,6 @@
 <div class="max-w-4xl mx-auto px-4 py-12">
     <div class="bg-white border border-slate-200/90 rounded-3xl p-8 md:p-12 shadow-xs">
-        <span class="text-xs font-bold uppercase tracking-widest text-sky-600">Terms of Service</span>
+        <span class="text-xs font-bold uppercase tracking-widest text-sky-700">Terms of Service</span>
         <h1 class="text-3xl font-extrabold text-slate-900 font-heading mt-2 mb-8">Facility Terms &amp; Conditions</h1>
         
         <div class="space-y-6 text-sm text-slate-600 leading-relaxed">
@@ -10,7 +10,7 @@
 
             <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">1. Facility Hours and Arrival</h2>
             <p>
-                SKSL operates daily from <strong>6:00 AM to 10:00 PM IST</strong>. Athletes must arrive at least <strong>10 minutes prior</strong> to their scheduled session to check in, complete safety verification, and prepare. Late arrivals cannot be granted extended time if it conflicts with subsequent booked sessions.
+                SKSL operates daily from <strong><?= h(facility_time_label('open')) ?> to <?= h(facility_time_label('close')) ?> IST</strong>. The last session of the day starts at <strong><?= h(facility_time_label('last_slot')) ?></strong>. Athletes must arrive at least <strong>10 minutes prior</strong> to their scheduled session to check in, complete safety verification, and prepare. Late arrivals cannot be granted extended time if it conflicts with subsequent booked sessions.
             </p>
 
             <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">2. Health and Safety Declaration</h2>
@@ -32,11 +32,39 @@
             <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">4. Booking Policy &amp; Single Service Rule</h2>
             <p>
                 Each booking covers one designated service for the reserved slot duration. Multiple separate, non-overlapping bookings can be made for sequential sessions. All bookings must be paid in full in advance through our online platform.
+                A selected slot is held for a short time while you pay; if payment is not completed the hold lapses and the slot is released. Sessions can be booked up to
+                <?= (int) \App\Helpers\BookingRules::advanceDays() ?> days in advance.
             </p>
 
-            <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">5. Facility Discretion</h2>
+            <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">5. Your Account</h2>
+            <p>
+                You must be 18 or older to create an account and provide accurate contact details so we can reach you about your session. Keep your password confidential;
+                you are responsible for activity under your account. Tell us immediately if you suspect unauthorised use. We may suspend accounts used for fraud, abuse or
+                automated booking.
+            </p>
+
+            <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">6. Payments, Cancellations &amp; Refunds</h2>
+            <p>
+                Prices on the service cards are before GST. 18% GST is added at checkout, and that total is the amount you pay. A tax invoice is issued for every paid booking. Payments are processed by Razorpay; SKSL never sees your
+                card or bank details. You may cancel a session from My Sessions up to <?= \App\Helpers\BookingRules::cancellationNoticeHours() ?> hours before it starts; a cancellation charge of <?= h(rtrim(rtrim(number_format(\App\Helpers\BookingRules::cancellationFeePercent(), 2), '0'), '.')) ?>% of the amount paid applies to online payments and the balance is refunded manually, as described in our
+                <a href="<?= app_url('cancellation-refund') ?>" class="text-sky-700 font-semibold hover:underline">Cancellation &amp; Refund Policy</a>.
+            </p>
+
+            <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">7. Communications &amp; Privacy</h2>
+            <p>
+                We send only the emails needed to operate your bookings and account (confirmations, invoices, password resets). How we handle your personal data is set out in our
+                <a href="<?= app_url('privacy-policy') ?>" class="text-sky-700 font-semibold hover:underline">Privacy Policy</a>, which forms part of these terms.
+            </p>
+
+            <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">8. Facility Discretion &amp; Liability</h2>
             <p>
                 SKSL staff reserves the right to refuse service or terminate a session for any individual who violates safety rules, exhibits disrespectful conduct, or appears medically unfit for high-intensity thermal exposure.
+                You use the modalities at your own risk having made the health declaration above; SKSL&rsquo;s liability is limited to the amount paid for the affected session except where the law does not permit such a limit.
+            </p>
+
+            <h2 class="text-lg font-bold text-slate-900 font-heading mt-6">9. Governing Law</h2>
+            <p>
+                These terms are governed by the laws of India. Courts in Bengaluru, Karnataka have exclusive jurisdiction over any dispute arising from them.
             </p>
         </div>
     </div>

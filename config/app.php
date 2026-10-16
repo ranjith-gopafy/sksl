@@ -8,7 +8,12 @@
  */
 
 return [
-    'env'      => $_ENV['APP_ENV']      ?? 'production',
+    // Normalised and whitelisted: "Production", "prod" or a typo must never switch on dev-only
+    // behaviour, so anything that is not a known non-production name is treated as production.
+    'env'      => (static function (): string {
+        $env = strtolower(trim((string) ($_ENV['APP_ENV'] ?? 'production')));
+        return in_array($env, ['local', 'testing'], true) ? $env : 'production';
+    })(),
     'debug'    => filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN),
     'url'      => $_ENV['APP_URL']      ?? '',
     'timezone' => $_ENV['APP_TIMEZONE'] ?? 'Asia/Kolkata',
@@ -16,8 +21,9 @@ return [
 
     // Facility operating hours (Asia/Kolkata)
     'facility' => [
-        'open'  => $_ENV['FACILITY_OPEN']  ?? '06:00',
-        'close' => $_ENV['FACILITY_CLOSE'] ?? '22:00',
+        'open'      => $_ENV['FACILITY_OPEN']      ?? '06:00',
+        'close'     => $_ENV['FACILITY_CLOSE']     ?? '21:00',
+        'last_slot' => $_ENV['FACILITY_LAST_SLOT'] ?? '20:00',
     ],
 
     // Booking rules (confirmed values only)
@@ -26,13 +32,12 @@ return [
         'gst_rate'                => (float) ($_ENV['GST_RATE'] ?? 18),
         'checkin_buffer_minutes'  => (int) ($_ENV['CHECKIN_BUFFER_MINUTES'] ?? 0),
         'checkout_buffer_minutes' => (int) ($_ENV['CHECKOUT_BUFFER_MINUTES'] ?? 0),
-        // Pending client decisions — null means not yet confirmed
-        'advance_booking_days'    => isset($_ENV['ADVANCE_BOOKING_DAYS'])
-                                     ? (int) $_ENV['ADVANCE_BOOKING_DAYS']
-                                     : null,
-        'same_day_cutoff_minutes' => isset($_ENV['SAME_DAY_CUTOFF_MINUTES'])
-                                     ? (int) $_ENV['SAME_DAY_CUTOFF_MINUTES']
-                                     : null,
+        // Window rules are enforced by App\Helpers\BookingRules (date picker,
+        // availability API and hold endpoint all read the same values).
+        'advance_booking_days'    => \App\Helpers\BookingRules::advanceDays(),
+        'same_day_cutoff_minutes' => \App\Helpers\BookingRules::sameDayCutoffMinutes(),
+        'max_active_holds_per_user'      => \App\Helpers\BookingRules::maxActiveHoldsPerUser(),
+        'pending_booking_expiry_minutes' => \App\Helpers\BookingRules::pendingBookingExpiryMinutes(),
     ],
 
     // Uploads

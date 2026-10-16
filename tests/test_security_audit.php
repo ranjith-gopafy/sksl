@@ -35,6 +35,8 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
+require_once __DIR__ . '/support/payment_support.php';
 
 use App\Models\UserModel;
 use App\Models\AdminModel;
@@ -48,7 +50,9 @@ use App\Services\PaymentService;
 use App\Services\AvailabilityService;
 use App\Services\AdminAuthService;
 use App\Services\InvoiceService;
+use App\Services\AuthService;
 use App\Helpers\TimeHelper;
+use App\Helpers\RateLimit;
 
 echo "===================================================================\n";
 echo "SKSL — Comprehensive Security & Multi-Scenario Audit Test Suite\n";
@@ -57,6 +61,9 @@ echo "===================================================================\n\n";
 $db = getDb();
 $baseUrl = rtrim(config('app.url'), '/');
 $testRunId = time();
+
+// Rate limiter is DB-backed and per-IP: start every run from a clean slate
+$db->exec('DELETE FROM rate_limits');
 
 // Helper for HTTP requests
 function httpRequest(string $method, string $url, array $headers = [], array|string $body = null, ?string &$cookies = ''): array
@@ -210,7 +217,7 @@ $holdModel->create([
 echo "\n--- Scenario 3: IDOR & Cross-Account Isolation ---\n";
 
 $bookingService = new BookingService();
-$paymentService = new PaymentService();
+$paymentService = sksl_test_payment_service();
 
 // 3.1 Customer A attempts to release Customer B's hold -> must fail
 $releaseAttempt = $bookingService->releaseHold($customerAId, $bookingRefB);
@@ -234,15 +241,24 @@ assert($verifyAttempt['success'] === false, 'Customer A cannot verify Customer B
 assert(str_contains(strtolower($verifyAttempt['message']), 'unauthorized'), 'Unauthorized payment verification blocked');
 echo "[PASS] 3.3 IDOR: Customer A cannot confirm/verify Customer B's booking\n";
 
-// Legitimate Customer B confirms payment
-$validVerify = $paymentService->verifyPayment($customerBId, $bookingRefB, $orderId, 'pay_mock_' . bin2hex(random_bytes(4)), 'sig_mock');
+// Legitimate Customer B confirms payment (properly signed)
+$payIdB = 'pay_mock_' . bin2hex(random_bytes(4));
+$validVerify = $paymentService->verifyPayment($customerBId, $bookingRefB, $orderId, $payIdB, sksl_test_sign($orderId, $payIdB));
 assert($validVerify['success'] === true, 'Customer B payment successfully verified');
 
-// 3.4 Customer A attempts to cancel Customer B's booking -> must fail
+// 3.4 Self-cancellation exists (POST only) but must reject anonymous and cross-account requests
 $bookingB = $bookingModel->findByReference($bookingRefB);
-$cancelEligibility = BookingModel::checkCancellationEligibility($bookingB, $customerAId);
-assert($cancelEligibility['can_cancel'] === false, 'Customer A not eligible to cancel Customer B booking');
-echo "[PASS] 3.4 IDOR: Customer A blocked from cancelling Customer B's booking\n";
+$routes = file_get_contents(dirname(__DIR__) . '/public/index.php');
+assert(str_contains($routes, "\$router->post('/my-bookings/{ref}/cancel'"), 'Customer cancel route must be POST-only');
+assert(!str_contains($routes, "\$router->get('/my-bookings/{ref}/cancel'"), 'Cancelling must never be reachable by GET');
+$noCookies = '';
+$selfCancel = httpRequest('POST', $baseUrl . '/my-bookings/' . $bookingRefB . '/cancel', [], ['_csrf_token' => 'x'], $noCookies);
+assert(in_array($selfCancel['code'], [302, 403, 404, 405], true), 'Anonymous self-cancel must be rejected (login/CSRF redirect), got HTTP ' . $selfCancel['code']);
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking untouched by an anonymous cancel request');
+$wrongOwner = (new \App\Services\BookingService())->cancelByCustomer($customerAId, $bookingRefB);
+assert($wrongOwner['success'] === false, "Customer A must not be able to cancel customer B's booking");
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking untouched by another customer cancel attempt');
+echo "[PASS] 3.4 Self-cancellation is POST-only, rejects anonymous callers (HTTP {$selfCancel['code']}) and other customers\n";
 
 // 3.5 Customer A attempts to download Customer B's invoice -> must fail
 $invoiceService = new InvoiceService($db, $bookingModel, $paymentModel);
@@ -288,6 +304,25 @@ echo "[PASS] 4.2 Invalid booking reference rejected during verification\n";
 $reverify = $paymentService->verifyPayment($customerBId, $bookingRefB, $orderId, 'pay_mock_sec001', 'sig_mock');
 assert($reverify['success'] === true && !empty($reverify['data']['already_confirmed']), 'Idempotent verification returns already_confirmed without re-processing');
 echo "[PASS] 4.3 Payment verification is strictly idempotent\n";
+
+// 4.4 Forged checkout signature on a pending order is rejected (no bypass path)
+$forgedVerify = $paymentService->verifyPayment($customerBId, $bookingRefB2, $orderIdB2, 'pay_forged', 'sig_forged');
+assert($forgedVerify['success'] === false, 'Forged signature rejected');
+assert(str_contains(strtolower($forgedVerify['message']), 'signature'), 'Message flags signature failure');
+echo "[PASS] 4.4 Forged checkout signature rejected\n";
+
+// 4.5 Webhook: missing secret => 503, forged signature => 400, valid signature => 200
+$whBody = json_encode(['event' => 'payment.captured', 'payload' => ['payment' => ['entity' => [
+    'id' => 'pay_wh_' . bin2hex(random_bytes(3)), 'order_id' => $orderIdB2, 'amount' => 1, 'currency' => 'INR',
+]]]]);
+$whForged = $paymentService->handleWebhook($whBody, 'not-a-signature');
+assert($whForged['success'] === false && $whForged['code'] === 400, 'Forged webhook signature rejected with 400');
+$noSecretService = new PaymentService(null, null, null, null, null, null, [
+    'key_id' => 'x', 'key_secret' => SKSL_TEST_KEY_SECRET, 'webhook_secret' => '', 'mock' => true,
+]);
+$whNoSecret = $noSecretService->handleWebhook($whBody, sksl_test_sign_webhook($whBody));
+assert($whNoSecret['success'] === false && $whNoSecret['code'] === 503, 'Webhook without configured secret fails closed (503)');
+echo "[PASS] 4.5 Webhook signature is mandatory (forged => 400, unconfigured => 503)\n";
 
 
 // ─── SCENARIO 5: Session & Role Privilege Escalation ─────────────────────────
@@ -371,33 +406,60 @@ assert($adminInvoiceRes['code'] === 200, 'Admin successfully authorized to downl
 assert(str_contains($adminInvoiceRes['headers'], 'application/pdf'), 'Admin invoice response is application/pdf');
 echo "[PASS] 5.4 Authenticated admin authorized to download athlete tax invoice\n";
 
+// 5.5 Admin bookings page renders and exposes only allowed transitions for Customer B's confirmed booking
+$adminListRes = httpRequest('GET', $baseUrl . '/admin/bookings?search=' . urlencode($bookingRefB), [], null, $adminCookieJar);
+assert($adminListRes['code'] === 200, 'Admin bookings page renders (HTTP ' . $adminListRes['code'] . ')');
+assert(str_contains($adminListRes['body'], $bookingRefB), 'Admin list shows the booking');
+assert(!str_contains($adminListRes['body'], 'Mark Confirmed'), 'No "Mark Confirmed" action offered to staff');
+assert(str_contains($adminListRes['body'], 'Cancel Booking'), 'Staff cancel action offered for confirmed booking');
+preg_match('/name="_csrf_token"\s+value="([a-f0-9]+)"/i', $adminListRes['body'], $csrfM);
+$adminCsrf = $csrfM[1] ?? '';
+assert($adminCsrf !== '', 'Admin CSRF token present');
+$bookingBRow = $bookingModel->findByReference($bookingRefB);
+
+// Staff cannot mark an unpaid/pending booking confirmed via the endpoint
+$badRes = httpRequest('POST', $baseUrl . '/admin/bookings/' . $bookingBRow['id'] . '/status', [], ['_csrf_token' => $adminCsrf, 'status' => 'confirmed'], $adminCookieJar);
+assert($badRes['code'] === 302, 'Status endpoint redirects');
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking unchanged after disallowed transition');
+
+// Staff cancel works and releases the slot hold
+$okRes = httpRequest('POST', $baseUrl . '/admin/bookings/' . $bookingBRow['id'] . '/status', [], ['_csrf_token' => $adminCsrf, 'status' => 'cancelled'], $adminCookieJar);
+assert($okRes['code'] === 302, 'Cancel redirects');
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'cancelled', 'Staff cancelled the booking');
+$holdRow = $db->prepare('SELECT status FROM booking_holds WHERE booking_reference = ?');
+$holdRow->execute([$bookingRefB]);
+$holdStatus = $holdRow->fetchColumn();
+assert($holdStatus === false || $holdStatus !== 'active', 'Hold released on staff cancellation');
+
+// Cancelled is terminal even for staff
+$resRes = httpRequest('POST', $baseUrl . '/admin/bookings/' . $bookingBRow['id'] . '/status', [], ['_csrf_token' => $adminCsrf, 'status' => 'confirmed'], $adminCookieJar);
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'cancelled', 'Cancelled booking cannot be resurrected via endpoint');
+// Restore so later scenarios can keep using the confirmed booking
+$bookingModel->updateStatus((int) $bookingBRow['id'], 'confirmed', 'paid');
+echo "[PASS] 5.5 Admin status endpoint enforces state machine (no manual confirm, cancel releases hold, cancelled is final)\n";
+
 
 // ─── SCENARIO 6: Timing & Business Logic Boundaries ──────────────────────────
 echo "\n--- Scenario 6: Timing & Business Logic Boundaries ---\n";
 
-// 6.1 Cancellation 2-hour policy boundary
-// Test 1: 119 minutes before session (cutoff violation: should be blocked)
-$cutoffViolationBooking = [
-    'user_id'        => $customerBId,
-    'booking_status' => 'confirmed',
-    'booking_date'   => date('Y-m-d', time() + (119 * 60)),
-    'start_time'     => date('H:i:s', time() + (119 * 60)),
-];
-$eligibility119 = BookingModel::checkCancellationEligibility($cutoffViolationBooking, $customerBId);
-assert($eligibility119['can_cancel'] === false, 'Session 119 mins away blocked from cancellation');
-assert(str_contains($eligibility119['reason'], '2 hours'), 'Reason explains 2-hour minimum notice');
-echo "[PASS] 6.1 Cancellation boundary: 119 minutes notice is strictly blocked\n";
+// 6.1 Admin status state machine: cancelled bookings are terminal
+$t = static fn(string $from, string $pay, string $to): bool =>
+    BookingModel::checkAdminTransition(['booking_status' => $from, 'payment_status' => $pay], $to)['allowed'];
+assert($t('cancelled', 'paid', 'confirmed') === false, 'cancelled -> confirmed must be refused');
+assert($t('cancelled', 'paid', 'completed') === false, 'cancelled -> completed must be refused');
+assert($t('completed', 'paid', 'cancelled') === false, 'completed -> cancelled must be refused');
+assert($t('pending', 'pending', 'confirmed') === false, 'pending -> confirmed is payment-flow only');
+assert($t('confirmed', 'pending', 'completed') === false, 'unpaid booking cannot be completed');
+assert($t('confirmed', 'paid', 'completed') === true, 'confirmed+paid -> completed allowed');
+assert($t('confirmed', 'paid', 'cancelled') === true, 'confirmed -> cancelled allowed (staff)');
+assert($t('pending', 'pending', 'cancelled') === true, 'pending -> cancelled allowed (staff)');
+echo "[PASS] 6.1 Admin transition rules: cancelled/completed are terminal, no manual confirm\n";
 
-// Test 2: 125 minutes before session (meets policy: should be allowed)
-$cutoffAllowedBooking = [
-    'user_id'        => $customerBId,
-    'booking_status' => 'confirmed',
-    'booking_date'   => date('Y-m-d', time() + (125 * 60)),
-    'start_time'     => date('H:i:s', time() + (125 * 60)),
-];
-$eligibility125 = BookingModel::checkCancellationEligibility($cutoffAllowedBooking, $customerBId);
-assert($eligibility125['can_cancel'] === true, 'Session 125 mins away is eligible for cancellation');
-echo "[PASS] 6.2 Cancellation boundary: 125 minutes notice is allowed\n";
+// 6.2 transitionStatus is atomic on the FROM state (a stale request cannot overwrite)
+$bookingBNow = $bookingModel->findByReference($bookingRefB);
+assert($bookingModel->transitionStatus((int) $bookingBNow['id'], 'cancelled', 'completed') === false, 'Transition with wrong FROM state must not update');
+assert($bookingModel->findByReference($bookingRefB)['booking_status'] === 'confirmed', 'Booking state unchanged after mismatched transition');
+echo "[PASS] 6.2 transitionStatus() only updates when the current state matches\n";
 
 // 6.3 Invalid calendar date (checkdate)
 $availService = new AvailabilityService();
@@ -466,11 +528,61 @@ for ($i = 0; $i < 5; $i++) {
     $adminModel->createOtp($throttleAdminId, password_hash('123456', PASSWORD_BCRYPT), date('Y-m-d H:i:s', time() + 300));
 }
 
-// 6th request attempt must be blocked by DB recent OTP count
+// 6th request attempt must be silently dropped: the response stays generic
+// (no account enumeration) but no new OTP row is issued.
+$otpCount = $db->prepare('SELECT COUNT(*) FROM admin_otps WHERE admin_id = ?');
+$otpCount->execute([$throttleAdminId]);
+$otpsBefore = (int) $otpCount->fetchColumn();
 $throttleRes = $adminAuthService->requestOtp("throttle_{$testRunId}@sk-sports-lab.test");
-assert($throttleRes['success'] === false, '6th OTP request within 15 min throttled');
-assert(str_contains(strtolower($throttleRes['message']), 'too many login attempts'), 'Throttle message returned');
-echo "[PASS] 7.2 Database-backed OTP request throttling blocks rate-limit evasion\n";
+assert($throttleRes['success'] === true, '6th OTP request gets the same generic response as any other');
+assert(!str_contains(strtolower($throttleRes['message']), 'too many'), 'Throttle is not announced to the caller');
+$otpCount->execute([$throttleAdminId]);
+assert((int) $otpCount->fetchColumn() === $otpsBefore, 'No additional OTP is issued while the per-account cap is active');
+echo "[PASS] 7.2 Database-backed OTP request throttling blocks rate-limit evasion without revealing the account\n";
+
+// 7.3 Customer login lockout cannot be evaded by discarding the session cookie (H4)
+$authService = new AuthService();
+$victimEmail = "victim_{$testRunId}@sk-sports-lab.test";
+$victimId = $userModel->create('Lockout Victim', $victimEmail, '9000000099', password_hash('CorrectHorse!9', PASSWORD_DEFAULT));
+$loginOnce = static function (string $email, string $password) use ($baseUrl): array {
+    $jar = ''; // brand-new session every time, like an attacker rotating cookies
+    $page = httpRequest('GET', $baseUrl . '/login', [], null, $jar);
+    preg_match('/name="_csrf_token"\s+value="([a-f0-9]+)"/i', $page['body'], $m);
+    $res = httpRequest('POST', $baseUrl . '/login', [], ['_csrf_token' => $m[1] ?? '', 'email' => $email, 'password' => $password], $jar);
+    // follow the redirect to read the flash message
+    $follow = httpRequest('GET', $baseUrl . '/login', [], null, $jar);
+    return [$res['code'], $follow['body'], $jar];
+};
+for ($i = 1; $i <= 5; $i++) {
+    [, $body] = $loginOnce($victimEmail, 'wrong-password');
+    assert(!str_contains($body, 'Too many failed login attempts'), "Failure {$i} is a normal rejection");
+}
+[, $lockedBody] = $loginOnce($victimEmail, 'CorrectHorse!9');
+assert(str_contains($lockedBody, 'Too many failed login attempts'), 'Correct password rejected while account is locked, even with a fresh session');
+$rlCheck = $db->prepare('SELECT locked_until FROM rate_limits WHERE rl_key = ?');
+$rlCheck->execute([RateLimit::key('cust_login', $victimEmail)]);
+assert($rlCheck->fetchColumn() !== null, 'Lockout is stored server-side in rate_limits');
+RateLimit::clear(RateLimit::key('cust_login', $victimEmail));
+[$okCode, , $okJar] = $loginOnce($victimEmail, 'CorrectHorse!9');
+$dash = httpRequest('GET', $baseUrl . '/my-bookings', [], null, $okJar);
+assert($dash['code'] === 200, 'Login works again after the lockout is cleared');
+echo "[PASS] 7.3 Login lockout is database-backed: new session cookies do not reset it\n";
+
+// 7.4 Registration and forgot-password are throttled per IP (DB-backed)
+for ($i = 1; $i <= 3; $i++) {
+    $fp = $authService->forgotPassword("nobody_{$i}_{$testRunId}@sk-sports-lab.test");
+    assert($fp['success'] === true, 'forgot-password always returns the generic success');
+}
+assert(RateLimit::retryAfter('cust_forgot', "nobody_1_{$testRunId}@sk-sports-lab.test") === 0, 'Under the per-account cap no lock is set');
+RateLimit::clearScope('cust_forgot');
+RateLimit::clearScope('cust_forgot_ip');
+for ($i = 1; $i <= 21; $i++) {
+    $reg = $authService->register(['name' => 'x', 'email' => "spam_{$i}_{$testRunId}@sk-sports-lab.test", 'mobile' => '1', 'password' => 'short', 'password_confirmation' => 'short']);
+}
+assert($reg['success'] === false && str_contains($reg['message'], 'Too many registration attempts'), 'Registration throttled per IP after 20 attempts');
+RateLimit::clearScope('cust_register');
+RateLimit::clearScope('cust_register_ip');
+echo "[PASS] 7.4 Registration and forgot-password requests are throttled per IP\n";
 
 
 // ─── SCENARIO 8: Test Data Cleanup ───────────────────────────────────────────
@@ -479,7 +591,8 @@ echo "\n--- Scenario 8: Test Data Cleanup ---\n";
 $db->exec("DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE user_id IN ({$customerAId}, {$customerBId}))");
 $db->exec("DELETE FROM bookings WHERE user_id IN ({$customerAId}, {$customerBId})");
 $db->exec("DELETE FROM booking_holds WHERE user_id IN ({$customerAId}, {$customerBId})");
-$db->exec("DELETE FROM users WHERE id IN ({$customerAId}, {$customerBId})");
+$db->exec("DELETE FROM users WHERE id IN ({$customerAId}, {$customerBId}, {$victimId})");
+$db->exec("DELETE FROM password_resets WHERE user_id NOT IN (SELECT id FROM users)");
 $db->exec("DELETE FROM admin_otps WHERE admin_id IN ({$adminId}, {$bruteAdminId}, {$throttleAdminId})");
 $db->exec("DELETE FROM admins WHERE id IN ({$adminId}, {$bruteAdminId}, {$throttleAdminId})");
 

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only(true);
 
 use App\Services\AvailabilityService;
 use App\Models\ServiceModel;
@@ -13,6 +14,15 @@ use App\Models\UserModel;
 use App\Helpers\TimeHelper;
 
 echo "=== SKSL Phase 5 Availability Engine Test Suite ===\n\n";
+
+// This suite exercises the pure duration grid (06:00, 06:10, 06:20 … for a 10-min
+// service). Force the turnaround buffer to 0 for the run regardless of .env so
+// the expected slot counts below are deterministic. Buffered grids are covered
+// by tests/test_booking_rules.php.
+foreach (['CHECKIN_BUFFER_MINUTES', 'CHECKOUT_BUFFER_MINUTES', 'BUFFER_MINUTES'] as $bufKey) {
+    $_ENV[$bufKey] = '0';
+    putenv($bufKey . '=0');
+}
 
 $db = getDb();
 $availability = new AvailabilityService();
@@ -41,27 +51,27 @@ $pastDate = TimeHelper::now()->modify('-1 day')->format('Y-m-d');
 // ── Test 1: Dynamic Slot Generation by Duration ──────────────────────────────
 echo "1. Testing Slot Generation Across Durations (06:00 – 22:00 IST)...\n";
 
-// Ice Bath (id=4, 10 min) -> 16 hours * 6 = 96 slots
-$res10 = $availability->getAvailableSlots(4, $testDate);
-assertAvail($res10['success'], 'Ice Bath (10 min) availability query succeeds');
-assertAvail(count($res10['slots']) === 96, "Generated 96 slots for 10-min service (got " . count($res10['slots']) . ")");
-assertAvail($res10['slots'][0]['start_time'] === '06:00', 'First slot starts at 06:00');
-assertAvail($res10['slots'][0]['end_time'] === '06:10', 'First slot ends at 06:10');
-assertAvail($res10['slots'][95]['start_time'] === '21:50', 'Last slot starts at 21:50');
-assertAvail($res10['slots'][95]['end_time'] === '22:00', 'Last slot ends exactly at 22:00');
+// Facility 06:00–21:00, last slot start 20:00 (FACILITY_LAST_SLOT). Services are looked up by
+// slug so the test no longer depends on auto-increment ids.
+$svcId = static fn(string $slug): int => (int) (new \App\Models\ServiceModel())->findBySlug($slug)['id'];
 
-// Cycle (id=7, 15 min) -> 16 hours * 4 = 64 slots
-$res15 = $availability->getAvailableSlots(7, $testDate);
-assertAvail(count($res15['slots']) === 64, "Generated 64 slots for 15-min service (got " . count($res15['slots']) . ")");
+// Ice Bath (15 min): starts 06:00 … 20:00 every 15 min -> 57 slots
+$res15 = $availability->getAvailableSlots($svcId('ice-bath'), $testDate);
+assertAvail($res15['success'], 'Ice Bath (15 min) availability query succeeds');
+assertAvail(count($res15['slots']) === 57, "Generated 57 slots for 15-min service (got " . count($res15['slots']) . ")");
+assertAvail($res15['slots'][0]['start_time'] === '06:00', 'First slot starts at 06:00');
+assertAvail($res15['slots'][0]['end_time'] === '06:15', 'First slot ends at 06:15');
+assertAvail(end($res15['slots'])['start_time'] === '20:00', 'Last slot starts at the 20:00 last-slot cutoff');
+assertAvail(end($res15['slots'])['end_time'] === '20:15', 'Last 15-min slot ends at 20:15, inside closing time');
 
-// Spa (id=1, 30 min) -> 16 hours * 2 = 32 slots
-$res30 = $availability->getAvailableSlots(1, $testDate);
-assertAvail(count($res30['slots']) === 32, "Generated 32 slots for 30-min service (got " . count($res30['slots']) . ")");
+// Massages (30 min): 06:00 … 20:00 every 30 min -> 29 slots
+$res30 = $availability->getAvailableSlots($svcId('massages'), $testDate);
+assertAvail(count($res30['slots']) === 29, "Generated 29 slots for 30-min service (got " . count($res30['slots']) . ")");
 
-// Lap Pool (id=10, 45 min) -> floor(960 / 45) = 21 slots (ends at 21:45)
-$res45 = $availability->getAvailableSlots(10, $testDate);
-assertAvail(count($res45['slots']) === 21, "Generated 21 slots for 45-min service (got " . count($res45['slots']) . ")");
-assertAvail($res45['slots'][20]['end_time'] === '21:45', 'Last 45-min slot finishes inside 22:00 boundary (21:45)');
+// Lap Pool (45 min): 06:00 + 45k <= 20:00 -> 19 slots, last 19:30–20:15
+$res45 = $availability->getAvailableSlots($svcId('lap-pool'), $testDate);
+assertAvail(count($res45['slots']) === 19, "Generated 19 slots for 45-min service (got " . count($res45['slots']) . ")");
+assertAvail(end($res45['slots'])['end_time'] === '20:15', 'Last 45-min slot finishes at 20:15, inside closing time');
 
 // ── Test 2: Past Date Rejection ──────────────────────────────────────────────
 echo "\n2. Testing Past Date Rejection...\n";
@@ -92,7 +102,7 @@ $dummyEmail = 'test_capacity_' . time() . '@example.com';
 $dummyUserId = $userModel->create('Capacity Athlete', $dummyEmail, '9876543210', password_hash('pass', PASSWORD_DEFAULT));
 
 $targetSlotStart = '10:00:00';
-$targetSlotEnd   = '10:10:00';
+$targetSlotEnd   = '10:15:00';
 $bookingIds = [];
 
 // Insert 7 confirmed bookings for Ice Bath (cap=8) at 10:00
@@ -156,15 +166,15 @@ assertAvail($slot10['available'] === false, 'Slot 10:00 is marked UNAVAILABLE wh
 assertAvail($slot10['remaining_capacity'] === 0, 'Remaining capacity is 0');
 assertAvail($slot10['unavailable_reason'] === 'fully_booked', 'Reason is fully_booked');
 
-// Adjacent slots (e.g. 09:50 or 10:10) remain unaffected
+// Adjacent slots (e.g. 09:45 or 10:15) remain unaffected
 $slot1010 = null;
 foreach ($check8['slots'] as $s) {
-    if ($s['start_time'] === '10:10') {
+    if ($s['start_time'] === '10:15') {
         $slot1010 = $s;
         break;
     }
 }
-assertAvail($slot1010['available'] === true, 'Adjacent slot 10:10 is completely unaffected and available');
+assertAvail($slot1010['available'] === true, 'Adjacent slot 10:15 is completely unaffected and available');
 
 // ── Test 5: Temporary Booking Hold Consumes Capacity ─────────────────────────
 echo "\n5. Testing Temporary Hold Capacity Consumption...\n";
@@ -214,7 +224,7 @@ echo "\n7. Testing Customer Overlap Conflict Prevention...\n";
 
 // Dummy user already has confirmed bookings at 10:00 on $testDate
 // Query availability passing $dummyUserId
-$checkUserConflict = $availability->getAvailableSlots(1, $testDate, $dummyUserId); // Spa 30 min (10:00 - 10:30 overlaps 10:00 - 10:10)
+$checkUserConflict = $availability->getAvailableSlots(1, $testDate, $dummyUserId); // Spa 30 min (10:00 - 10:30 overlaps 10:00 - 10:15)
 $slotSpaConflict = null;
 foreach ($checkUserConflict['slots'] as $s) {
     if ($s['start_time'] === '10:00') {

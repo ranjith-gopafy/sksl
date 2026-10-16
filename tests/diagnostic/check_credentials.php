@@ -17,6 +17,12 @@
 
 declare(strict_types=1);
 
+// Command-line only: never runnable through a web server.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
+
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 $projectRoot = dirname(__DIR__, 2);
 require_once $projectRoot . '/vendor/autoload.php';
@@ -71,6 +77,40 @@ echo "  " . date('Y-m-d H:i:s T') . "\n";
 echo "============================================================\n\n";
 
 $allPassed = true;
+
+// ─── Section 0: Go-live safety ────────────────────────────────────────────────
+// Run with --production (or on a server whose APP_ENV is production) before launch. These are
+// the settings that turn a working site into an unsafe one when copied from a development .env.
+$envName   = strtolower(trim((string) ($_ENV['APP_ENV'] ?? 'production')));
+$envName   = in_array($envName, ['local', 'testing'], true) ? $envName : 'production';
+$goLive    = in_array('--production', $argv ?? [], true) || $envName === 'production';
+
+echo "[ 0 ] GO-LIVE SAFETY" . ($goLive ? '' : ' (skipped: development environment; add --production to check)') . "\n";
+if ($goLive) {
+    $checks = [
+        ['APP_ENV is production',                    $envName === 'production',                                                             'APP_ENV must be exactly "production" (currently "' . $envName . '"); a development value enables fake payments and debug output'],
+        ['APP_DEBUG is off',                         !filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN),                      'Set APP_DEBUG=false'],
+        ['APP_URL is a real https address',          (bool) preg_match('#^https://[^/]+#i', (string) ($_ENV['APP_URL'] ?? '')) && !str_contains(strtolower((string) ($_ENV['APP_URL'] ?? '')), 'localhost') && !str_contains((string) ($_ENV['APP_URL'] ?? ''), 'your-domain.example'), 'Set APP_URL=https://your-domain (used for every link in emails)'],
+        ['Razorpay key id and secret are set',       configured('RAZORPAY_KEY_ID') && configured('RAZORPAY_KEY_SECRET'),                      'Enter the LIVE Razorpay keys'],
+        ['Razorpay webhook secret is set',           configured('RAZORPAY_WEBHOOK_SECRET'),                                                  'Without it paid customers are never confirmed if they close the tab'],
+        ['SMTP host is configured',                  configured('SMTP_HOST') && strtolower((string) ($_ENV['MAIL_DRIVER'] ?? '')) !== 'log', 'Emails cannot be delivered (MAIL_DRIVER=log is refused in production)'],
+        ['Business GSTIN and address are set',       configured('BUSINESS_GSTIN') && configured('BUSINESS_ADDRESS_LINE1') && configured('BUSINESS_PINCODE'), 'Invoices are refused without them'],
+        ['APP_SECRET is not the placeholder',        configured('APP_SECRET') && !str_contains((string) $_ENV['APP_SECRET'], 'change-this'), 'Set a long random value'],
+        ['ADMIN_EMAIL is set',                       configured('ADMIN_EMAIL'),                                                              'Booking and payment alerts have nowhere to go'],
+        ['HEALTH_CHECK_TOKEN is set',                configured('HEALTH_CHECK_TOKEN'),                                                       'Optional but recommended for uptime monitors'],
+    ];
+    foreach ($checks as [$label, $ok, $hint]) {
+        if ($ok) {
+            pass($label);
+        } elseif ($label === 'HEALTH_CHECK_TOKEN is set') {
+            warn($label, $hint);
+        } else {
+            fail($label, $hint);
+            $allPassed = false;
+        }
+    }
+}
+echo "\n";
 
 // ─── Section 1: Environment File ──────────────────────────────────────────────
 echo "[ 1 ] ENVIRONMENT FILE (.env)\n";
@@ -177,7 +217,14 @@ if ($rpSecret === '') {
 }
 
 if ($rpWebhook === '') {
-    warn('RAZORPAY_WEBHOOK_SECRET is empty', 'Webhook signature verification disabled');
+    // PaymentController::webhook() refuses every webhook without a configured
+    // secret, so an empty value means paid bookings are never confirmed server-side.
+    if (($_ENV['APP_ENV'] ?? 'production') === 'production') {
+        fail('RAZORPAY_WEBHOOK_SECRET is empty', 'Webhooks are rejected without it — bookings paid outside the browser flow stay pending');
+        $allPassed = false;
+    } else {
+        warn('RAZORPAY_WEBHOOK_SECRET is empty', 'All incoming webhooks will be rejected (fine for local dev without webhooks)');
+    }
 } else {
     pass('RAZORPAY_WEBHOOK_SECRET configured');
 }

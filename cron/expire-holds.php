@@ -1,28 +1,45 @@
 <?php
 
 /**
- * SKSL — Hold Expiry Cron Job
+ * SKSL — Hold & Pending-Booking Expiry Cron Job
  *
- * Scheduled task to periodically update expired booking holds from 'active' to 'expired'.
+ * 1. Marks booking_holds whose expires_at has passed as 'expired'.
+ *    (Availability already ignores them; this keeps the table tidy.)
+ * 2. Marks bookings that are still pending/unpaid after
+ *    PENDING_BOOKING_EXPIRY_MINUTES (default: hold minutes + 30) as 'expired',
+ *    so abandoned checkouts stop cluttering the admin list.
+ *    A late Razorpay webhook for such a booking is still recorded and flagged
+ *    for staff by PaymentService::settlePayment().
+ * 3. Cancels package purchases still unpaid after 24 hours.
+ * 4. Deletes email_logs rows older than EMAIL_LOG_RETENTION_DAYS (default 90), and holds, admin
+ *    login codes and password-reset links that expired more than 7 days ago.
  *
- * Availability logic independently ignores expired holds even if this cron has not run.
- * This job keeps the database clean and provides operational auditing.
- *
- * Usage:
- *   php cron/expire-holds.php
+ * The admin bookings page runs the same housekeeping on load, so this job is
+ * a safety net; schedule it every 5–15 minutes:
+ *   php /path/to/sksl/cron/expire-holds.php
  */
 
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/bootstrap.php';
+assert_cli_only();
 
 use App\Models\BookingHoldModel;
+use App\Models\BookingModel;
+use App\Models\EmailLogModel;
 
-$holdModel = new BookingHoldModel();
-$expiredCount = $holdModel->expireStale();
+$expiredHolds    = (new BookingHoldModel())->expireStale();
+$expiredBookings = (new BookingModel())->expireStalePending() + (new BookingModel())->expireOfflineDue();
+$expiredPackages = (new \App\Models\CustomerPackageModel())->expireStalePending();
+// Working data that only matters for minutes: keep a week of history, then delete it.
+$purgedHolds = (new BookingHoldModel())->purgeEndedOlderThan(7);
+$purgedOtps  = (new \App\Models\AdminModel())->purgeExpiredOtps(7);
+$purgedReset = (new \App\Models\PasswordResetModel())->purgeExpired(7);
+// 4. Retention: email delivery records are kept for 90 days (see Privacy Policy §6).
+$purgedEmailLogs = (new EmailLogModel())->purgeOlderThan((int) ($_ENV['EMAIL_LOG_RETENTION_DAYS'] ?? 90));
 
 $timestamp = date('Y-m-d H:i:s');
-$message = "[{$timestamp}] expire-holds cron executed. Expired {$expiredCount} stale booking hold(s).\n";
+$message = "[{$timestamp}] expire-holds cron executed. Expired {$expiredHolds} stale hold(s), {$expiredBookings} unpaid pending booking(s) and {$expiredPackages} unpaid package purchase(s); purged {$purgedEmailLogs} email log row(s) past retention, {$purgedHolds} old hold(s), {$purgedOtps} old admin code(s) and {$purgedReset} old reset link(s).\n";
 
 echo $message;
 

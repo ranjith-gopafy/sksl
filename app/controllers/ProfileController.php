@@ -31,8 +31,10 @@ class ProfileController
         $user = $this->userModel->findById($userId);
 
         if (!$user) {
+            // Logout is POST-only now; end the session directly instead of redirecting to it.
+            \App\Middleware\CustomerAuth::clearCustomerSession();
             Flash::set('error', 'User account not found.');
-            header('Location: ' . app_url('logout'));
+            header('Location: ' . app_url('login'));
             exit;
         }
 
@@ -73,9 +75,9 @@ class ProfileController
         \App\Middleware\CustomerAuth::handle();
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $currentPassword = (string) ($_POST['current_password'] ?? '');
-        $newPassword = (string) ($_POST['new_password'] ?? '');
-        $newConfirmation = (string) ($_POST['new_password_confirmation'] ?? '');
+        $currentPassword = input_str($_POST['current_password'] ?? '');
+        $newPassword = input_str($_POST['new_password'] ?? '');
+        $newConfirmation = input_str($_POST['new_password_confirmation'] ?? '');
 
         $result = $this->authService->changePassword($userId, $currentPassword, $newPassword, $newConfirmation);
 

@@ -32,12 +32,45 @@ $appConfig = require __DIR__ . '/config/app.php';
 $dbConfig  = require __DIR__ . '/config/database.php';
 
 // ─── Environment-based error reporting ────────────────────────────────────
-if ($appConfig['debug'] === true) {
-    ini_set('display_errors', '1');
-    error_reporting(E_ALL);
-} else {
-    ini_set('display_errors', '0');
-    error_reporting(0);
+// Always report everything; only the *display* differs. error_reporting(0) in
+// production used to hide errors from the log as well (audit).
+error_reporting(E_ALL);
+if (PHP_SAPI !== 'cli') {
+    header_remove('X-Powered-By'); // do not advertise the PHP version
+}
+ini_set('log_errors', '1');
+ini_set('display_errors', $appConfig['debug'] === true ? '1' : '0');
+if (is_dir(__DIR__ . '/storage/logs') && is_writable(__DIR__ . '/storage/logs')) {
+    ini_set('error_log', __DIR__ . '/storage/logs/php-error.log');
+}
+
+// Uncaught exceptions: log the detail, show a branded 500 (or JSON for API
+// callers) instead of a blank page. With APP_DEBUG the exception is rethrown so
+// PHP prints it as usual in development.
+if (PHP_SAPI !== 'cli') {
+    set_exception_handler(static function (\Throwable $e) use ($appConfig): void {
+        error_log(sprintf('Uncaught %s: %s in %s:%d', get_class($e), $e->getMessage(), $e->getFile(), $e->getLine()));
+        if ($appConfig['debug'] === true) {
+            throw $e;
+        }
+        if (!headers_sent()) {
+            http_response_code(500);
+            header('Cache-Control: no-store');
+        }
+        $uri    = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+        $isJson = str_contains($uri, '/api/') || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
+        if ($isJson) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+            }
+            echo json_encode(['success' => false, 'message' => 'Internal server error.']);
+        } else {
+            if (!headers_sent()) {
+                header('Content-Type: text/html; charset=UTF-8');
+            }
+            require __DIR__ . '/app/views/errors/server-error.php';
+        }
+    });
 }
 
 // ─── Timezone ─────────────────────────────────────────────────────────────
@@ -45,10 +78,18 @@ date_default_timezone_set($appConfig['timezone']);
 
 // ─── Session configuration ────────────────────────────────────────────────
 // Must be called before session_start().
-$secure   = filter_var($_ENV['SESSION_SECURE'] ?? false, FILTER_VALIDATE_BOOLEAN);
+$isProduction   = ($appConfig['env'] ?? 'production') === 'production';
+$requestIsHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['SERVER_PORT'] ?? null) == 443);
+// In production the session cookie is ALWAYS Secure — SESSION_SECURE=false can
+// only relax it for local/testing environments (audit H7).
+$secure   = $isProduction ? true : filter_var($_ENV['SESSION_SECURE'] ?? false, FILTER_VALIDATE_BOOLEAN);
 $sameSite = 'Strict';
 
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.cookie_httponly', '1');
     session_set_cookie_params([
         'lifetime' => 0,
         'path'     => '/',
@@ -60,13 +101,56 @@ if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_start();
 }
 
+/**
+ * Per-request nonce for inline <script> tags. Every inline script in the
+ * views must carry nonce="<?= csp_nonce() ?>" or the browser will block it.
+ */
+function csp_nonce(): string
+{
+    static $nonce = null;
+    return $nonce ??= rtrim(strtr(base64_encode(random_bytes(18)), '+/', '-_'), '=');
+}
+
 // ─── HTTP Security Headers ────────────────────────────────────────────────
-if (!headers_sent()) {
+if (!headers_sent() && PHP_SAPI !== 'cli') {
     header('X-Frame-Options: SAMEORIGIN');
     header('X-Content-Type-Options: nosniff');
-    header('X-XSS-Protection: 1; mode=block');
+    // The legacy XSS auditor is removed from modern browsers and caused
+    // vulnerabilities of its own; explicitly disable it and rely on CSP.
+    header('X-XSS-Protection: 0');
     header('Referrer-Policy: strict-origin-when-cross-origin');
-    header('Permissions-Policy: geolocation=(), camera=(), microphone=()');
+    // Pages shown to a signed-in customer or admin carry personal data: never keep them in the
+    // browser cache, or the Back button after logout (on a shared computer) would show them.
+    if (!empty($_SESSION['user_id']) || !empty($_SESSION['admin_id']) || str_starts_with(request_path(), '/admin')) {
+        header('Cache-Control: no-store');
+    }
+    header('Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(self "https://api.razorpay.com" "https://checkout.razorpay.com")');
+
+    if ($requestIsHttps) {
+        // Two years, include subdomains; add "preload" once the domain is submitted to hstspreload.org
+        header('Strict-Transport-Security: max-age=63072000; includeSubDomains');
+    }
+
+    $csp = [
+        "default-src 'self'",
+        "base-uri 'self'",
+        "object-src 'none'",
+        "frame-ancestors 'self'",
+        "form-action 'self'",
+        "script-src 'self' 'nonce-" . csp_nonce() . "' https://checkout.razorpay.com https://cdn.razorpay.com",
+        // Inline style attributes are used throughout the Tailwind markup and by Razorpay Checkout.
+        // Fonts are self-hosted from public/fonts, so no font/style origin other than our own.
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self' data:",
+        "img-src 'self' data: https:",
+        // Razorpay Checkout opens an iframe and talks to api./lumberjack. sub-domains.
+        "frame-src https://*.razorpay.com",
+        "connect-src 'self' https://*.razorpay.com",
+    ];
+    if ($requestIsHttps) {
+        $csp[] = 'upgrade-insecure-requests';
+    }
+    header('Content-Security-Policy: ' . implode('; ', $csp));
 }
 
 // ─── Database connection ───────────────────────────────────────────────────
@@ -87,15 +171,37 @@ function getDb(): PDO
 
         try {
             $pdo = new PDO($dsn, $config['username'], $config['password'], $config['options']);
+            // Align MySQL's NOW()/CURDATE() with the application clock (Asia/Kolkata)
+            // so hold expiry and rate-limit windows behave the same on a UTC host.
+            try {
+                $offset = (new DateTime('now', new DateTimeZone(date_default_timezone_get())))->format('P');
+                $pdo->exec("SET time_zone = '" . $offset . "'");
+            } catch (Throwable $tzErr) {
+                error_log('Could not set MySQL session time_zone: ' . $tzErr->getMessage());
+            }
         } catch (PDOException $e) {
             // Never expose connection details in the response
             error_log('Database connection failed: ' . $e->getMessage());
+            if (PHP_SAPI === 'cli') {
+                fwrite(STDERR, "Database connection failed (see error log).\n");
+                exit(1);
+            }
             http_response_code(503);
-            // In production this would render a safe error page; for now, die safely
-            die(json_encode([
-                'success' => false,
-                'message' => 'Service temporarily unavailable. Please try again shortly.',
-            ]));
+            header('Retry-After: 120');
+            $uri    = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+            $isJson = str_contains($uri, '/api/')
+                || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
+            if ($isJson) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Service temporarily unavailable. Please try again shortly.',
+                ]);
+            } else {
+                header('Content-Type: text/html; charset=UTF-8');
+                require __DIR__ . '/app/views/errors/service-unavailable.php';
+            }
+            exit;
         }
     }
 
@@ -113,6 +219,7 @@ function config(string $key, mixed $default = null): mixed
             'database' => require __DIR__ . '/config/database.php',
             'mail'     => require __DIR__ . '/config/mail.php',
             'razorpay' => require __DIR__ . '/config/razorpay.php',
+            'business' => require __DIR__ . '/config/business.php',
         ];
     }
 
@@ -142,6 +249,60 @@ function h(string|int|float|null $value): string
 }
 
 /**
+ * Guard for command-line scripts (cron, migrations, seeds, tests).
+ *
+ * Refuses to run when reached over HTTP, so a host that ignores .htaccess can never be made to run
+ * them from a browser. With $blockProduction the script also refuses to run when APP_ENV is
+ * production: test suites create users, admins and bookings and must never touch a live database.
+ * Such scripts also switch email to the log-only driver, so a test run can never send real mail to
+ * customers or the admin address (set SKSL_TEST_REAL_MAIL=1 to opt out deliberately).
+ */
+function assert_cli_only(bool $blockProduction = false): void
+{
+    if (PHP_SAPI !== 'cli') {
+        http_response_code(404);
+        exit;
+    }
+    if ($blockProduction && (string) config('app.env', 'production') === 'production') {
+        fwrite(STDERR, "Refusing to run: APP_ENV is production. This script writes test data and is for local/testing databases only.\n");
+        exit(1);
+    }
+    if ($blockProduction && getenv('SKSL_TEST_REAL_MAIL') !== '1') {
+        $_ENV['MAIL_DRIVER'] = 'log';
+    }
+}
+
+/**
+ * May the fake ("mock") payment gateway be used? Only for local/testing environments AND only on a
+ * local host (or the CLI, for tests). A production site that was deployed with APP_ENV=local by
+ * mistake therefore still cannot hand out free bookings.
+ */
+function payments_mock_allowed(?string $sapi = null, ?string $httpHost = null): bool
+{
+    if (!in_array((string) config('app.env', 'production'), ['local', 'testing'], true)) {
+        return false;
+    }
+    if (($sapi ?? PHP_SAPI) === 'cli') {
+        return true;
+    }
+    $host = strtolower((string) preg_replace('/:\d+$/', '', (string) ($httpHost ?? $_SERVER['HTTP_HOST'] ?? '')));
+    return in_array($host, ['localhost', '127.0.0.1', '[::1]'], true)
+        || str_ends_with($host, '.localhost') || str_ends_with($host, '.test');
+}
+
+/**
+ * Customer-facing opening hours, rendered from the facility settings so copy never drifts
+ * from what the booking engine enforces. $part: 'open', 'close' or 'last_slot'.
+ */
+function facility_time_label(string $part): string
+{
+    $defaults = ['open' => '06:00', 'close' => '21:00', 'last_slot' => '20:00'];
+    $map = ['open' => 'FACILITY_OPEN', 'close' => 'FACILITY_CLOSE', 'last_slot' => 'FACILITY_LAST_SLOT'];
+    $raw = (string) ($_ENV[$map[$part]] ?? $defaults[$part]);
+    return date('g:i A', strtotime($raw) ?: strtotime($defaults[$part]));
+}
+
+/**
  * Resolve the base URL dynamically based on the active HTTP request,
  * falling back to config('app.url') for CLI/background workers.
  */
@@ -149,6 +310,12 @@ function app_base_url(): string
 {
     $configuredUrl = rtrim((string) (config('app.url') ?? ''), '/');
     if ($configuredUrl !== '' && !str_contains($configuredUrl, 'localhost')) {
+        return $configuredUrl;
+    }
+
+    // In production the Host header is attacker-controlled (password-reset and notice links are
+    // built from this), so it is never used: only the configured APP_URL is.
+    if ((string) config('app.env', 'production') === 'production') {
         return $configuredUrl;
     }
 
@@ -164,6 +331,102 @@ function app_base_url(): string
     }
 
     return $configuredUrl !== '' ? $configuredUrl : 'http://localhost';
+}
+
+/**
+ * An Indian mobile number as the 10 digits we store. Accepts what people really type or paste:
+ * "98765 43210", "+91 98765-43210", "919876543210", "09876543210". Anything else is returned as its
+ * digits so validation can refuse it.
+ */
+function normalize_mobile(string $raw): string
+{
+    $digits = preg_replace('/\D/', '', $raw) ?? '';
+    if (strlen($digits) === 12 && str_starts_with($digits, '91')) {
+        return substr($digits, 2);
+    }
+    if (strlen($digits) === 11 && $digits[0] === '0') {
+        return substr($digits, 1);
+    }
+    return $digits;
+}
+
+/**
+ * Keep only plain (text/number) values of a request array. Browsers and scripts can send
+ * "name[]=x" or {"name":{"a":1}}; every controller reads parameters as text, so nested values are
+ * dropped here once instead of producing "Array" strings and PHP warnings all over the code.
+ * Names in $listKeys are genuine list fields (e.g. the package form's service_id[]) and keep a flat
+ * list of plain values.
+ *
+ * @param array<string|int, mixed> $input
+ * @param string[]                 $listKeys
+ * @return array<string|int, mixed>
+ */
+function scalar_input(array $input, array $listKeys = []): array
+{
+    $out = [];
+    foreach ($input as $key => $value) {
+        if (is_array($value)) {
+            if (in_array($key, $listKeys, true)) {
+                $out[$key] = array_values(array_filter($value, 'is_scalar'));
+            }
+            continue;
+        }
+        $out[$key] = $value;
+    }
+    return $out;
+}
+
+/**
+ * The JSON request body as an array of plain values (empty when the body is missing, invalid or not
+ * an object). Read once per request.
+ *
+ * @return array<string, mixed>
+ */
+function request_json(): array
+{
+    static $cache = null;
+    if ($cache === null) {
+        $decoded = json_decode((string) file_get_contents('php://input'), true);
+        $cache = is_array($decoded) ? scalar_input($decoded) : [];
+    }
+    return $cache;
+}
+
+/**
+ * A form/query value as text. Browsers send "email[]=x" as an array; casting that straight to a
+ * string yields the word "Array" plus a PHP warning, so anything that is not a plain scalar is treated
+ * as empty and the normal validation message follows.
+ */
+function input_str(mixed $value): string
+{
+    return is_scalar($value) ? (string) $value : '';
+}
+
+/**
+ * Application-relative request path, e.g. "/", "/services", "/admin/bookings".
+ * Strips the deployment base directory (both "/sksl/public/..." and the
+ * root-.htaccess form "/sksl/...") and any trailing slash. Used by the Router
+ * and by the layout for canonical URLs and active-navigation state.
+ */
+function request_path(): string
+{
+    $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+    $uri = rawurldecode($uri ?? '/');
+
+    $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+    $candidates = [$base];
+    if (str_ends_with($base, '/public')) {
+        $candidates[] = rtrim(substr($base, 0, -strlen('/public')), '/');
+    }
+    foreach ($candidates as $candidate) {
+        if ($candidate !== '' && ($uri === $candidate || str_starts_with($uri, $candidate . '/'))) {
+            $uri = substr($uri, strlen($candidate));
+            break;
+        }
+    }
+
+    $uri = '/' . ltrim($uri, '/');
+    return $uri !== '/' ? rtrim($uri, '/') : '/';
 }
 
 /**
@@ -183,4 +446,136 @@ function app_url(string $path = ''): string
 {
     $base = app_base_url();
     return $path === '' ? $base : $base . '/' . ltrim($path, '/');
+}
+
+/**
+ * Turn a user-influenced "return to" value (intended_url, Referer) into a safe
+ * same-site URL. Only a relative path on this application is accepted; anything
+ * with a scheme, host, protocol-relative prefix or control characters falls
+ * back to $fallbackPath. Prevents open redirects after login / CSRF failures.
+ */
+function safe_return_url(?string $candidate, string $fallbackPath = ''): string
+{
+    $fallback  = app_url($fallbackPath);
+    $candidate = trim((string) $candidate);
+    if ($candidate === '' || preg_match('/[\x00-\x1F\x7F\s]/', $candidate)) {
+        return $fallback;
+    }
+
+    // Absolute URL: accept only when it points at this application's own base.
+    $base = app_base_url();
+    if (preg_match('~^[a-z][a-z0-9+.\-]*:~i', $candidate) || str_starts_with($candidate, '//')) {
+        if ($base !== '' && str_starts_with($candidate, $base . '/')) {
+            $candidate = substr($candidate, strlen($base));
+        } elseif ($candidate === $base) {
+            return $fallback;
+        } else {
+            return $fallback;
+        }
+    }
+
+    if (!str_starts_with($candidate, '/') || str_starts_with($candidate, '//') || str_starts_with($candidate, '/\\')) {
+        return $fallback;
+    }
+
+    // Drop the deployment base path (e.g. /sksl/public) so app_url() can re-add it once.
+    $basePath = (string) parse_url($base, PHP_URL_PATH);
+    $basePath = rtrim($basePath, '/');
+    if ($basePath !== '' && ($candidate === $basePath || str_starts_with($candidate, $basePath . '/'))) {
+        $candidate = substr($candidate, strlen($basePath));
+    }
+    $candidate = '/' . ltrim($candidate, '/');
+
+    // Never bounce back into auth endpoints (login → login loops)
+    $path = (string) parse_url($candidate, PHP_URL_PATH);
+    foreach (['/login', '/logout', '/register', '/forgot-password', '/reset-password', '/admin/login', '/admin/logout', '/admin/verify-otp'] as $blocked) {
+        if ($path === $blocked) {
+            return $fallback;
+        }
+    }
+
+    return app_url(ltrim($candidate, '/'));
+}
+
+/**
+ * Is a stored image reference acceptable for output?
+ * Allowed: a relative path under public/images/ or public/uploads/ that ends
+ * in .jpg/.jpeg/.png/.webp (no traversal), or an absolute https:// URL.
+ */
+function is_safe_image_path(?string $path): bool
+{
+    $path = trim((string) $path);
+    if ($path === '' || str_contains($path, '..') || preg_match('/[\s<>"\'\\\\]/', $path)) {
+        return false;
+    }
+    if (preg_match('#^(images|uploads)/[A-Za-z0-9_\-/]+\.(?i:jpe?g|png|webp)$#', $path)) {
+        return true;
+    }
+    return (bool) preg_match('#^https://[^\s<>"\']+\.(?i:jpe?g|png|webp)(\?[^\s<>"\']*)?$#', $path)
+        && filter_var($path, FILTER_VALIDATE_URL) !== false;
+}
+
+/**
+ * Attribute-safe <img src> for an admin/DB-supplied image reference.
+ * Anything outside the allow-list falls back to $fallback (a bundled asset).
+ */
+function safe_image(?string $path, string $fallback = 'images/services/spa.jpg'): string
+{
+    $path = trim((string) $path);
+    if (!is_safe_image_path($path)) {
+        $path = $fallback;
+    }
+    $url = str_starts_with($path, 'https://') ? $path : asset($path);
+    return h($url);
+}
+
+/**
+ * Attribute-safe <img src> for a service's stored image. Accepts the legacy
+ * bare filename form ("spa.jpg") as well as images/… and uploads/… paths.
+ */
+function service_image(?string $image, string $fallback = 'images/services/spa.jpg'): string
+{
+    $image = trim((string) $image);
+    if ($image !== '' && preg_match('/^[A-Za-z0-9_\-]+\.(?i:jpe?g|png|webp)$/', $image)) {
+        $image = 'images/services/' . $image;
+    }
+    return safe_image($image, $fallback);
+}
+
+/**
+ * Is a stored link acceptable as an href?
+ * Allowed: a site-relative path ("/services", "/booking?service_id=3") or an
+ * absolute http(s):// URL. Rejects protocol-relative ("//evil"), javascript:,
+ * data:, and anything with control characters or markup.
+ */
+function is_safe_link(?string $link): bool
+{
+    $link = trim((string) $link);
+    if ($link === '' || preg_match('/[\s<>"\'\\\\\x00-\x1F]/', $link)) {
+        return false;
+    }
+    if (str_starts_with($link, '//')) {
+        return false;
+    }
+    if ($link[0] === '/') {
+        return (bool) preg_match('~^/[A-Za-z0-9_\-/.?=&%+#]*$~', $link);
+    }
+    if (preg_match('#^https?://#i', $link)) {
+        return filter_var($link, FILTER_VALIDATE_URL) !== false;
+    }
+    return false;
+}
+
+/**
+ * Attribute-safe href for an admin/DB-supplied link. Relative paths are
+ * resolved through app_url(); unsafe values fall back to $fallback.
+ */
+function safe_link(?string $link, string $fallback = '/services'): string
+{
+    $link = trim((string) $link);
+    if (!is_safe_link($link)) {
+        $link = $fallback;
+    }
+    $url = preg_match('#^https?://#i', $link) ? $link : app_url(ltrim($link, '/'));
+    return h($url);
 }

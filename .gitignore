@@ -22,8 +22,9 @@
 !/storage/invoices/.gitkeep
 
 # Uploaded service images — not in source control
-/storage/uploads/services/*
-!/storage/uploads/services/.gitkeep
+/public/uploads/services/*
+!/public/uploads/services/.gitkeep
+!/public/uploads/.htaccess
 
 # OS junk
 .DS_Store

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Helpers\BookingRules;
+use App\Helpers\TimeHelper;
+
 /**
  * Booking Model
  *
@@ -80,10 +83,12 @@ class BookingModel
     public function findById(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT b.*, s.name as service_name, s.slug as service_slug, u.name as user_name, u.email as user_email, u.mobile as user_mobile
+            'SELECT b.*, s.name as service_name, s.slug as service_slug, u.name as user_name, u.email as user_email, u.mobile as user_mobile,
+                    cpc.customer_package_id
              FROM bookings b
              JOIN services s ON b.service_id = s.id
              JOIN users u ON b.user_id = u.id
+             LEFT JOIN customer_package_credits cpc ON b.package_credit_id = cpc.id
              WHERE b.id = ? LIMIT 1'
         );
         $stmt->execute([$id]);
@@ -96,10 +101,12 @@ class BookingModel
     public function findByReference(string $reference): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT b.*, s.name as service_name, s.slug as service_slug, u.name as user_name, u.email as user_email, u.mobile as user_mobile
+            'SELECT b.*, s.name as service_name, s.slug as service_slug, u.name as user_name, u.email as user_email, u.mobile as user_mobile,
+                    cpc.customer_package_id
              FROM bookings b
              JOIN services s ON b.service_id = s.id
              JOIN users u ON b.user_id = u.id
+             LEFT JOIN customer_package_credits cpc ON b.package_credit_id = cpc.id
              WHERE b.booking_reference = ? LIMIT 1'
         );
         $stmt->execute([$reference]);
@@ -114,38 +121,61 @@ class BookingModel
      */
     public function create(array $data): int
     {
+        // service_name_snapshot is required: if the caller did not supply it, read it now
+        // so historical bookings never depend on the live services row.
+        $serviceName = trim((string) ($data['service_name_snapshot'] ?? ''));
+        if ($serviceName === '') {
+            $lookup = $this->db->prepare('SELECT name FROM services WHERE id = ? LIMIT 1');
+            $lookup->execute([(int) $data['service_id']]);
+            $serviceName = (string) ($lookup->fetchColumn() ?: 'Recovery Session');
+        }
+
         $stmt = $this->db->prepare(
             'INSERT INTO bookings (
-                booking_reference, user_id, service_id, booking_date,
-                start_time, end_time, service_duration_minutes,
+                booking_reference, user_id, service_id, booking_type, payment_mode, payment_channel, payment_due_at,
+                duration_option_id, package_credit_id, booking_date,
+                start_time, end_time,
+                service_name_snapshot, service_duration_minutes,
                 checkin_buffer_minutes, checkout_buffer_minutes,
-                base_amount, gst_amount, convenience_fee, total_amount,
-                booking_status, payment_status
+                base_amount, gst_percent, gst_amount, convenience_fee, total_amount,
+                booking_status, payment_status, visit_status, health_declared_at
              ) VALUES (
-                :ref, :user_id, :service_id, :booking_date,
-                :start_time, :end_time, :duration,
+                :ref, :user_id, :service_id, :booking_type, :payment_mode, :payment_channel, :payment_due_at,
+                :duration_option_id, :package_credit_id, :booking_date,
+                :start_time, :end_time,
+                :service_name, :duration,
                 :checkin_buf, :checkout_buf,
-                :base_amount, :gst_amount, :conv_fee, :total_amount,
-                :b_status, :p_status
+                :base_amount, :gst_percent, :gst_amount, :conv_fee, :total_amount,
+                :b_status, :p_status, :visit_status, :health_declared_at
              )'
         );
 
         $stmt->execute([
-            'ref'          => $data['booking_reference'],
-            'user_id'      => $data['user_id'],
-            'service_id'   => $data['service_id'],
-            'booking_date' => $data['booking_date'],
-            'start_time'   => $data['start_time'],
-            'end_time'     => $data['end_time'],
-            'duration'     => $data['service_duration_minutes'],
-            'checkin_buf'  => $data['checkin_buffer_minutes'] ?? 0,
-            'checkout_buf' => $data['checkout_buffer_minutes'] ?? 0,
-            'base_amount'  => $data['base_amount'],
-            'gst_amount'   => $data['gst_amount'],
-            'conv_fee'     => $data['convenience_fee'] ?? 0.00,
-            'total_amount' => $data['total_amount'],
-            'b_status'     => $data['booking_status'] ?? 'pending',
-            'p_status'     => $data['payment_status'] ?? 'pending',
+            'ref'                => $data['booking_reference'],
+            'user_id'            => $data['user_id'],
+            'service_id'         => $data['service_id'],
+            'booking_type'       => $data['booking_type'] ?? 'standard',
+            'payment_mode'       => $data['payment_mode'] ?? 'payment_required',
+            'payment_channel'    => $data['payment_channel'] ?? 'online',
+            'payment_due_at'     => $data['payment_due_at'] ?? null,
+            'duration_option_id' => $data['duration_option_id'] ?? null,
+            'package_credit_id'  => $data['package_credit_id'] ?? null,
+            'booking_date'       => $data['booking_date'],
+            'start_time'         => $data['start_time'],
+            'end_time'           => $data['end_time'],
+            'service_name'       => mb_substr($serviceName, 0, 150),
+            'duration'           => $data['service_duration_minutes'],
+            'checkin_buf'        => $data['checkin_buffer_minutes'] ?? 0,
+            'checkout_buf'       => $data['checkout_buffer_minutes'] ?? 0,
+            'base_amount'        => $data['base_amount'],
+            'gst_percent'        => $data['gst_percent'] ?? 18.00,
+            'gst_amount'         => $data['gst_amount'],
+            'conv_fee'           => $data['convenience_fee'] ?? 0.00,
+            'total_amount'       => $data['total_amount'],
+            'b_status'           => $data['booking_status'] ?? 'pending',
+            'p_status'           => $data['payment_status'] ?? 'pending',
+            'visit_status'       => $data['visit_status'] ?? 'pending',
+            'health_declared_at' => $data['health_declared_at'] ?? null,
         ]);
 
         return (int) $this->db->lastInsertId();
@@ -170,6 +200,41 @@ class BookingModel
     }
 
     /**
+     * Atomically move a booking from pending -> confirmed/paid.
+     * Returns true only if THIS call performed the transition. A cancelled,
+     * completed, or already-confirmed booking is left untouched and returns false.
+     */
+    public function confirmIfPending(int $id): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET booking_status = 'confirmed', payment_status = 'paid'
+             WHERE id = ? AND booking_status = 'pending'"
+        );
+        $stmt->execute([$id]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Record that money was captured for a booking that had already been
+     * cancelled/expired. Payment is marked paid so it shows in reconciliation,
+     * and a note is appended for staff to arrange a refund.
+     */
+    public function markPaymentReceivedAfterClose(int $id): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET payment_status = 'paid',
+                 notes = CONCAT_WS('\n', notes, ?)
+             WHERE id = ? AND booking_status NOT IN ('confirmed', 'completed')"
+        );
+        return $stmt->execute([
+            '[' . date('Y-m-d H:i:s') . '] Payment captured after booking was closed. Refund required.',
+            $id,
+        ]);
+    }
+
+    /**
      * Retrieve all bookings for a user with service and payment details.
      *
      * @param int $userId
@@ -187,16 +252,26 @@ class BookingModel
 
         $params = ['user_id' => $userId];
 
+        // "Now" is taken from the application clock (Asia/Kolkata), not the DB
+        // server's, so a session that ended an hour ago is no longer "upcoming"
+        // even when the database runs in UTC.
+        $today   = TimeHelper::today();
+        $nowTime = TimeHelper::now()->format('H:i:s');
+
         if ($filter === 'upcoming') {
-            $sql .= " AND b.booking_status = 'confirmed' 
-                      AND (CONCAT(b.booking_date, ' ', b.end_time) >= NOW() OR b.booking_date >= CURDATE())";
+            $sql .= " AND (b.booking_status = 'confirmed' OR (b.booking_status = 'pending' AND b.payment_channel = 'offline' AND b.payment_due_at > NOW()))
+                      AND (b.booking_date > :today OR (b.booking_date = :today2 AND b.end_time > :now_time))";
+            $params += ['today' => $today, 'today2' => $today, 'now_time' => $nowTime];
         } elseif ($filter === 'completed') {
-            $sql .= " AND (b.booking_status = 'completed' OR (b.booking_status = 'confirmed' AND CONCAT(b.booking_date, ' ', b.end_time) < NOW() AND b.booking_date < CURDATE()))";
+            $sql .= " AND (b.booking_status = 'completed'
+                      OR (b.booking_status = 'confirmed'
+                          AND (b.booking_date < :today OR (b.booking_date = :today2 AND b.end_time <= :now_time))))";
+            $params += ['today' => $today, 'today2' => $today, 'now_time' => $nowTime];
         } elseif ($filter === 'cancelled') {
             $sql .= " AND b.booking_status = 'cancelled'";
         } else {
-            // For 'all' or default: return real bookings (confirmed, completed, cancelled), excluding abandoned pending holds
-            $sql .= " AND b.booking_status != 'pending'";
+            // 'all' / default: real bookings only — never abandoned (pending/expired) checkouts
+            $sql .= " AND (b.booking_status NOT IN ('pending', 'expired') OR (b.booking_status = 'pending' AND b.payment_channel = 'offline' AND b.payment_due_at > NOW()))";
         }
 
         $sql .= " ORDER BY b.booking_date DESC, b.start_time DESC";
@@ -207,44 +282,132 @@ class BookingModel
     }
 
     /**
-     * Check if a booking is eligible for cancellation by the customer.
-     * Policy: Confirmed booking, owned by customer, and at least 2 hours before session start time.
+     * Allowed staff-driven status transitions.
+     *
+     * Customers cannot cancel online; SKSL staff cancel on request (see
+     * cancellation policy). Cancelled and completed are terminal: a cancelled
+     * booking is never resurrected because its slot may have been re-sold and
+     * its payment may already be refunded — a new booking must be made instead.
+     * pending -> confirmed is only performed by the payment flow (confirmIfPending).
+     */
+    public const ADMIN_TRANSITIONS = [
+        'pending'   => ['cancelled'],
+        'confirmed' => ['completed', 'cancelled'],
+        'completed' => [],
+        'cancelled' => [],
+        'expired'   => [], // abandoned checkout, closed automatically — terminal
+    ];
+
+    /**
+     * Expire abandoned checkouts: bookings still pending/unpaid after the hold
+     * window plus a grace period become 'expired' so they stop cluttering the
+     * admin list. A late webhook for such a row is still recorded by
+     * settlePayment() (markPaymentReceivedAfterClose) and flagged for staff.
+     *
+     * @return int rows expired
+     */
+    public function expireStalePending(?int $olderThanMinutes = null): int
+    {
+        $minutes = $olderThanMinutes ?? BookingRules::pendingBookingExpiryMinutes();
+        $cutoff  = TimeHelper::now()->modify("-{$minutes} minutes")->format('Y-m-d H:i:s');
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET booking_status = 'expired'
+             WHERE booking_status = 'pending'
+               AND payment_status = 'pending'
+               AND payment_channel = 'online'
+               AND created_at < ?"
+        );
+        $stmt->execute([$cutoff]);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Offline payment requests whose deadline has passed without staff approving them: closed so the
+     * slot is free again. (An approved booking is never touched; staff may still approve a lapsed one
+     * if the money arrived late and the slot is still free.)
+     *
+     * @return int rows expired
+     */
+    public function expireOfflineDue(): int
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET booking_status = 'expired'
+             WHERE booking_status = 'pending'
+               AND payment_status = 'pending'
+               AND payment_channel = 'offline'
+               AND payment_due_at IS NOT NULL
+               AND payment_due_at < ?"
+        );
+        $stmt->execute([TimeHelper::now()->format('Y-m-d H:i:s')]);
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Validate a staff-requested status change against the state machine.
      *
      * @param array<string, mixed> $booking
-     * @return array{can_cancel: bool, reason?: string, hours_remaining?: float}
+     * @return array{allowed: bool, reason?: string}
      */
-    public static function checkCancellationEligibility(array $booking, int $userId): array
+    public static function checkAdminTransition(array $booking, string $to): array
     {
-        if ((int) $booking['user_id'] !== $userId) {
-            return ['can_cancel' => false, 'reason' => 'Unauthorized booking access.'];
+        $from = (string) ($booking['booking_status'] ?? '');
+
+        if (!isset(self::ADMIN_TRANSITIONS[$from])) {
+            return ['allowed' => false, 'reason' => 'Booking is in an unknown state.'];
+        }
+        if ($from === $to) {
+            return ['allowed' => false, 'reason' => 'Booking is already ' . $to . '.'];
+        }
+        if ($from === 'cancelled') {
+            return ['allowed' => false, 'reason' => 'A cancelled booking cannot be reopened. Ask the athlete to book a new session.'];
+        }
+        if ($from === 'completed') {
+            return ['allowed' => false, 'reason' => 'A completed booking is final.'];
+        }
+        if ($from === 'expired') {
+            return ['allowed' => false, 'reason' => 'This checkout expired without payment. Ask the athlete to book again.'];
+        }
+        if ($to === 'confirmed') {
+            return ['allowed' => false, 'reason' => 'Bookings are confirmed automatically once payment is verified; they cannot be confirmed manually.'];
+        }
+        if ($to === 'completed' && ($booking['payment_status'] ?? '') !== 'paid') {
+            return ['allowed' => false, 'reason' => 'Only paid bookings can be marked completed.'];
+        }
+        if ($to === 'completed' && ($booking['visit_status'] ?? '') === 'no_show') {
+            return ['allowed' => false, 'reason' => 'This session was marked no-show, so it cannot also be completed.'];
         }
 
-        if ($booking['booking_status'] !== 'confirmed') {
-            return ['can_cancel' => false, 'reason' => 'Only confirmed bookings can be cancelled.'];
+        if (!in_array($to, self::ADMIN_TRANSITIONS[$from], true)) {
+            return ['allowed' => false, 'reason' => "Cannot move a {$from} booking to {$to}."];
         }
 
-        $sessionStart = strtotime($booking['booking_date'] . ' ' . $booking['start_time']);
-        $now = time();
+        return ['allowed' => true];
+    }
 
-        if ($sessionStart === false || $sessionStart <= $now) {
-            return ['can_cancel' => false, 'reason' => 'Past sessions cannot be cancelled.'];
+    /**
+     * Atomically move a booking from one status to another. Returns true only
+     * if the row was still in $from when the update ran, so two staff members
+     * acting at once cannot both "win".
+     */
+    public function transitionStatus(int $id, string $from, string $to): bool
+    {
+        if ($to === 'cancelled') {
+            // Record who and when. An admin cancellation refunds the whole payment (any charge is the owner's call).
+            $stmt = $this->db->prepare(
+                "UPDATE bookings SET booking_status = 'cancelled', cancelled_at = ?, cancelled_by = 'admin',
+                        refund_amount = CASE WHEN payment_mode = 'payment_required' AND payment_status = 'paid' THEN total_amount ELSE NULL END
+                 WHERE id = ? AND booking_status = ?"
+            );
+            $stmt->execute([TimeHelper::now()->format('Y-m-d H:i:s'), $id, $from]);
+            return $stmt->rowCount() === 1;
         }
-
-        $secondsRemaining = $sessionStart - $now;
-        $hoursRemaining = round($secondsRemaining / 3600, 1);
-
-        if ($secondsRemaining < 7200) { // 2 hours = 7200 seconds
-            return [
-                'can_cancel' => false,
-                'reason' => 'Cancellations must be made at least 2 hours before the session start time. (Currently ' . $hoursRemaining . ' hrs remaining).',
-                'hours_remaining' => $hoursRemaining,
-            ];
-        }
-
-        return [
-            'can_cancel' => true,
-            'hours_remaining' => $hoursRemaining,
-        ];
+        $stmt = $this->db->prepare(
+            'UPDATE bookings SET booking_status = ? WHERE id = ? AND booking_status = ?'
+        );
+        $stmt->execute([$to, $id, $from]);
+        return $stmt->rowCount() === 1;
     }
 
     /**
@@ -274,8 +437,8 @@ class BookingModel
          }
 
          if (!empty($filters['search'])) {
-             $sql .= " AND (b.booking_reference LIKE :s1 OR u.name LIKE :s2 OR u.email LIKE :s3 OR u.mobile LIKE :s4)";
-             $term = '%' . $filters['search'] . '%';
+             $sql .= " AND (b.booking_reference LIKE :s1 ESCAPE '\\\\' OR u.name LIKE :s2 ESCAPE '\\\\' OR u.email LIKE :s3 ESCAPE '\\\\' OR u.mobile LIKE :s4 ESCAPE '\\\\')";
+             $term = self::likeTerm((string) $filters['search']);
              $params['s1'] = $term;
              $params['s2'] = $term;
              $params['s3'] = $term;
@@ -291,9 +454,12 @@ class BookingModel
          $counts = [
              'all'       => 0,
              'confirmed' => 0,
+             'visited'   => 0,
              'completed' => 0,
+             'no_show'   => 0,
              'cancelled' => 0,
              'pending'   => 0,
+             'expired'   => 0,
          ];
 
          foreach ($rows as $r) {
@@ -305,8 +471,50 @@ class BookingModel
              $counts['all'] += $c;
          }
 
+         // Also retrieve visit_status counts for visited and no_show tabs
+         try {
+             $vsql = "SELECT b.visit_status, COUNT(*) as cnt
+                      FROM bookings b
+                      JOIN services s ON b.service_id = s.id
+                      JOIN users u ON b.user_id = u.id
+                      WHERE b.visit_status IN ('visited', 'no_show')";
+             if (!empty($filters['date'])) {
+                 $vsql .= " AND b.booking_date = :date";
+             }
+             if (!empty($filters['service_id'])) {
+                 $vsql .= " AND b.service_id = :service_id";
+             }
+             if (!empty($filters['search'])) {
+                 $vsql .= " AND (b.booking_reference LIKE :s1 ESCAPE '\\\\' OR u.name LIKE :s2 ESCAPE '\\\\' OR u.email LIKE :s3 ESCAPE '\\\\' OR u.mobile LIKE :s4 ESCAPE '\\\\')";
+             }
+             $vsql .= " GROUP BY b.visit_status";
+             $vstmt = $this->db->prepare($vsql);
+             $vstmt->execute($params);
+             $vrows = $vstmt->fetchAll() ?: [];
+             foreach ($vrows as $vr) {
+                 $vst = (string) $vr['visit_status'];
+                 if (isset($counts[$vst])) {
+                     $counts[$vst] = (int) $vr['cnt'];
+                 }
+             }
+         } catch (\Throwable) {
+             // Fallback safely
+         }
+
          return $counts;
      }
+
+    /**
+     * Build a LIKE pattern for a free-text search term: the user's `%`, `_` and `\`
+     * are matched literally (the query declares ESCAPE '\\'), and the term is
+     * capped so a huge input cannot turn into an expensive scan.
+     */
+    public static function likeTerm(string $search): string
+    {
+        $search = mb_substr(trim($search), 0, 100);
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
+        return '%' . $escaped . '%';
+    }
 
     /**
      * Search and retrieve bookings for admin management.
@@ -338,13 +546,18 @@ class BookingModel
         }
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
-            $sql .= " AND b.booking_status = :status";
-            $params['status'] = $filters['status'];
+            if ($filters['status'] === 'visited' || $filters['status'] === 'no_show') {
+                $sql .= " AND b.visit_status = :visit_status";
+                $params['visit_status'] = $filters['status'];
+            } else {
+                $sql .= " AND b.booking_status = :status";
+                $params['status'] = $filters['status'];
+            }
         }
 
         if (!empty($filters['search'])) {
-            $sql .= " AND (b.booking_reference LIKE :s1 OR u.name LIKE :s2 OR u.email LIKE :s3 OR u.mobile LIKE :s4)";
-            $term = '%' . $filters['search'] . '%';
+            $sql .= " AND (b.booking_reference LIKE :s1 ESCAPE '\\\\' OR u.name LIKE :s2 ESCAPE '\\\\' OR u.email LIKE :s3 ESCAPE '\\\\' OR u.mobile LIKE :s4 ESCAPE '\\\\')";
+            $term = self::likeTerm((string) $filters['search']);
             $params['s1'] = $term;
             $params['s2'] = $term;
             $params['s3'] = $term;
@@ -357,5 +570,86 @@ class BookingModel
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll() ?: [];
+    }
+
+    /**
+     * Mark a confirmed, not-yet-attended booking as visited.
+     * Conditional, so a repeat click or a second admin cannot re-apply it.
+     * Returns true only when this call changed the row.
+     */
+    public function markVisited(int $bookingId, int $adminId = 0): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET visit_status = 'visited',
+                 visit_marked_at = NOW(),
+                 visit_marked_by_admin_id = ?
+             WHERE id = ? AND visit_status = 'pending' AND booking_status IN ('confirmed', 'completed')
+               AND TIMESTAMP(booking_date, start_time) <= (NOW() + INTERVAL 30 MINUTE)"
+        );
+        $stmt->execute([$adminId > 0 ? $adminId : null, $bookingId]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
+     * Mark a confirmed, not-yet-attended booking as no-show.
+     * Conditional for the same reason as markVisited(); callers restore package
+     * credits only when this returns true, so a credit can never be restored twice.
+     */
+    public function markNoShow(int $bookingId, int $adminId = 0): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE bookings
+             SET visit_status = 'no_show',
+                 visit_marked_at = NOW(),
+                 visit_marked_by_admin_id = ?
+             WHERE id = ? AND visit_status = 'pending' AND booking_status = 'confirmed'
+               AND TIMESTAMP(booking_date, start_time) <= NOW()"
+        );
+        $stmt->execute([$adminId > 0 ? $adminId : null, $bookingId]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /** Confirmed professional appointments that have not happened yet. */
+    public function countUpcomingProfessionalForUser(int $userId): int
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM bookings
+             WHERE user_id = ? AND booking_type = 'professional' AND booking_status = 'confirmed'
+               AND TIMESTAMP(booking_date, end_time) > NOW()"
+        );
+        $stmt->execute([$userId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Confirmed bookings that fall inside a window a new admin block or "unavailable"
+     * rule would cover. Used to warn staff, never to refuse the change.
+     *
+     * @param int|null    $serviceId null = every service (facility-wide block)
+     * @param string|null $date      specific Y-m-d, or null to use $weekday (0=Sunday) from today onward
+     */
+    public function countConfirmedInWindow(?int $serviceId, ?string $date, ?int $weekday, string $startTime, string $endTime): int
+    {
+        $sql = "SELECT COUNT(*) FROM bookings
+                WHERE booking_status = 'confirmed'
+                  AND start_time < :end_time AND end_time > :start_time";
+        $params = ['start_time' => $startTime, 'end_time' => $endTime];
+
+        if ($serviceId !== null) {
+            $sql .= ' AND service_id = :service_id';
+            $params['service_id'] = $serviceId;
+        }
+        if ($date !== null) {
+            $sql .= ' AND booking_date = :date';
+            $params['date'] = $date;
+        } else {
+            $sql .= ' AND booking_date >= CURDATE() AND (DAYOFWEEK(booking_date) - 1) = :weekday';
+            $params['weekday'] = (int) $weekday;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
     }
 }

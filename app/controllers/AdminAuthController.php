@@ -27,13 +27,13 @@ class AdminAuthController
     public function showLogin(): void
     {
         if (!empty($_SESSION['admin_id'])) {
-            header('Location: ' . app_url('admin/bookings'));
+            header('Location: ' . app_url('admin/dashboard'));
             exit;
         }
 
         $title = 'Admin Portal Login — Sara Kinetic Sports Lab';
         $viewFile = dirname(__DIR__) . '/views/admin/login.php';
-        require dirname(__DIR__) . '/views/layouts/main.php';
+        require dirname(__DIR__) . '/views/layouts/admin-auth.php';
     }
 
     /**
@@ -42,7 +42,7 @@ class AdminAuthController
      */
     public function sendOtp(): void
     {
-        $email = trim((string) ($_POST['email'] ?? ''));
+        $email = trim(input_str($_POST['email'] ?? ''));
 
         $res = $this->authService->requestOtp($email);
 
@@ -52,8 +52,12 @@ class AdminAuthController
             exit;
         }
 
+        // The code is only valid for the browser that asked for it: remember the address in this
+        // session instead of passing it through the URL (logs, history, shared screens).
+        $_SESSION['admin_otp_email'] = strtolower($email);
+
         Flash::set('success', $res['message']);
-        header('Location: ' . app_url('admin/verify-otp?email=' . urlencode($email)));
+        header('Location: ' . app_url('admin/verify-otp'));
         exit;
     }
 
@@ -63,11 +67,11 @@ class AdminAuthController
     public function showVerifyOtp(): void
     {
         if (!empty($_SESSION['admin_id'])) {
-            header('Location: ' . app_url('admin/bookings'));
+            header('Location: ' . app_url('admin/dashboard'));
             exit;
         }
 
-        $email = trim((string) ($_GET['email'] ?? ''));
+        $email = (string) ($_SESSION['admin_otp_email'] ?? '');
         if ($email === '') {
             header('Location: ' . app_url('admin/login'));
             exit;
@@ -75,7 +79,7 @@ class AdminAuthController
 
         $title = 'Verify Admin Code — Sara Kinetic Sports Lab';
         $viewFile = dirname(__DIR__) . '/views/admin/verify-otp.php';
-        require dirname(__DIR__) . '/views/layouts/main.php';
+        require dirname(__DIR__) . '/views/layouts/admin-auth.php';
     }
 
     /**
@@ -84,19 +88,27 @@ class AdminAuthController
      */
     public function verifyOtp(): void
     {
-        $email = trim((string) ($_POST['email'] ?? ''));
-        $otp   = trim((string) ($_POST['otp'] ?? ''));
+        // Only the address this browser requested a code for can be verified; a posted email is ignored.
+        $email = (string) ($_SESSION['admin_otp_email'] ?? '');
+        $otp   = trim(input_str($_POST['otp'] ?? ''));
+
+        if ($email === '') {
+            Flash::set('error', 'Please request a new verification code.');
+            header('Location: ' . app_url('admin/login'));
+            exit;
+        }
 
         $res = $this->authService->verifyOtp($email, $otp);
 
         if (!$res['success']) {
             Flash::set('error', $res['message']);
-            header('Location: ' . app_url('admin/verify-otp?email=' . urlencode($email)));
+            header('Location: ' . app_url('admin/verify-otp'));
             exit;
         }
+        unset($_SESSION['admin_otp_email']);
 
         Flash::set('success', $res['message']);
-        header('Location: ' . app_url('admin/bookings'));
+        header('Location: ' . app_url('admin/dashboard'));
         exit;
     }
 

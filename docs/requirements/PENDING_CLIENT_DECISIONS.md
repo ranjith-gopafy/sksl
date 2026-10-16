@@ -45,7 +45,7 @@ Confirm how late same-day bookings are allowed.
 ## 6. Cancellation
 Confirm whether cancellation is allowed, deadline, refund eligibility, and gateway/convenience-fee treatment.
 
-**Status:** Pending
+**Status:** Decided by the client: customers may cancel up to 24 hours before the session; a 10% cancellation charge on the amount paid (incl. GST) applies to online payments; SKSL refunds the rest manually. Implemented (migration 024, `CANCELLATION_NOTICE_HOURS` / `CANCELLATION_FEE_PERCENT`).
 
 ## 7. Rescheduling
 Confirm whether customers may reschedule, limits, deadlines, date changes, and price differences.

@@ -16,13 +16,13 @@
                 
                 <div class="mt-5 pt-5 border-t border-slate-100 text-left space-y-2.5 text-xs text-slate-600">
                     <div class="flex justify-between">
-                        <span class="text-slate-400">Account Status</span>
+                        <span class="text-slate-500">Account Status</span>
                         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase">
                             <?= h($user['status'] ?? 'Active') ?>
                         </span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-slate-400">Member Since</span>
+                        <span class="text-slate-500">Member Since</span>
                         <span class="text-slate-800 font-semibold">
                             <?= h(date('d M Y', strtotime($user['created_at'] ?? 'now'))) ?>
                         </span>
@@ -33,6 +33,13 @@
                     <a href="<?= app_url('my-bookings') ?>" class="block w-full py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold text-center border border-slate-200 transition-colors">
                         View My Bookings &rarr;
                     </a>
+                    <!-- Only sign-out control reachable on phones (the header one is desktop-only) -->
+                    <form method="POST" action="<?= app_url('logout') ?>" class="mt-3">
+                        <?= \App\Helpers\Csrf::field() ?>
+                        <button type="submit" class="block w-full py-3 px-4 rounded-xl bg-white hover:bg-rose-50 text-rose-700 text-xs font-bold text-center border border-rose-200 transition-colors cursor-pointer">
+                            Sign Out
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -64,6 +71,7 @@
                             type="text" 
                             id="name" 
                             name="name" 
+                            autocomplete="name"
                             required 
                             value="<?= h($user['name'] ?? '') ?>"
                             class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm"
@@ -79,7 +87,7 @@
                             id="email_static" 
                             disabled 
                             value="<?= h($user['email'] ?? '') ?>"
-                            class="w-full px-4 py-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed text-sm"
+                            class="w-full px-4 py-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-500 cursor-not-allowed text-sm"
                         >
                         <p class="text-[11px] text-slate-500 mt-1">To change your email address, please reach out to facility management.</p>
                     </div>
@@ -89,13 +97,14 @@
                             Mobile Number
                         </label>
                         <div class="relative">
-                            <span class="absolute left-4 top-3 text-slate-400 text-sm font-semibold">+91</span>
+                            <span class="absolute left-4 top-3 text-slate-500 text-sm font-semibold">+91</span>
                             <input 
                                 type="tel" 
                                 id="mobile" 
                                 name="mobile" 
+                                autocomplete="tel"
                                 required 
-                                maxlength="10"
+                                maxlength="16"
                                 value="<?= h($user['mobile'] ?? '') ?>"
                                 class="w-full pl-14 pr-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm"
                             >
@@ -138,6 +147,7 @@
                             type="password" 
                             id="current_password" 
                             name="current_password" 
+                            autocomplete="current-password"
                             required 
                             class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm"
                         >
@@ -145,7 +155,7 @@
 
                     <div>
                         <label for="new_password" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            New Password (min 8 characters)
+                            New Password
                         </label>
                         <input 
                             type="password" 
@@ -153,8 +163,11 @@
                             name="new_password" 
                             required 
                             minlength="8"
+                            autocomplete="new-password"
+                            aria-describedby="new-password-hint"
                             class="w-full px-4 py-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-sm"
                         >
+                        <p id="new-password-hint" class="text-[11px] text-slate-500 mt-1"><?= h(\App\Helpers\PasswordPolicy::HINT) ?> Changing it signs out your other devices.</p>
                     </div>
 
                     <div>
