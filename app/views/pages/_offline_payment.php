@@ -10,13 +10,17 @@
 $offInfo = \App\Helpers\OfflinePayment::info();
 $offLink = \App\Helpers\OfflinePayment::upiLink((float) $offAmount, (string) $offReference);
 $offDue  = $offDueAt !== '' ? date('d M Y, g:i A', strtotime($offDueAt)) . ' IST' : '';
+// A QR that already carries this amount and reference; the client's fixed QR picture is the backup.
+$offQr   = \App\Helpers\OfflinePayment::qrDataUri((float) $offAmount, (string) $offReference);
+$offQrSrc = $offQr ?? ($offInfo['qr_image'] !== '' ? app_url($offInfo['qr_image']) : '');
 ?>
 <div class="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 sm:p-6" data-testid="offline-payment-box">
     <div class="flex flex-col sm:flex-row gap-5 sm:gap-6">
-        <?php if ($offInfo['qr_image'] !== ''): ?>
+        <?php if ($offQrSrc !== ''): ?>
             <div class="shrink-0 mx-auto sm:mx-0">
-                <img src="<?= h(app_url($offInfo['qr_image'])) ?>" alt="UPI QR code for <?= h($offInfo['payee']) ?>"
-                     width="220" class="w-52 sm:w-56 h-auto rounded-xl border border-amber-200 bg-white" loading="lazy">
+                <img src="<?= h($offQrSrc) ?>" data-testid="upi-qr" data-qr="<?= $offQr !== null ? 'amount' : 'fixed' ?>"
+                     alt="UPI QR code to pay <?= $offQr !== null ? '₹' . number_format((float) $offAmount, 2) . ' to ' : '' ?><?= h($offInfo['payee']) ?>"
+                     width="220" height="220" class="w-52 sm:w-56 h-auto rounded-xl border border-amber-200 bg-white" loading="lazy">
             </div>
         <?php endif; ?>
         <div class="flex-1 min-w-0 text-sm text-slate-800">
@@ -27,7 +31,13 @@ $offDue  = $offDueAt !== '' ? date('d M Y, g:i A', strtotime($offDueAt)) . ' IST
                     <strong class="font-mono break-all" data-testid="upi-id"><?= h($offInfo['upi_id']) ?></strong>
                     <?php if ($offInfo['payee'] !== ''): ?>(<?= h($offInfo['payee']) ?>)<?php endif; ?><?php endif; ?>.
                 </li>
-                <li>Enter exactly <strong>&#8377;<?= number_format((float) $offAmount, 2) ?></strong> and write <strong class="font-mono"><?= h($offReference) ?></strong> in the payment note.</li>
+                <li>
+                    <?php if ($offQr !== null): ?>
+                        The amount <strong>&#8377;<?= number_format((float) $offAmount, 2) ?></strong> and the note <strong class="font-mono"><?= h($offReference) ?></strong> are filled in for you. Check they are correct before you pay.
+                    <?php else: ?>
+                        Enter exactly <strong>&#8377;<?= number_format((float) $offAmount, 2) ?></strong> and write <strong class="font-mono"><?= h($offReference) ?></strong> in the payment note.
+                    <?php endif; ?>
+                </li>
                 <li>
                     <?= $offKind === 'package' ? 'Your package credits are activated' : 'Your booking is confirmed' ?>
                     and your tax invoice is emailed as soon as we have received the payment.

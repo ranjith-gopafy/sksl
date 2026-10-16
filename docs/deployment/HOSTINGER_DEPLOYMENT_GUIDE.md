@@ -420,7 +420,7 @@ Set these in the production `.env`:
 ONLINE_PAYMENTS_ENABLED=false
 UPI_ID=<the client's UPI id>
 UPI_PAYEE_NAME=<name shown to customers>
-UPI_QR_IMAGE=images/upi-qr.jpg      # the QR picture is already in public/images/
+UPI_QR_IMAGE=images/upi-qr.jpg      # backup picture, used only if the QR with the amount cannot be drawn
 ```
 
 Customers then request a booking or combo package and pay by UPI; the booking is confirmed (with the GST invoice and

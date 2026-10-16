@@ -97,6 +97,27 @@ check('A9 the UPI deep link carries the id, amount, currency and reference', $li
 $info = OfflinePayment::info();
 check('A10 the QR image configured for the client exists on disk', $info['qr_image'] === '' || is_file(dirname(__DIR__) . '/public/' . $info['qr_image']));
 
+// QR code that carries the amount and reference
+$qr = OfflinePayment::qrDataUri(599.0, 'SKSL-20261016-ABC123');
+$svg = $qr !== null ? (string) base64_decode(substr($qr, (int) strpos($qr, ',') + 1), true) : '';
+check('A11 a UPI id gives a QR as an SVG data URI', $qr !== null && str_starts_with($qr, 'data:image/svg+xml;base64,') && str_contains($svg, '<svg') && str_contains($svg, '<path'));
+if (function_exists('imagecreatetruecolor')) {
+    $png = (new \chillerlan\QRCode\QRCode(new \chillerlan\QRCode\QROptions([
+        'outputType' => \chillerlan\QRCode\Output\QROutputInterface::GDIMAGE_PNG, 'outputBase64' => false, 'scale' => 8, 'quietzoneSize' => 2,
+    ])))->render((string) $link);
+    $tmpPng = tempnam(sys_get_temp_dir(), 'qr') . '.png';
+    file_put_contents($tmpPng, $png);
+    $decoded = (string) (new \chillerlan\QRCode\QRCode())->readFromFile($tmpPng);
+    @unlink($tmpPng);
+    check('A12 scanning the QR gives back the exact UPI link (id, amount, reference)', $decoded === $link, $decoded);
+}
+$savedUpi = $_ENV['UPI_ID'] ?? null;
+$_ENV['UPI_ID'] = '';
+check('A13 without a UPI id there is no generated QR (the fixed picture is used instead)', OfflinePayment::qrDataUri(599.0, 'X') === null);
+$_ENV['UPI_ID'] = 'not a upi id';
+check('A14 an invalid UPI id gives no QR', OfflinePayment::qrDataUri(599.0, 'X') === null);
+if ($savedUpi === null) { unset($_ENV['UPI_ID']); } else { $_ENV['UPI_ID'] = $savedUpi; }
+
 // ---------------------------------------------------------------- B. requesting a booking
 $u1 = $mkUser('one');
 $u2 = $mkUser('two');

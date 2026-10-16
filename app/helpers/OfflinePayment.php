@@ -107,13 +107,44 @@ final class OfflinePayment
         if ($info['upi_id'] === '' || !preg_match('/^[A-Za-z0-9._\-]{2,}@[A-Za-z0-9.\-]{2,}$/', $info['upi_id'])) {
             return null;
         }
-        return 'upi://pay?' . http_build_query([
+        $query = http_build_query([
             'pa' => $info['upi_id'],
             'pn' => $info['payee'],
             'am' => number_format($amount, 2, '.', ''),
             'cu' => 'INR',
             'tn' => $reference,
         ], '', '&', PHP_QUERY_RFC3986);
+        // The id was validated above, so its "@" is safe to leave as is; some UPI apps read it more reliably.
+        return 'upi://pay?' . str_replace('%40', '@', $query);
+    }
+
+    /**
+     * QR code (SVG data URI, so it works under the page's img-src rules) of the upi:// link, i.e. a code that
+     * already carries the amount and the booking reference. Null when there is no valid UPI id or drawing
+     * fails; the caller then falls back to the fixed QR picture.
+     */
+    public static function qrDataUri(float $amount, string $reference): ?string
+    {
+        $link = self::upiLink($amount, $reference);
+        if ($link === null || !class_exists(\chillerlan\QRCode\QRCode::class)) {
+            return null;
+        }
+        try {
+            $options = new \chillerlan\QRCode\QROptions([
+                'outputType'  => \chillerlan\QRCode\Output\QROutputInterface::MARKUP_SVG,
+                'outputBase64' => true,
+                'eccLevel'    => \chillerlan\QRCode\Common\EccLevel::M,
+                'addQuietzone' => true,
+                'quietzoneSize' => 2,
+                'svgViewBoxSize' => 300,
+                'drawLightModules' => false,
+                'svgUseFillAttributes' => true,
+            ]);
+            $uri = (new \chillerlan\QRCode\QRCode($options))->render($link);
+            return str_starts_with($uri, 'data:image/svg+xml') ? $uri : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /** Plain-text payment instructions for emails. */

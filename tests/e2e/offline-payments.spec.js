@@ -82,6 +82,12 @@ test.describe.serial('Offline payment mode', () => {
     await expect(box).toBeVisible();
     await expect(box.locator('img[alt^="UPI QR code"]')).toBeVisible();
     await expect(box.getByTestId('upi-id')).toHaveText(/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/); // the id comes from UPI_ID in .env
+    // the QR is generated for this booking (amount + reference inside), not the fixed picture
+    const qr = box.getByTestId('upi-qr');
+    await expect(qr).toHaveAttribute('data-qr', 'amount');
+    await expect(qr).toHaveAttribute('src', /^data:image\/svg\+xml;base64,/);
+    await expect(qr).toHaveAttribute('alt', /UPI QR code to pay ₹[\d,]+\.\d\d to /);
+    expect(await qr.evaluate((img) => img.complete && img.naturalWidth > 0)).toBe(true);
     await expect(box).toContainText('₹599.00');
     await expect(box).toContainText(ref);
     await expect(page.getByTestId('pay-by')).toContainText('Please pay before');
