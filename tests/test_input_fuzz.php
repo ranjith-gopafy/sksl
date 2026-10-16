@@ -120,7 +120,7 @@ $r = $adm->req('POST', $base . '/admin/verify-otp', ['otp' => '246810', '_csrf_t
 check('F2 fuzz admin signed in', $r['code'] === 302 && str_contains($r['location'], 'dashboard'), $r['location']);
 
 // snapshot so anything the sweep creates can be removed
-$tables = ['closed_dates', 'manual_blocks', 'availability_rules', 'packages', 'package_items', 'service_duration_options', 'bookings', 'booking_holds', 'payments', 'customer_packages'];
+$tables = ['closed_dates', 'manual_blocks', 'availability_rules', 'packages', 'package_items', 'service_duration_options', 'bookings', 'booking_holds', 'payments', 'customer_packages', 'service_categories'];
 $maxId = [];
 foreach ($tables as $t) { $maxId[$t] = (int) $db->query("SELECT COALESCE(MAX(id), 0) FROM `$t`")->fetchColumn(); }
 $svcSnapshot = $db->query('SELECT id, name, price, capacity, description, status, image FROM services ORDER BY id')->fetchAll(PDO::FETCH_ASSOC);
@@ -205,7 +205,7 @@ if ($svcNow !== $svcSnapshot) {
 if ($settingsSnapshot !== null) {
     check('S2 site settings were not changed by the sweep', $db->query('SELECT * FROM site_settings')->fetchAll(PDO::FETCH_ASSOC) === $settingsSnapshot);
 }
-foreach (['closed_dates', 'manual_blocks', 'availability_rules', 'packages', 'service_duration_options'] as $t) {
+foreach (['closed_dates', 'manual_blocks', 'availability_rules', 'packages', 'service_duration_options', 'service_categories'] as $t) {
     $made = (int) $db->query("SELECT COUNT(*) FROM `$t` WHERE id > {$maxId[$t]}")->fetchColumn();
     check("S3 the sweep created no rows in $t", $made === 0, "$made new rows");
     if ($made > 0) {

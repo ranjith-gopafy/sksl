@@ -71,6 +71,18 @@ Suggested:
 
 V1 GST is 18%.
 
+`category_id` (nullable, FK to `service_categories`, ON DELETE RESTRICT) groups a recovery modality under one of the categories below; practitioner services (`category = 'professional'`) have none.
+
+### service_categories
+The groups customers filter modalities by on the home page and the modalities page (migration 026), managed in Admin > Categories.
+- `id`
+- `name` UNIQUE (case-insensitive), 2 to 60 characters
+- `slug` UNIQUE, built from the name; it is the key the filter buttons and cards share
+- `sort_order` display order
+- `created_at`, `updated_at`
+
+A category can only be deleted when it holds no modalities. A category appears for customers once it has at least one active modality. Modalities can be added, edited and deleted in Admin > Modalities; one that is referenced by bookings, holds, package items or package credits is set to inactive instead of deleted, so history and invoices stay intact.
+
 ## 5. closed_dates
 Full facility date closure.
 

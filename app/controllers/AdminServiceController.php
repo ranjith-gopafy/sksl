@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\ServiceModel;
+use App\Models\ServiceCategoryModel;
 use App\Middleware\AdminAuth;
 use App\Helpers\Flash;
 use App\Helpers\ImageUpload;
@@ -36,6 +37,7 @@ class AdminServiceController
         AdminAuth::handle();
 
         $services = $this->serviceModel->getAll();
+        $categories = (new ServiceCategoryModel())->getAll();
         $durationOptionModel = new \App\Models\DurationOptionModel();
         foreach ($services as &$s) {
             $s['pricing'] = ServiceModel::calculatePricing((float) $s['price'], (float) ($s['gst_percent'] ?? 18.0));
@@ -94,35 +96,9 @@ class AdminServiceController
             exit;
         }
 
-        $priceRaw    = trim((string) ($_POST['price'] ?? $service['price']));
-        $capacityRaw = trim((string) ($_POST['capacity'] ?? $service['capacity']));
-        $desc        = trim((string) ($_POST['description'] ?? $service['description']));
-        $status      = trim((string) ($_POST['status'] ?? $service['status']));
-        if (!in_array($status, ['active', 'inactive'], true)) {
-            $status = $service['status'];
-        }
-
-        // Money: a paid service must cost something (a ₹0 price would create free bookings
-        // and a zero-amount Razorpay order), be a plain decimal, and stay within a sane range.
-        if (!is_numeric($priceRaw) || !preg_match('/^\d{1,6}(\.\d{1,2})?$/', $priceRaw)) {
-            Flash::set('error', 'Price must be a number with at most two decimals (e.g. 149.00).');
-            header('Location: ' . app_url('admin/services'));
-            exit;
-        }
-        $price = round((float) $priceRaw, 2);
-        if ($price < self::MIN_PRICE || $price > self::MAX_PRICE) {
-            Flash::set('error', sprintf('Price must be between ₹%s and ₹%s.', number_format(self::MIN_PRICE, 2), number_format(self::MAX_PRICE, 2)));
-            header('Location: ' . app_url('admin/services'));
-            exit;
-        }
-        if (!ctype_digit($capacityRaw) || (int) $capacityRaw < 1 || (int) $capacityRaw > self::MAX_CAPACITY) {
-            Flash::set('error', 'Capacity must be a whole number between 1 and ' . self::MAX_CAPACITY . '.');
-            header('Location: ' . app_url('admin/services'));
-            exit;
-        }
-        $capacity = (int) $capacityRaw;
-        if (mb_strlen($desc) > 1000) {
-            Flash::set('error', 'Description must be 1000 characters or fewer.');
+        [$input, $error] = $this->collectInput($service);
+        if ($input === null) {
+            Flash::set('error', (string) $error);
             header('Location: ' . app_url('admin/services'));
             exit;
         }
@@ -150,15 +126,162 @@ class AdminServiceController
             $imagePath = null; // reset to default
         }
 
-        $this->serviceModel->updateDetails($id, [
-            'price'       => $price,
-            'capacity'    => $capacity,
-            'description' => $desc,
-            'status'      => $status,
-            'image'       => $imagePath,
-        ]);
+        $this->serviceModel->updateDetails($id, $input + ['image' => $imagePath]);
 
-        Flash::set('success', "Updated specifications for \"{$service['name']}\".");
+        Flash::set('success', "Updated specifications for \"{$input['name']}\".");
+        header('Location: ' . app_url('admin/services'));
+        exit;
+    }
+
+    /**
+     * Read and check the modality form (add and edit use the same rules).
+     * Returns [data, null] when valid, or [null, message] with a plain-language reason.
+     *
+     * @param array<string, mixed>|null $service the modality being edited, null when adding
+     * @return array{0: ?array<string, mixed>, 1: ?string}
+     */
+    private function collectInput(?array $service): array
+    {
+        $isPractitioner = $service !== null && ($service['category'] ?? 'modality') === 'professional';
+        $currentId = $service !== null ? (int) $service['id'] : null;
+
+        $name = trim((string) ($_POST['name'] ?? ($service['name'] ?? '')));
+        if (mb_strlen($name) < 2 || mb_strlen($name) > 100) {
+            return [null, 'Name must be 2 to 100 characters.'];
+        }
+        if (!ServiceCategoryModel::isValidName($name)) {
+            return [null, 'Name: ' . ServiceCategoryModel::NAME_RULE];
+        }
+        if ($this->serviceModel->nameExists($name, $currentId)) {
+            return [null, "There is already a modality called \"{$name}\". Choose a different name."];
+        }
+
+        // Category: required for recovery modalities. The practitioner services are not grouped.
+        $categoryId = null;
+        if (!$isPractitioner) {
+            $categoryId = (int) ($_POST['category_id'] ?? ($service['category_id'] ?? 0));
+            if ($categoryId < 1 || (new ServiceCategoryModel())->findById($categoryId) === null) {
+                return [null, 'Please choose a category for this modality.'];
+            }
+        }
+
+        $priceRaw    = trim((string) ($_POST['price'] ?? ($service['price'] ?? '')));
+        $capacityRaw = trim((string) ($_POST['capacity'] ?? ($service['capacity'] ?? '')));
+        $durationRaw = trim((string) ($_POST['duration_minutes'] ?? ($service['duration_minutes'] ?? '')));
+        $desc        = trim((string) ($_POST['description'] ?? ($service['description'] ?? '')));
+        $status      = trim((string) ($_POST['status'] ?? ($service['status'] ?? 'active')));
+        if (!in_array($status, ['active', 'inactive'], true)) {
+            $status = (string) ($service['status'] ?? 'active');
+        }
+
+        // Money: a paid service must cost something (a ₹0 price would create free bookings
+        // and a zero-amount Razorpay order), be a plain decimal, and stay within a sane range.
+        if (!is_numeric($priceRaw) || !preg_match('/^\d{1,6}(\.\d{1,2})?$/', $priceRaw)) {
+            return [null, 'Price must be a number with at most two decimals (e.g. 149.00).'];
+        }
+        $price = round((float) $priceRaw, 2);
+        if ($price < self::MIN_PRICE || $price > self::MAX_PRICE) {
+            return [null, sprintf('Price must be between ₹%s and ₹%s.', number_format(self::MIN_PRICE, 2), number_format(self::MAX_PRICE, 2))];
+        }
+        if (!ctype_digit($capacityRaw) || (int) $capacityRaw < 1 || (int) $capacityRaw > self::MAX_CAPACITY) {
+            return [null, 'Capacity must be a whole number between 1 and ' . self::MAX_CAPACITY . '.'];
+        }
+        if (!ctype_digit($durationRaw) || (int) $durationRaw < 5 || (int) $durationRaw > 360) {
+            return [null, 'Session length must be a whole number of minutes between 5 and 360.'];
+        }
+        if (mb_strlen($desc) > 1000) {
+            return [null, 'Description must be 1000 characters or fewer.'];
+        }
+
+        $data = [
+            'name'             => $name,
+            'price'            => $price,
+            'capacity'         => (int) $capacityRaw,
+            'duration_minutes' => (int) $durationRaw,
+            'description'      => $desc,
+            'status'           => $status,
+        ];
+        if (!$isPractitioner) {
+            $data['category_id'] = $categoryId;
+        }
+        return [$data, null];
+    }
+
+    /**
+     * POST /admin/services/create
+     * Add a recovery modality. It can be booked as soon as it is active; extra session lengths are added
+     * afterwards with "Durations".
+     */
+    public function create(): void
+    {
+        AdminAuth::handle();
+
+        [$input, $error] = $this->collectInput(null);
+        if ($input === null) {
+            Flash::set('error', (string) $error);
+            header('Location: ' . app_url('admin/services'));
+            exit;
+        }
+
+        $imagePath = null;
+        $hasUpload = isset($_FILES['image']) && (int) $_FILES['image']['error'] !== UPLOAD_ERR_NO_FILE;
+        if ($hasUpload) {
+            $result = ImageUpload::store($_FILES['image'], dirname(__DIR__, 2) . '/public/uploads/services', 'service_new');
+            if (!$result['ok']) {
+                Flash::set('error', $result['error'] ?? 'Image upload failed.');
+                header('Location: ' . app_url('admin/services'));
+                exit;
+            }
+            $imagePath = 'uploads/services/' . $result['filename'];
+        }
+
+        $this->serviceModel->create($input + ['image' => $imagePath]);
+
+        Flash::set('success', "Added modality \"{$input['name']}\"." . ($input['status'] === 'active' ? ' It is now open for booking.' : ' It is inactive, so customers cannot see it yet.'));
+        header('Location: ' . app_url('admin/services'));
+        exit;
+    }
+
+    /**
+     * POST /admin/services/{id}/delete
+     * Delete a modality nothing refers to. One with bookings, holds or combo packages is hidden
+     * (deactivated) instead, so history and invoices stay intact.
+     *
+     * @param array<string, string> $params
+     */
+    public function delete(array $params = []): void
+    {
+        AdminAuth::handle();
+
+        $id = (int) ($params['id'] ?? $_POST['id'] ?? 0);
+        $service = $this->serviceModel->findById($id);
+        if (!$service) {
+            Flash::set('error', 'Service not found.');
+            header('Location: ' . app_url('admin/services'));
+            exit;
+        }
+        if (($service['category'] ?? 'modality') === 'professional') {
+            Flash::set('error', 'Practitioner services cannot be deleted. Deactivate it to hide it.');
+            header('Location: ' . app_url('admin/services'));
+            exit;
+        }
+
+        $deleted = false;
+        if (!$this->serviceModel->isReferenced($id)) {
+            try {
+                $deleted = $this->serviceModel->delete($id);
+            } catch (\PDOException $e) {
+                $deleted = false; // something still points at it: fall through to hiding it
+            }
+        }
+
+        if ($deleted) {
+            ImageUpload::deleteWithin((string) ($service['image'] ?? ''), dirname(__DIR__, 2) . '/public', 'uploads/services');
+            Flash::set('success', "Deleted modality \"{$service['name']}\".");
+        } else {
+            $this->serviceModel->updateStatus($id, 'inactive');
+            Flash::set('success', "\"{$service['name']}\" has bookings or is part of a combo package, so it was hidden (set to Inactive) instead of deleted. Past bookings and invoices are unchanged.");
+        }
         header('Location: ' . app_url('admin/services'));
         exit;
     }

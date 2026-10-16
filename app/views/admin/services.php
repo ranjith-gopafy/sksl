@@ -14,8 +14,12 @@
             </p>
         </div>
 
-        <!-- Search / Quick Filter Input -->
-        <div class="w-full sm:w-auto flex items-center gap-2">
+        <!-- Add + Search / Quick Filter Input -->
+        <div class="w-full sm:w-auto flex flex-wrap items-center gap-2">
+            <button type="button" id="btn-add-service" data-testid="add-modality"
+                    class="py-1.5 px-4 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap">
+                + Add modality
+            </button>
             <div class="relative w-full sm:w-64">
                 <input 
                     type="text" 
@@ -60,6 +64,9 @@
                                      class="w-16 h-12 rounded-lg object-cover bg-slate-100 shrink-0 border border-slate-200">
                                 <div class="min-w-0">
                                     <p class="font-heading font-extrabold text-sm text-slate-900 truncate md:max-w-[10rem]" title="<?= h($s['name']) ?>"><?= h($s['name']) ?></p>
+                                    <p class="text-[10px] font-semibold uppercase tracking-wider <?= !empty($s['category_name']) ? 'text-sky-700' : 'text-slate-500' ?>" data-testid="modality-category">
+                                        <?= ($s['category'] ?? 'modality') === 'professional' ? 'Practitioner service' : h($s['category_name'] ?? 'No category') ?>
+                                    </p>
                                     <?php if (!empty($s['description'])): ?>
                                         <p class="text-[11px] text-slate-500 line-clamp-1 max-w-xs md:hidden 2xl:block"><?= h($s['description']) ?></p>
                                     <?php endif; ?>
@@ -118,6 +125,9 @@
                                         class="btn-edit-service py-1.5 px-4 rounded-lg bg-[#053d63] hover:bg-[#075183] text-white text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
                                         data-id="<?= (int) $s['id'] ?>"
                                         data-name="<?= h($s['name']) ?>"
+                                        data-category-id="<?= (int) ($s['category_id'] ?? 0) ?>"
+                                        data-practitioner="<?= ($s['category'] ?? 'modality') === 'professional' ? '1' : '0' ?>"
+                                        data-duration="<?= (int) $s['duration_minutes'] ?>"
                                         data-price="<?= (float) $s['price'] ?>"
                                         data-capacity="<?= (int) $s['capacity'] ?>"
                                         data-description="<?= h($s['description']) ?>"
@@ -125,6 +135,16 @@
                                         data-image="<?= h($imgSrc) ?>">
                                     Edit
                                 </button>
+                                <?php if (($s['category'] ?? 'modality') !== 'professional'): ?>
+                                    <form method="POST" action="<?= app_url('admin/services/' . (int) $s['id'] . '/delete') ?>"
+                                          data-confirm="Delete &quot;<?= h($s['name']) ?>&quot;? If it already has bookings or is part of a combo package it will be hidden instead of deleted.">
+                                        <?= \App\Helpers\Csrf::field() ?>
+                                        <button type="submit" class="btn-delete-service whitespace-nowrap py-1.5 px-3 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 text-[11px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                                                aria-label="Delete <?= h($s['name']) ?>">
+                                            Delete
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>
@@ -141,7 +161,7 @@
         <div class="flex items-center justify-between p-5 pb-4 border-b border-slate-100 sticky top-0 bg-white z-10">
             <div>
                 <h3 class="text-base font-extrabold text-slate-900 font-heading" id="modal-service-title">Edit Modality</h3>
-                <p class="text-[11px] text-slate-500">Modify price, capacity, image, and status</p>
+                <p class="text-[11px] text-slate-500" id="modal-service-subtitle">Modify name, category, price, capacity, image, and status</p>
             </div>
             <button type="button" data-action="closeEditModal" aria-label="Close" class="text-slate-500 hover:text-slate-600 p-1 rounded-lg">
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -153,8 +173,32 @@
         <form id="edit-service-form" method="POST" action="" enctype="multipart/form-data" class="p-5 space-y-3.5">
             <?= \App\Helpers\Csrf::field() ?>
 
-            <!-- Current Image Preview -->
             <div>
+                <label for="edit_name" class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">Name</label>
+                <input type="text" id="edit_name" name="name" required minlength="2" maxlength="100"
+                       class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div id="edit-category-group">
+                    <label for="edit_category" class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">Category</label>
+                    <select id="edit_category" name="category_id" required
+                            class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500">
+                        <option value="">Choose a category</option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= (int) $cat['id'] ?>"><?= h($cat['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="edit_duration" class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">Session length (min)</label>
+                    <input type="number" id="edit_duration" name="duration_minutes" min="5" max="360" step="1" required
+                           class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500">
+                </div>
+            </div>
+
+            <!-- Current Image Preview -->
+            <div id="edit-current-image-group">
                 <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-2">Current Image</label>
                 <div class="relative rounded-xl overflow-hidden bg-slate-100 h-36" id="current-image-container">
                     <img 
@@ -188,7 +232,7 @@
             </div>
 
             <!-- Remove Current Image -->
-            <div class="flex items-center gap-2">
+            <div id="edit-remove-image-group" class="flex items-center gap-2">
                 <input type="checkbox" id="edit_remove_image" name="remove_image" value="1" class="w-4 h-4 rounded border-slate-300 text-rose-600 cursor-pointer">
                 <label for="edit_remove_image" class="text-[11px] font-medium text-rose-600 cursor-pointer">Remove current image (reset to default)</label>
             </div>
@@ -252,7 +296,7 @@
                 >
                     Cancel
                 </button>
-                <button 
+                <button id="edit-service-submit" 
                     type="submit" 
                     class="px-4 py-2 rounded-xl bg-[#053d63] hover:bg-[#075183] text-white font-heading font-bold text-xs uppercase tracking-wider shadow-sm transition-all cursor-pointer"
                 >
@@ -359,13 +403,29 @@ function filterServices() {
     if (none) { none.classList.toggle('hidden', visible > 0); }
 }
 
-function openEditModal(id, name, price, capacity, description, status, imageSrc) {
+// extra: { categoryId, practitioner (bool), duration }
+function openEditModal(id, name, price, capacity, description, status, imageSrc, extra) {
+    extra = extra || {};
     document.getElementById('modal-service-title').textContent = 'Edit ' + name;
+    document.getElementById('modal-service-subtitle').textContent = 'Modify name, category, price, capacity, image, and status';
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit-service-submit').textContent = 'Save Changes';
     document.getElementById('edit_price').value = price;
     document.getElementById('edit_capacity').value = capacity;
+    document.getElementById('edit_duration').value = extra.duration || '';
     document.getElementById('edit_description').value = description;
     document.getElementById('edit_status').value = status;
     document.getElementById('edit-service-form').action = '<?= app_url('admin/services') ?>/' + id + '/update';
+
+    // Practitioner services (physio, psychology) are not grouped into categories.
+    var catGroup = document.getElementById('edit-category-group');
+    var catSelect = document.getElementById('edit_category');
+    catGroup.classList.toggle('hidden', !!extra.practitioner);
+    catSelect.required = !extra.practitioner;
+    catSelect.disabled = !!extra.practitioner;
+    catSelect.value = extra.categoryId && extra.categoryId !== '0' ? extra.categoryId : '';
+    document.getElementById('edit-current-image-group').classList.remove('hidden');
+    document.getElementById('edit-remove-image-group').classList.remove('hidden');
 
     // Image preview setup
     var imgEl = document.getElementById('modal-current-image');
@@ -386,6 +446,38 @@ function openEditModal(id, name, price, capacity, description, status, imageSrc)
     document.getElementById('new-image-preview').src = '';
 
     document.getElementById('edit-service-modal').classList.remove('hidden');
+}
+
+// Add a new modality: the same form, empty, posting to the create route.
+function openCreateModal() {
+    document.getElementById('modal-service-title').textContent = 'Add Modality';
+    document.getElementById('modal-service-subtitle').textContent = 'Set the name, category, price, capacity and session length. Extra session lengths can be added afterwards.';
+    document.getElementById('edit-service-form').action = '<?= app_url('admin/services') ?>';
+    document.getElementById('edit_name').value = '';
+    document.getElementById('edit-service-submit').textContent = 'Add modality';
+    document.getElementById('edit_price').value = '';
+    document.getElementById('edit_capacity').value = '1';
+    document.getElementById('edit_duration').value = '15';
+    document.getElementById('edit_description').value = '';
+    document.getElementById('edit_status').value = 'active';
+
+    var catGroup = document.getElementById('edit-category-group');
+    var catSelect = document.getElementById('edit_category');
+    catGroup.classList.remove('hidden');
+    catSelect.disabled = false;
+    catSelect.required = true;
+    catSelect.value = '';
+
+    // nothing to show or remove yet
+    document.getElementById('edit-current-image-group').classList.add('hidden');
+    document.getElementById('edit-remove-image-group').classList.add('hidden');
+    document.getElementById('edit_image').value = '';
+    document.getElementById('edit_remove_image').checked = false;
+    document.getElementById('new-image-preview-container').classList.add('hidden');
+    document.getElementById('new-image-preview').src = '';
+
+    document.getElementById('edit-service-modal').classList.remove('hidden');
+    document.getElementById('edit_name').focus();
 }
 
 function closeEditModal() {
@@ -480,9 +572,18 @@ document.addEventListener('DOMContentLoaded', function() {
             var description = this.getAttribute('data-description');
             var status = this.getAttribute('data-status');
             var image = this.getAttribute('data-image') || '';
-            openEditModal(id, name, price, capacity, description, status, image);
+            openEditModal(id, name, price, capacity, description, status, image, {
+                categoryId: this.getAttribute('data-category-id') || '',
+                practitioner: this.getAttribute('data-practitioner') === '1',
+                duration: this.getAttribute('data-duration') || ''
+            });
         });
     });
+
+    var addBtn = document.getElementById('btn-add-service');
+    if (addBtn) {
+        addBtn.addEventListener('click', openCreateModal);
+    }
 
     document.querySelectorAll('.btn-durations-service').forEach(function(btn) {
         btn.addEventListener('click', function() {

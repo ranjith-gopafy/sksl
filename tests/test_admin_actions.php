@@ -509,7 +509,7 @@ $lastId = (int) $q('SELECT id FROM hero_banners')[0]['id'];
 $r = $a->post($bpath, ['action' => 'delete', 'id' => $lastId], '/admin/banner');
 check('F18 the last remaining slide cannot be deleted', $bn() === 1 && str_contains($r['flash'], 'Cannot delete'), $r['flash']);
 // ---------------------------------------------------------------- E. pages that only read
-foreach (['/admin/dashboard', '/admin', '/admin/bookings', '/admin/services', '/admin/availability', '/admin/manual-blocks', '/admin/packages', '/admin/package-purchases', '/admin/closed-dates', '/admin/banner'] as $p) {
+foreach (['/admin/dashboard', '/admin', '/admin/bookings', '/admin/services', '/admin/categories', '/admin/availability', '/admin/manual-blocks', '/admin/packages', '/admin/package-purchases', '/admin/closed-dates', '/admin/banner'] as $p) {
     $x = $a->req('GET', $base . $p);
     check("E1 $p loads for an admin", $x['code'] === 200 && !preg_match('/Warning:|Fatal error|Stack trace/', $x['body']), (string) $x['code']);
 }

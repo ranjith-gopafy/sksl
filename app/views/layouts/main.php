@@ -149,19 +149,10 @@ $seoSiteName     = (string) (config('business.trade_name') ?: 'Sara Kinetic Spor
 
                 <!-- Desktop Navigation Links -->
                 <nav aria-label="Primary" class="hidden lg:flex items-center gap-4 xl:gap-8 text-sm font-semibold text-slate-600 whitespace-nowrap">
-                    <a href="<?= app_url('') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/' ? ' aria-current="page"' : '' ?>>Home</a>
                     <a href="<?= app_url('services') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/services' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/services' ? ' aria-current="page"' : '' ?>>Modalities</a>
                     <a href="<?= app_url('packages') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/packages' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/packages' ? ' aria-current="page"' : '' ?>>Combo Packages</a>
                     <a href="<?= app_url('consultations') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/consultations' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/consultations' ? ' aria-current="page"' : '' ?>>Physio &amp; Psychology</a>
                     <a href="<?= app_url('contact') ?>" class="hover:text-[#075183] transition-colors <?= $seoPath === '/contact' ? 'text-[#075183] font-bold' : '' ?>"<?= $seoPath === '/contact' ? ' aria-current="page"' : '' ?>>Contact</a>
-                    <?php if (!empty($_SESSION['admin_id'])): ?>
-                        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-                            <a href="<?= app_url('admin/dashboard') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Bookings</a>
-                            <a href="<?= app_url('admin/services') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Modalities</a>
-                            <a href="<?= app_url('admin/packages') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Packages</a>
-                            <a href="<?= app_url('admin/banner') ?>" class="px-2.5 py-1 rounded-lg hover:bg-white text-slate-700 hover:text-[#075183] font-semibold transition">Banners</a>
-                        </div>
-                    <?php endif; ?>
                 </nav>
 
                 <!-- Desktop Auth & Booking Buttons -->

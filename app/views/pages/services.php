@@ -15,18 +15,12 @@
         <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-bold bg-[#075183] text-white shadow-xs whitespace-nowrap transition-all" data-category="all">
             All Modalities (<?= count($services) ?>)
         </button>
-        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="hydro">
-            Hydrotherapy
+        <?php $categorySlugById = array_column($categories, 'slug', 'id'); ?>
+        <?php foreach ($categories as $filterCat): ?>
+        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="<?= h($filterCat['slug']) ?>">
+            <?= h($filterCat['name']) ?>
         </button>
-        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="thermal">
-            Thermal &amp; Sauna
-        </button>
-        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="cryo">
-            Cold &amp; Cryo Immersion
-        </button>
-        <button type="button" class="service-cat-filter px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="massages">
-            Massages
-        </button>
+        <?php endforeach; ?>
     </div>
 
     <!-- Services Grid -->
@@ -34,22 +28,11 @@
         <?php foreach ($services as $service): 
             $imgSrc = service_image($service['image'] ?? null); // allow-listed + escaped
 
-            $nameLower = strtolower($service['name']);
-            $slugLower = strtolower($service['slug']);
-
-            if (str_contains($nameLower, 'ice') || str_contains($slugLower, 'ice-bath')) {
-                $cat = 'cryo';
-            } elseif (str_contains($nameLower, 'sauna') || str_contains($nameLower, 'steam')) {
-                $cat = 'thermal';
-            } elseif (str_contains($nameLower, 'massage') || str_contains($slugLower, 'massage') || str_contains($slugLower, 'spa')) {
-                $cat = 'massages';
-            } else {
-                // Endless Pool, Aqua Walker, Aqua Treadmill, Aqua Cycle, Lap Pool
-                $cat = 'hydro';
-            }
+            // The filter key is the modality's category (managed in Admin > Categories)
+            $cat = $categorySlugById[(int) ($service['category_id'] ?? 0)] ?? '';
             $basePrice = (float) $service['price'];
             $grossPrice = $basePrice; // catalogue price is GST-inclusive
-            $isMassages = ($cat === 'massages');
+            $isMassages = (($service['duration_mode'] ?? 'single') === 'multiple'); // several lengths/prices: show "From"
         ?>
             <div 
                 class="service-item-card bg-white border border-[#D9DBDA] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs hover:shadow-xl hover:border-[#4A9CC0] transition-all duration-300 group"

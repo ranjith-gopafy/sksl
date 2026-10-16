@@ -205,18 +205,12 @@ if (empty($bannerSlides)) {
             <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-bold bg-[#075183] text-white shadow-xs whitespace-nowrap transition-all" data-category="all">
                 All Protocols (<?= count($services) ?>)
             </button>
-            <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="cryo">
-                Cold &amp; Cryo Immersion
+            <?php $categorySlugById = array_column($categories, 'slug', 'id'); ?>
+            <?php foreach ($categories as $filterCat): ?>
+            <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="<?= h($filterCat['slug']) ?>">
+                <?= h($filterCat['name']) ?>
             </button>
-            <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="thermal">
-                Thermal &amp; Sauna
-            </button>
-            <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="aquatic">
-                Aquatic Conditioning
-            </button>
-            <button type="button" class="category-filter-btn px-4 py-2 rounded-full text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap transition-all" data-category="hydro">
-                Hydrotherapy
-            </button>
+            <?php endforeach; ?>
         </div>
 
         <!-- Services Grid -->
@@ -224,16 +218,8 @@ if (empty($bannerSlides)) {
             <?php foreach ($services as $srv): 
                 $imgSrc = service_image($srv['image'] ?? null); // allow-listed + escaped
                 
-                // Categorize for quick app filtering
-                $nameLower = strtolower($srv['name']);
-                $cat = 'hydro';
-                if (str_contains($nameLower, 'ice') || str_contains($nameLower, 'cryo') || str_contains($nameLower, 'cold')) {
-                    $cat = 'cryo';
-                } elseif (str_contains($nameLower, 'sauna') || str_contains($nameLower, 'steam') || str_contains($nameLower, 'hot')) {
-                    $cat = 'thermal';
-                } elseif (str_contains($nameLower, 'treadmill') || str_contains($nameLower, 'pool') || str_contains($nameLower, 'cycle') || str_contains($nameLower, 'walker')) {
-                    $cat = 'aquatic';
-                }
+                // The filter key is the modality's category (managed in Admin > Categories)
+                $cat = $categorySlugById[(int) ($srv['category_id'] ?? 0)] ?? '';
                 $basePrice = (float) $srv['price'];
             ?>
                 <div 

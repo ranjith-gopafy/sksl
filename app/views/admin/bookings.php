@@ -529,12 +529,54 @@ function toggleActionMenu(event, el) {
     closeAllActionMenus();
     if (isHidden) {
         targetDropdown.classList.remove('hidden');
+        const btn = (el && el.getBoundingClientRect) ? el : document.querySelector('[data-action="toggleActionMenu"][data-id="' + id + '"]');
+        openActionMenu = { menu: targetDropdown, btn: btn };
+        placeActionMenu(targetDropdown, btn);
     }
 }
 
+// The table sits in a box that scrolls and clips, so the menu is positioned on the screen (fixed) next to
+// its button instead of inside the box. It opens downwards, or upwards when there is not enough room below.
+function placeActionMenu(menu, btn) {
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    const gap = 6, pad = 8;
+    const below = window.innerHeight - r.bottom - gap - pad;
+    const above = r.top - gap - pad;
+    menu.style.position = 'fixed';
+    menu.style.margin = '0';
+    menu.style.right = 'auto';
+    menu.style.zIndex = '50';
+    menu.style.overflowY = 'auto';
+    menu.style.maxHeight = Math.max(160, below, above) + 'px'; // very short windows: the menu scrolls inside itself
+    const w = menu.offsetWidth, h = menu.offsetHeight;
+    const left = Math.min(Math.max(pad, r.right - w), Math.max(pad, window.innerWidth - w - pad));
+    const top = (h <= below || below >= above) ? r.bottom + gap : Math.max(pad, r.top - gap - h);
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+}
+
+let openActionMenu = null; // { menu, btn } of the menu that is open now
+
 function closeAllActionMenus() {
+    openActionMenu = null;
     document.querySelectorAll('.action-dropdown').forEach(el => el.classList.add('hidden'));
 }
+
+// A fixed menu must stay with its button: when the page scrolls or the window changes size (a phone's address
+// bar collapsing counts) the menu is placed again, and it only closes once its button has left the screen.
+function followOpenActionMenu(e) {
+    if (!openActionMenu) return;
+    if (e && e.type === 'scroll' && e.target instanceof Element && e.target.closest('.action-dropdown')) return; // scrolling inside the menu
+    const r = openActionMenu.btn.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth) {
+        closeAllActionMenus();
+        return;
+    }
+    placeActionMenu(openActionMenu.menu, openActionMenu.btn);
+}
+window.addEventListener('scroll', followOpenActionMenu, true);
+window.addEventListener('resize', followOpenActionMenu);
 
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.action-dropdown') && !e.target.closest('.action-menu-btn')) {

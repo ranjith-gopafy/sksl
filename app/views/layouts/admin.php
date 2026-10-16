@@ -25,6 +25,7 @@ $adminMenu = [
     ],
     'Catalogue' => [
         ['Modalities',       'admin/services',          'sparkles', ['/admin/services']],
+        ['Categories',       'admin/categories',        'tag',      ['/admin/categories']],
         ['Combo Packages',   'admin/packages',          'cube',     ['/admin/packages']],
     ],
     'Availability' => [
@@ -43,6 +44,7 @@ $adminIcons = [
     'receipt'  => 'M9 14l6-6M9.5 8.5h.01M14.5 13.5h.01M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16l-3-2-2 2-2-2-2 2-2-2-3 2z',
     'sparkles' => 'M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3z',
     'cube'     => 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+    'tag'      => 'M7 7h.01M7 3h5a2 2 0 011.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z',
     'clock'    => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
     'ban'      => 'M18.364 5.636a9 9 0 11-12.728 0 9 9 0 0112.728 0zM5.636 5.636l12.728 12.728',
     'moon'     => 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z',

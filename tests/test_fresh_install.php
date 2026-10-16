@@ -84,12 +84,15 @@ try {
         'combo packages and contents' => "SELECT p.slug, p.price, p.total_price,
               (SELECT GROUP_CONCAT(CONCAT(s.slug,':',pi.quantity,':',pi.duration_minutes) ORDER BY s.slug) FROM package_items pi JOIN services s ON s.id = pi.service_id WHERE pi.package_id = p.id) AS items
               FROM packages p WHERE p.status = 'active' ORDER BY p.slug",
+        'modality categories' => "SELECT s.slug, c.name AS category, c.sort_order FROM services s LEFT JOIN service_categories c ON c.id = s.category_id WHERE s.status = 'active' ORDER BY s.slug",
         'practitioner schedules' => "SELECT s.slug, r.weekday, r.start_time, r.end_time FROM availability_rules r JOIN services s ON s.id = r.service_id ORDER BY s.slug, r.weekday",
     ];
     foreach ($queries as $label => $sql) {
         $a = $live->query($sql)->fetchAll(PDO::FETCH_ASSOC);
         $b = $fresh->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-        check($a === $b && count($a) > 0, "3 {$label} on a fresh install are identical to the live database (" . count($a) . ' rows)');
+        $firstDiff = '';
+        foreach ($a as $i => $row) { if ($row !== ($b[$i] ?? null)) { $firstDiff = ' - first difference: live ' . json_encode($row) . ' vs fresh ' . json_encode($b[$i] ?? null); break; } }
+        check($a === $b && count($a) > 0, "3 {$label} on a fresh install are identical to the live database (" . count($a) . ' rows)' . $firstDiff);
     }
     check((int) $fresh->query('SELECT COUNT(*) FROM admins')->fetchColumn() === 1, '4 exactly one admin is seeded on a fresh install');
 } finally {

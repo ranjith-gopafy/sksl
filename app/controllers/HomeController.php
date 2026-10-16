@@ -21,6 +21,8 @@ class HomeController
     public function index(): void
     {
         $services = $this->serviceModel->getAllActive();
+        // Filter buttons: the categories that currently have an active modality (Admin > Categories)
+        $categories = (new \App\Models\ServiceCategoryModel())->getWithActiveModalities();
 
         // Attach precomputed pricing
         foreach ($services as &$service) {

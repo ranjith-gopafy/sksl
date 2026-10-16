@@ -147,10 +147,17 @@ $router->post('/admin/bookings/{id}/visit', [\App\Controllers\AdminBookingContro
 $router->post('/admin/bookings/{id}/no-show', [\App\Controllers\AdminBookingController::class, 'markNoShow']);
 
 $router->get('/admin/services', [\App\Controllers\AdminServiceController::class, 'index']);
+$router->post('/admin/services', [\App\Controllers\AdminServiceController::class, 'create']);
+$router->post('/admin/services/{id}/delete', [\App\Controllers\AdminServiceController::class, 'delete']);
 $router->post('/admin/services/{id}/toggle', [\App\Controllers\AdminServiceController::class, 'toggle']);
 $router->post('/admin/services/{id}/update', [\App\Controllers\AdminServiceController::class, 'update']);
 $router->post('/admin/services/{id}/duration-options', [\App\Controllers\AdminServiceController::class, 'addDurationOption']);
 $router->post('/admin/services/duration-options/{id}/delete', [\App\Controllers\AdminServiceController::class, 'deleteDurationOption']);
+
+$router->get('/admin/categories', [\App\Controllers\AdminCategoryController::class, 'index']);
+$router->post('/admin/categories', [\App\Controllers\AdminCategoryController::class, 'create']);
+$router->post('/admin/categories/{id}/update', [\App\Controllers\AdminCategoryController::class, 'update']);
+$router->post('/admin/categories/{id}/delete', [\App\Controllers\AdminCategoryController::class, 'delete']);
 
 $router->get('/admin/availability', [\App\Controllers\AdminAvailabilityController::class, 'index']);
 $router->post('/admin/availability', [\App\Controllers\AdminAvailabilityController::class, 'create']);

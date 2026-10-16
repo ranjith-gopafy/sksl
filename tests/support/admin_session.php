@@ -8,6 +8,8 @@
  *   php tests/support/admin_session.php reset-limits      -> clears the admin sign-in throttle counters
  *   php tests/support/admin_session.php remove-package <name>        -> deletes a combo package a browser test created
  *   php tests/support/admin_session.php remove-closed-date <date>    -> deletes a closed date a browser test created
+ *   php tests/support/admin_session.php remove-modality <name>       -> deletes a modality a browser test created (name starts with "E2E ")
+ *   php tests/support/admin_session.php remove-category <name>       -> deletes a category a browser test created (name starts with "E2E ")
  *
  * Command line only, and refuses to run when APP_ENV is production.
  */
@@ -55,6 +57,24 @@ switch ($command) {
         $s = $db->prepare('SELECT service_id, quantity FROM package_items WHERE package_id = (SELECT id FROM packages WHERE name = ?) ORDER BY id');
         $s->execute([(string) ($argv[2] ?? '')]);
         echo json_encode($s->fetchAll(PDO::FETCH_ASSOC));
+        break;
+
+    case 'remove-modality':
+        // a modality a browser test added (name starts with "E2E "), with whatever hangs off it
+        $name = (string) ($argv[2] ?? '');
+        if (str_starts_with($name, 'E2E ')) {
+            $db->prepare('DELETE FROM bookings WHERE service_id IN (SELECT id FROM services WHERE name = ?)')->execute([$name]);
+            $db->prepare('DELETE FROM services WHERE name = ?')->execute([$name]);
+        }
+        echo 'ok';
+        break;
+
+    case 'remove-category':
+        $name = (string) ($argv[2] ?? '');
+        if (str_starts_with($name, 'E2E ')) {
+            $db->prepare('DELETE FROM service_categories WHERE name = ?')->execute([$name]);
+        }
+        echo 'ok';
         break;
 
     case 'remove-closed-date':
