@@ -1,7 +1,7 @@
 -- ============================================================
 -- SKSL — Database Export (GENERATED — do not edit by hand)
 -- Sara Kinetic Sports Lab — Online Booking Platform
--- Generated: 2026-10-15 16:38 by database/build-export.php
+-- Generated: 2026-10-16 10:01 by database/build-export.php
 --
 -- Contains every file in database/migrations/ and database/seeds/, in order,
 -- plus the `migrations` ledger so `php database/migrate.php` knows they ran.
@@ -1030,12 +1030,9 @@ ALTER TABLE `manual_blocks`
         ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- 3 + 4. row-level checks
-ALTER TABLE `payments`
-    ADD CONSTRAINT `chk_payments_one_parent` CHECK (
-        (`payment_source` = 'booking' AND `booking_id` IS NOT NULL AND `customer_package_id` IS NULL)
-        OR (`payment_source` = 'package' AND `customer_package_id` IS NOT NULL AND `booking_id` IS NULL)
-    );
-
+-- (A "payment has exactly one parent" CHECK on payments is deliberately not added: MariaDB, which Hostinger
+--  runs, refuses a CHECK on columns that carry an ON UPDATE CASCADE foreign key. PaymentService always
+--  writes exactly one parent.)
 ALTER TABLE `bookings`
     ADD CONSTRAINT `chk_bookings_times` CHECK (`end_time` > `start_time`);
 

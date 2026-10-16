@@ -85,12 +85,17 @@ $applied = array_flip($applied);
 
 /**
  * MySQL/MariaDB error codes that mean "this DDL was already applied".
- * 1050 table exists, 1060 duplicate column, 1061 duplicate key, 1091 can't drop (missing).
+ * 1050 table exists, 1060 duplicate column, 1061 duplicate key, 1091 can't drop (missing),
+ * 1826 / 3822 duplicate foreign key / check name, and MariaDB's 1005 "errno: 121" for a duplicate foreign key.
+ * These let a migration that stopped half-way be run again.
  */
 function isAlreadyAppliedError(PDOException $e): bool
 {
     $code = (int) ($e->errorInfo[1] ?? 0);
-    return in_array($code, [1050, 1060, 1061, 1091], true);
+    if (in_array($code, [1050, 1060, 1061, 1091, 1826, 3822], true)) {
+        return true;
+    }
+    return $code === 1005 && str_contains($e->getMessage(), 'errno: 121');
 }
 
 $migrationDir = __DIR__ . '/migrations/';

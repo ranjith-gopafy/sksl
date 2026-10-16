@@ -36,12 +36,9 @@ ALTER TABLE `manual_blocks`
         ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- 3 + 4. row-level checks
-ALTER TABLE `payments`
-    ADD CONSTRAINT `chk_payments_one_parent` CHECK (
-        (`payment_source` = 'booking' AND `booking_id` IS NOT NULL AND `customer_package_id` IS NULL)
-        OR (`payment_source` = 'package' AND `customer_package_id` IS NOT NULL AND `booking_id` IS NULL)
-    );
-
+-- (A "payment has exactly one parent" CHECK on payments is deliberately not added: MariaDB, which Hostinger
+--  runs, refuses a CHECK on columns that carry an ON UPDATE CASCADE foreign key. PaymentService always
+--  writes exactly one parent.)
 ALTER TABLE `bookings`
     ADD CONSTRAINT `chk_bookings_times` CHECK (`end_time` > `start_time`);
 
